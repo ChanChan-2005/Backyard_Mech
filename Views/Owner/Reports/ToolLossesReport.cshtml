@@ -1,0 +1,40 @@
+@model ToolLossesReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Tool & Equipment Losses Report";
+    ViewData["PageTitle"] = "Tool & Equipment Losses Report";
+    ViewData["PageSubtitle"] = "Damaged, lost, and unaccounted garage asset tracking";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Tool Type: All</option></select><select><option>Employee: All</option></select><select><option>Status: All</option></select></div>
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong><p>@metric.Detail</p></article>
+        }
+    </div>
+    <section class="reports-panel">
+        <table class="reports-table">
+            <thead><tr><th>Tool ID</th><th>Tool Name</th><th>Type</th><th>Last Assigned To</th><th>Checkout Date</th><th>Status</th><th>Replacement Cost</th><th>Notes</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td><a class="reports-link" href="/Owner/ToolProfile/@row.ToolId">@row.ToolCode</a></td><td><strong>@row.ToolName</strong></td><td>@row.Type</td><td>@row.LastAssignedTo</td><td>@row.CheckoutDate</td><td><span class="reports-pill @row.StatusTone">@row.Status</span></td><td><strong>@row.ReplacementCost</strong></td><td>@row.Notes</td></tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8">No tools found.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count tools</span></footer>
+    </section>
+</section>

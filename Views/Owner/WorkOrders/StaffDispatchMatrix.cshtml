@@ -1,0 +1,87 @@
+@model WorkOrderStaffDispatchViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Staff Dispatch Matrix";
+    ViewData["PageTitle"] = "Staff Dispatch Matrix";
+    ViewData["PageSubtitle"] = "WORK ORDERS > MECHANIC ASSIGNMENT";
+    ViewData["ActiveNav"] = "Work Order and Assignment";
+    ViewData["ShellClass"] = "work-orders-shell";
+}
+
+@section TopbarActions {
+    <a class="wo-button" asp-controller="Owner" asp-action="BayDispatchMatrix" asp-route-id="@Model.WorkOrder.Id">Cancel</a>
+    <button class="wo-button-blue" type="submit" form="staff-dispatch-form">Confirm Dispatch</button>
+}
+
+<section class="wo-page">
+    <form id="staff-dispatch-form" class="wo-panel" asp-controller="Owner" asp-action="DispatchWorkOrderStaff" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="WorkOrderId" value="@Model.WorkOrder.WorkOrderId" />
+        <header class="wo-panel-header">
+            <div>
+                <h2>Dispatch Mechanics to @Model.WorkOrder.Id</h2>
+                <p>Assign leads and helpers. Active utilization checks prevent double-booking.</p>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Warning))
+        {
+            <div class="wo-warning-strip">@Model.Warning</div>
+        }
+
+        <table class="wo-table wo-matrix-table">
+            <thead>
+                <tr>
+                    <th>Mechanic</th>
+                    <th>Specialization</th>
+                    <th>Active Jobs</th>
+                    <th>Availability</th>
+                    <th>Certifications</th>
+                    <th>Assign Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var mechanic in Model.Mechanics)
+                {
+                    <tr class="wo-dispatch-row @(mechanic.IsLead || mechanic.IsHelper ? "selected" : "")">
+                        <td><strong>@mechanic.Mechanic</strong></td>
+                        <td>@mechanic.Specialization</td>
+                        <td>@mechanic.ActiveJobs</td>
+                        <td><span class="wo-pill @mechanic.AvailabilityTone">@mechanic.Availability</span></td>
+                        <td>@mechanic.Certifications</td>
+                        <td>
+                            <div class="wo-role-actions">
+                                <label class="wo-small-choice @(mechanic.IsLead ? "active" : "")">
+                                    <input type="radio" name="LeadEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsLead" />
+                                    <span>Lead</span>
+                                </label>
+                                <label class="wo-small-choice @(mechanic.IsHelper ? "active" : "")">
+                                    <input type="radio" name="HelperEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsHelper" />
+                                    <span>Helper</span>
+                                </label>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll(".wo-small-choice input").forEach((input) => {
+            input.addEventListener("change", () => {
+                const groupName = input.name;
+                document.querySelectorAll(`input[name="${groupName}"]`).forEach((peer) => {
+                    peer.closest(".wo-small-choice")?.classList.remove("active");
+                });
+                input.closest(".wo-small-choice")?.classList.add("active");
+                document.querySelectorAll(".wo-dispatch-row").forEach((row) => row.classList.remove("selected"));
+                document.querySelectorAll(".wo-small-choice input:checked").forEach((checked) => {
+                    checked.closest(".wo-dispatch-row")?.classList.add("selected");
+                });
+            });
+        });
+    </script>
+}

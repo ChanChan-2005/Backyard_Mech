@@ -1,0 +1,78 @@
+@model ToolTrackingViewModel
+@{
+    var categoryOptions = Model?.ToolCategoryOptions ?? Array.Empty<ProductListingOption>();
+}
+
+<div class="tools-modal" data-tools-modal-panel="edit-tool" aria-hidden="true">
+    <div class="tools-modal-backdrop" data-tools-modal-close></div>
+    <section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-tool-title">
+        <form class="tools-form-panel" asp-controller="Owner" asp-action="EditTool" method="post">
+            @Html.AntiForgeryToken()
+            <input name="ToolId" type="hidden" data-edit-tool-field="id" />
+
+            <header class="tools-modal-header">
+                <div>
+                    <h2 id="edit-tool-title">Edit Tool</h2>
+                    <p>Update the selected tool details, condition, and maintenance dates.</p>
+                </div>
+                <button class="tools-modal-close" type="button" data-tools-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="tools-form-section">
+                <h2>Section 1: Tool Details</h2>
+                <div class="tools-form-grid">
+                    <label>
+                        <span class="tools-label">Tool Name *</span>
+                        <input class="tools-input" name="Name" type="text" data-edit-tool-field="name" required />
+                    </label>
+                    <label>
+                        <span class="tools-label">Serial Number *</span>
+                        <input class="tools-input" name="SerialNumber" type="text" data-edit-tool-field="serial" required />
+                    </label>
+                    <label>
+                        <span class="tools-label">Category</span>
+                        <select class="tools-select" name="ToolCategoryId" data-edit-tool-field="category">
+                            <option value="">Select category</option>
+                            @foreach (var category in categoryOptions)
+                            {
+                                <option value="@category.Id">@category.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span class="tools-label">Location</span>
+                        <input class="tools-input" name="Location" type="text" data-edit-tool-field="location" />
+                    </label>
+                    <label class="tools-wide-label">
+                        <span class="tools-label">Condition</span>
+                        <select class="tools-select" name="Condition" data-edit-tool-field="condition">
+                            <option>Excellent</option>
+                            <option>Good</option>
+                            <option>Fair</option>
+                            <option>Damaged</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="tools-form-section">
+                <h2>Section 2: Maintenance Dates</h2>
+                <div class="tools-form-grid">
+                    <label>
+                        <span class="tools-label">Last Calibration Date</span>
+                        <input class="tools-input" name="LastCalibratedUtc" type="date" data-edit-tool-field="lastCalibrated" />
+                    </label>
+                    <label>
+                        <span class="tools-label">Next Calibration Due</span>
+                        <input class="tools-input" name="NextCalibrationDueUtc" type="date" data-edit-tool-field="nextCalibration" />
+                    </label>
+                </div>
+            </section>
+
+            <footer class="tools-modal-actions">
+                <button class="tools-button" type="button" data-tools-modal-close>Cancel</button>
+                <button class="tools-button-blue" type="submit">Save Changes</button>
+            </footer>
+        </form>
+    </section>
+</div>

@@ -1,0 +1,20 @@
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "System Preferences";
+    ViewData["PageTitle"] = "Settings";
+    ViewData["PageSubtitle"] = "GARAGE & APP CONFIGURATION";
+    ViewData["ActiveNav"] = "Settings";
+    ViewData["ShellClass"] = "settings-shell";
+    ViewData["SettingsTab"] = "System";
+}
+
+@await Html.PartialAsync("_SettingsTabs")
+
+<section class="settings-page">
+    <article class="settings-card">
+        <section class="settings-section">
+            <h2>System Preferences</h2>
+            <p class="settings-muted">No system-preferences table exists in the current database schema yet, so this page is intentionally not showing saved sample values.</p>
+        </section>
+    </article>
+</section>

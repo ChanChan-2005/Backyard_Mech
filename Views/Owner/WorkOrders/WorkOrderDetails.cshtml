@@ -1,0 +1,149 @@
+@model WorkOrderDetailsViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = $"{Model.Id} Details";
+    ViewData["PageTitle"] = $"{Model.Id} - Details";
+    ViewData["PageSubtitle"] = "WORK ORDERS > MANAGE";
+    ViewData["ActiveNav"] = "Work Order and Assignment";
+    ViewData["ShellClass"] = "work-orders-shell";
+}
+
+@section TopbarActions {
+    <form asp-controller="Owner" asp-action="TransitionWorkOrderStatus" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
+        <input type="hidden" name="Transition" value="pause" />
+        <button class="wo-button" type="submit">Pause Job</button>
+    </form>
+    <form asp-controller="Owner" asp-action="TransitionWorkOrderStatus" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
+        <input type="hidden" name="Transition" value="qc" />
+        <button class="wo-button-green" type="submit">Send to QC</button>
+    </form>
+}
+
+<section class="wo-page">
+    <section class="wo-detail-hero">
+        <span class="avatar">@Model.Initials</span>
+        <div>
+            <h2>@Model.Customer - @Model.Vehicle</h2>
+            <p>Linked Estimate: <a class="wo-link" href="#">@Model.EstimateId</a> | Expected Completion: @Model.ScheduledEnd</p>
+        </div>
+        <div class="wo-panel-actions">
+            <span class="wo-pill @Model.StatusTone">@Model.Status</span>
+            <span class="wo-pill @Model.PriorityTone">@Model.Priority Priority</span>
+        </div>
+    </section>
+
+    <div class="wo-page-grid">
+        <main class="wo-main-column">
+            <section class="wo-panel">
+                <header class="wo-panel-header">
+                    <h2>Labor &amp; Tasks Logged</h2>
+                    <a class="wo-link" asp-controller="Owner" asp-action="WorkOrderLaborTracking" asp-route-id="@Model.Id">+ Add Labor</a>
+                </header>
+                <table class="wo-table">
+                    <thead>
+                        <tr>
+                            <th>Mechanic</th>
+                            <th>Task / Operations</th>
+                            <th>Hours</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.LaborRows.Any())
+                        {
+                            @foreach (var row in Model.LaborRows)
+                            {
+                                <tr>
+                                    <td><strong>@row.Mechanic</strong></td>
+                                    <td>@row.Task</td>
+                                    <td>@row.Hours</td>
+                                    <td><strong>@row.Cost</strong></td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4">No labor has been logged for this work order.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="wo-panel">
+                <header class="wo-panel-header">
+                    <h2>Parts Consumption</h2>
+                    <a class="wo-link" asp-controller="Owner" asp-action="PartsManagement">+ Requisition Part</a>
+                </header>
+                <table class="wo-table">
+                    <thead>
+                        <tr>
+                            <th>SKU / Part #</th>
+                            <th>Part Name</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.PartRows.Any())
+                        {
+                            @foreach (var row in Model.PartRows)
+                            {
+                                <tr>
+                                    <td><strong>@row.Sku</strong></td>
+                                    <td>@row.Name</td>
+                                    <td>@row.Quantity</td>
+                                    <td>@row.UnitPrice</td>
+                                    <td><strong>@row.TotalCost</strong></td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="5">No parts have been consumed for this work order.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        </main>
+
+        <aside class="wo-main-column">
+            <section class="wo-side-card">
+                <h2>Shop Allocation</h2>
+                <dl class="wo-detail-list">
+                    <div><dt>Primary Bay</dt><dd>@Model.Bay</dd></div>
+                    <div><dt>Primary Technician</dt><dd>@Model.Mechanic</dd></div>
+                    <div><dt>Secondary Helper</dt><dd>@(Model.Mechanic.Contains(",") ? Model.Mechanic.Split(',').Last().Trim() : "None assigned")</dd></div>
+                    <div><dt>Odometer Reading</dt><dd>@Model.Odometer</dd></div>
+                </dl>
+            </section>
+
+            <section class="wo-side-card">
+                <h2>Cost &amp; Parts Summary</h2>
+                <dl class="wo-detail-list">
+                    <div><dt>Labor Total</dt><dd>@Model.LaborTotal</dd></div>
+                    <div><dt>Parts Total</dt><dd>@Model.PartsTotal</dd></div>
+                    <div><dt>Shop Supplies Fee</dt><dd>@Model.ShopSuppliesFee</dd></div>
+                    <div class="wo-total-row"><dt>Total Est. Costs</dt><dd>@Model.EstimatedTotal</dd></div>
+                </dl>
+            </section>
+
+            <section class="wo-side-card">
+                <h2>Activity Log</h2>
+                <div class="wo-activity-list">
+                    @foreach (var item in Model.Activity.Take(5))
+                    {
+                        <article>
+                            <strong>@item.Time @item.Title</strong>
+                            <p>@item.Detail</p>
+                        </article>
+                    }
+                </div>
+            </section>
+        </aside>
+    </div>
+</section>

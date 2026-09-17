@@ -1,0 +1,66 @@
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Add New Tool Spec";
+    ViewData["PageTitle"] = "Add New Tool Spec";
+    ViewData["PageSubtitle"] = "TOOLS > SETUP";
+    ViewData["ActiveNav"] = "Tools Tracking";
+    ViewData["ShellClass"] = "tools-shell";
+    ViewData["SearchPlaceholder"] = "Search active templates...";
+}
+
+@section TopbarActions {
+    <a class="tools-button" href="/Owner/ToolTracking">Cancel</a>
+    <a class="tools-button-blue" href="/Owner/ToolProfile/au-diag-0192">Save Tool</a>
+}
+
+<section class="tools-page">
+    <form class="tools-form-panel">
+        <section class="tools-form-section">
+            <h2>Section 1: General Tool Profile</h2>
+            <div class="tools-form-grid">
+                <label>
+                    <span class="tools-label">Tool Name *</span>
+                    <input class="tools-input" placeholder="Enter tool name" />
+                </label>
+                <label>
+                    <span class="tools-label">Serial Number (Unique) *</span>
+                    <input class="tools-input" placeholder="Enter serial number" />
+                </label>
+                <label>
+                    <span class="tools-label">Category *</span>
+                    <input class="tools-input" placeholder="Enter category" />
+                </label>
+                <label>
+                    <span class="tools-label">Location / Storage Bin *</span>
+                    <input class="tools-input" placeholder="Enter location or storage bin" />
+                </label>
+                <label>
+                    <span class="tools-label">Initial Condition *</span>
+                    <input class="tools-input" placeholder="Enter initial condition" />
+                </label>
+                <label>
+                    <span class="tools-label">Calibration Schedule (Months)</span>
+                    <input class="tools-input" placeholder="Enter calibration schedule" />
+                </label>
+            </div>
+        </section>
+
+        <section class="tools-form-section">
+            <h2>Section 2: Maintenance Parameters</h2>
+            <div class="tools-form-grid">
+                <label>
+                    <span class="tools-label">Last Calibration Date</span>
+                    <input class="tools-input" type="date" placeholder="Select last calibration date" />
+                </label>
+                <label>
+                    <span class="tools-label">Calibration Due Date</span>
+                    <input class="tools-input" type="date" placeholder="Select calibration due date" />
+                </label>
+                <label class="tools-wide-label">
+                    <span class="tools-label">Internal Notes & Calibration Metrics</span>
+                    <input class="tools-input" placeholder="Log accessories, required PSI, and max torque ratings here..." />
+                </label>
+            </div>
+        </section>
+    </form>
+</section>

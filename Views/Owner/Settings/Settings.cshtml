@@ -1,0 +1,59 @@
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Settings";
+    ViewData["PageTitle"] = "Settings";
+    ViewData["PageSubtitle"] = "GARAGE & APP CONFIGURATION";
+    ViewData["ActiveNav"] = "Settings";
+    ViewData["ShellClass"] = "settings-shell";
+    ViewData["SettingsTab"] = "General";
+}
+
+@await Html.PartialAsync("_SettingsTabs")
+
+<section class="settings-page">
+    <form class="settings-card">
+        <section class="settings-section">
+            <h2>Section 1: Business Information</h2>
+            <div class="settings-form-grid">
+                <div class="settings-form-grid">
+                    <label class="settings-wide-label"><span class="settings-label">Garage Name *</span><input class="settings-input" value="BackyardMech" /></label>
+                    <label class="settings-wide-label"><span class="settings-label">Home Address *</span><input class="settings-input" value="1042 Sunset Blvd, Austin, TX" /></label>
+                    <label><span class="settings-label">Phone Number *</span><input class="settings-input" value="(512) 555-0100" /></label>
+                    <label><span class="settings-label">Email Address *</span><input class="settings-input" value="shop@backyardmech.com" /></label>
+                </div>
+                <label>
+                    <span class="settings-label">Business Logo</span>
+                    <span class="settings-upload">Upload Logo Image<small>PNG, JPG up to 5MB (Ideal: 300x100)</small></span>
+                </label>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <h2>Section 2: Operating Hours</h2>
+            <div class="settings-hours-row"><strong>Monday - Friday</strong><input class="settings-input" value="08:00 AM" /><span>to</span><input class="settings-input" value="06:00 PM" /></div>
+            <div class="settings-hours-row"><strong>Saturday</strong><input class="settings-input" value="09:00 AM" /><span>to</span><input class="settings-input" value="02:00 PM" /></div>
+            <div class="settings-hours-row"><strong>Sunday</strong><button class="settings-toggle" type="button"></button><span class="settings-muted">Closed all day</span></div>
+        </section>
+
+        <section class="settings-section">
+            <h2>Section 3: Notification Preferences</h2>
+            <div class="settings-toggle-row">
+                <div><strong>Email Appointment Reminders</strong><span class="settings-muted">Automatically email customers 24 hours prior to scheduled appointment.</span></div>
+                <button class="settings-toggle on" type="button"></button>
+            </div>
+            <div class="settings-toggle-row">
+                <div><strong>Low Stock Inventory Alerts</strong><span class="settings-muted">Daily summary email to shop manager when parts drop below safe stock level.</span></div>
+                <button class="settings-toggle on" type="button"></button>
+            </div>
+            <div class="settings-toggle-row">
+                <div><strong>Overdue Invoice Reminders</strong><span class="settings-muted">Automatically send gentle reminder emails on unpaid invoices past 15 days.</span></div>
+                <button class="settings-toggle" type="button"></button>
+            </div>
+        </section>
+
+        <div class="settings-actions">
+            <button class="settings-button" type="button">Cancel</button>
+            <button class="settings-button-dark" type="button">Save Changes</button>
+        </div>
+    </form>
+</section>

@@ -1,0 +1,64 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-bay-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("bay-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, select, button");
+            firstField?.focus();
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".bay-modal.is-open")) {
+                document.body.classList.remove("bay-modal-open");
+            }
+        };
+
+        const fillEditBayModal = (button) => {
+            const modal = document.querySelector('[data-bay-modal-panel="edit-bay"]');
+            if (!modal) return;
+
+            const bayId = button.dataset.bayId;
+            const bayName = button.dataset.bayName;
+            const bayDescription = button.dataset.bayDescription;
+            const bayStatus = button.dataset.bayStatus || 'Available';
+
+            modal.querySelector('#edit-bay-id').value = bayId || '0';
+            modal.querySelector('#edit-bay-number').value = bayId || '';
+            modal.querySelector('#edit-bay-name').value = bayName || '';
+            modal.querySelector('#edit-bay-description').value = bayDescription || '';
+            modal.querySelector('#edit-bay-status').value = bayStatus;
+        };
+
+        document.addEventListener("click", (event) => {
+            const openButton = event.target.closest("[data-bay-modal]");
+            if (openButton) {
+                if (openButton.dataset.bayModal === 'edit-bay') {
+                    fillEditBayModal(openButton);
+                }
+
+                openModal(openButton.dataset.bayModal);
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-bay-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".bay-modal"));
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            closeModal(document.querySelector(".bay-modal.is-open"));
+        });
+    })();
+</script>

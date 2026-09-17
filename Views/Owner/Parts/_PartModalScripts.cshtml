@@ -1,0 +1,89 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-parts-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("parts-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, select, button");
+            firstField?.focus();
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".parts-modal.is-open")) {
+                document.body.classList.remove("parts-modal-open");
+            }
+        };
+
+        const syncProductListingTarget = (select) => {
+            const modal = select.closest(".parts-modal");
+            const partField = modal?.querySelector('[data-product-listing-link="part"]');
+            const serviceField = modal?.querySelector('[data-product-listing-link="service"]');
+            const isPart = select.value === "Part";
+            const isService = select.value === "Service";
+
+            if (partField) partField.hidden = !isPart;
+            if (serviceField) serviceField.hidden = !isService;
+        };
+
+        const setEditPartField = (modal, field, value) => {
+            const input = modal?.querySelector(`[data-edit-part-field="${field}"]`);
+            if (input) input.value = value ?? "";
+        };
+
+        const populateEditPartModal = (button) => {
+            const modal = document.querySelector('[data-parts-modal-panel="edit-part"]');
+            if (!modal || !button) return;
+
+            setEditPartField(modal, "id", button.dataset.partId);
+            setEditPartField(modal, "sku", button.dataset.partSku);
+            setEditPartField(modal, "name", button.dataset.partName);
+            setEditPartField(modal, "description", button.dataset.partDescription);
+            setEditPartField(modal, "category", button.dataset.partCategory);
+            setEditPartField(modal, "supplier", button.dataset.partSupplier);
+            setEditPartField(modal, "cost", button.dataset.partCost);
+            setEditPartField(modal, "price", button.dataset.partPrice);
+            setEditPartField(modal, "quantity", button.dataset.partQuantity);
+            setEditPartField(modal, "threshold", button.dataset.partThreshold);
+        };
+
+        document.querySelectorAll("[data-product-listing-type]").forEach(syncProductListingTarget);
+
+        document.addEventListener("click", (event) => {
+            const openButton = event.target.closest("[data-parts-modal]");
+            if (openButton) {
+                if (openButton.dataset.partsModal === "edit-part") {
+                    populateEditPartModal(openButton);
+                }
+
+                openModal(openButton.dataset.partsModal);
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-parts-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".parts-modal"));
+            }
+        });
+
+        document.addEventListener("change", (event) => {
+            const listingType = event.target.closest("[data-product-listing-type]");
+            if (listingType) {
+                syncProductListingTarget(listingType);
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            closeModal(document.querySelector(".parts-modal.is-open"));
+        });
+    })();
+</script>

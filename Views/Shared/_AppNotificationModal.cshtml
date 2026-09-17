@@ -1,0 +1,82 @@
+@{
+    var notificationMessage =
+        TempData["OwnerMessage"]?.ToString() ??
+        TempData["SuccessMessage"]?.ToString() ??
+        TempData["ErrorMessage"]?.ToString() ??
+        TempData["Message"]?.ToString();
+
+    var notificationTone =
+        TempData["OwnerMessageTone"]?.ToString() ??
+        TempData["MessageTone"]?.ToString();
+
+    if (string.IsNullOrWhiteSpace(notificationTone) && TempData.ContainsKey("ErrorMessage"))
+    {
+        notificationTone = "error";
+    }
+
+    if (string.IsNullOrWhiteSpace(notificationTone) && !string.IsNullOrWhiteSpace(notificationMessage))
+    {
+        var loweredMessage = notificationMessage.ToLowerInvariant();
+        notificationTone = loweredMessage.Contains("not ") ||
+            loweredMessage.Contains("failed") ||
+            loweredMessage.Contains("error") ||
+            loweredMessage.Contains("invalid") ||
+            loweredMessage.Contains("please") ||
+            loweredMessage.Contains("missing") ||
+            loweredMessage.Contains("cannot") ||
+            loweredMessage.Contains("unable") ||
+            loweredMessage.Contains("must ")
+            ? "error"
+            : "success";
+    }
+
+    notificationTone = string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase)
+        ? "error"
+        : "success";
+
+    var notificationTitle =
+        TempData["MessageTitle"]?.ToString() ??
+        (string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase) ? "Action Needed" : "Success");
+}
+
+@if (!string.IsNullOrWhiteSpace(notificationMessage))
+{
+    <div class="app-notification-modal is-open @notificationTone" data-app-notification-modal aria-hidden="false">
+        <button class="app-notification-backdrop" type="button" data-app-notification-close aria-label="Close notification"></button>
+        <section class="app-notification-card" role="dialog" aria-modal="true" aria-labelledby="app-notification-title">
+            <span class="app-notification-icon" aria-hidden="true">@(string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase) ? "!" : "OK")</span>
+            <div>
+                <h2 id="app-notification-title">@notificationTitle</h2>
+                <p>@notificationMessage</p>
+            </div>
+            <button class="app-notification-close" type="button" data-app-notification-close aria-label="Close notification">x</button>
+            <footer>
+                <button type="button" data-app-notification-close>OK</button>
+            </footer>
+        </section>
+    </div>
+
+    <script>
+        (() => {
+            const modal = document.querySelector("[data-app-notification-modal]");
+            if (!modal) return;
+
+            const close = () => {
+                modal.classList.remove("is-open");
+                modal.setAttribute("aria-hidden", "true");
+            };
+
+            modal.querySelectorAll("[data-app-notification-close]").forEach(button => {
+                button.addEventListener("click", close);
+            });
+
+            document.addEventListener("keydown", event => {
+                if (event.key === "Escape") {
+                    close();
+                }
+            });
+
+            modal.querySelector("[data-app-notification-close]")?.focus();
+        })();
+    </script>
+}

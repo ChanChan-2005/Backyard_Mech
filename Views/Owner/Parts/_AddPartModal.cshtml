@@ -1,0 +1,92 @@
+@model PartsManagementViewModel
+@{
+    var categoryOptions = Model?.PartCategoryOptions ?? Array.Empty<ProductListingOption>();
+    var supplierOptions = Model?.SupplierOptions ?? Array.Empty<ProductListingOption>();
+}
+
+<div class="parts-modal" data-parts-modal-panel="add-part" aria-hidden="true">
+    <div class="parts-modal-backdrop" data-parts-modal-close></div>
+    <section class="parts-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-part-title">
+        <form class="parts-form-panel" asp-controller="Owner" asp-action="AddPart" method="post">
+            @Html.AntiForgeryToken()
+            <header class="parts-modal-header">
+                <div>
+                    <h2 id="add-part-title">Add Part</h2>
+                    <p>Add the basic part details, supplier, price, and stock level.</p>
+                </div>
+                <button class="parts-modal-close" type="button" data-parts-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="parts-form-section">
+                <h2>Section 1: Part Details</h2>
+                <div class="parts-form-grid">
+                    <label>
+                        <span class="parts-label">SKU / Part Number *</span>
+                        <input class="parts-input" name="SKU" type="text" placeholder="Example: BRK-30294" required />
+                    </label>
+                    <label>
+                        <span class="parts-label">Category</span>
+                        <select class="parts-select" name="PartCategoryId">
+                            <option value="">Select category</option>
+                            @foreach (var category in categoryOptions)
+                            {
+                                <option value="@category.Id">@category.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Part Name *</span>
+                        <input class="parts-input" name="Name" type="text" placeholder="Example: Front Brake Pads - Ceramic" required />
+                    </label>
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Description</span>
+                        <textarea class="parts-input parts-textarea" name="Description" placeholder="Example: Heavy duty ceramic brake pads for light trucks."></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <section class="parts-form-section">
+                <h2>Section 2: Price and Stock</h2>
+                <div class="parts-form-grid">
+                    <label>
+                        <span class="parts-label">Cost Price</span>
+                        <input class="parts-input" name="UnitCost" type="number" min="0" step="0.01" placeholder="35.00" />
+                    </label>
+                    <label>
+                        <span class="parts-label">Selling Price</span>
+                        <input class="parts-input" name="UnitPrice" type="number" min="0" step="0.01" placeholder="65.00" />
+                    </label>
+                    <label>
+                        <span class="parts-label">Quantity On Hand</span>
+                        <input class="parts-input" name="QuantityOnHand" type="number" min="0" placeholder="Enter quantity on hand" />
+                    </label>
+                    <label>
+                        <span class="parts-label">Reorder Threshold</span>
+                        <input class="parts-input" name="ReorderThreshold" type="number" min="0" placeholder="Enter reorder threshold" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="parts-form-section">
+                <h2>Section 3: Supplier</h2>
+                <div class="parts-form-grid">
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Preferred Supplier</span>
+                        <select class="parts-select" name="SupplierId">
+                            <option value="">No supplier selected</option>
+                            @foreach (var supplier in supplierOptions)
+                            {
+                                <option value="@supplier.Id">@supplier.Label</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <footer class="parts-modal-actions">
+                <button class="parts-button" type="button" data-parts-modal-close>Cancel</button>
+                <button class="parts-button-blue" type="submit">Save Part</button>
+            </footer>
+        </form>
+    </section>
+</div>

@@ -1,0 +1,40 @@
+@model LowStockPartsReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Low Stock Parts Report";
+    ViewData["PageTitle"] = "Low Stock Parts Report";
+    ViewData["PageSubtitle"] = "Urgent replenishment tracking and supply alert registers";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Category: All</option></select><select><option>Supplier: All</option></select><select><option>Urgency: All</option></select></div>
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong><p>@metric.Detail</p></article>
+        }
+    </div>
+    <section class="reports-panel">
+        <table class="reports-table">
+            <thead><tr><th>Part #</th><th>Part Name</th><th>Category</th><th>Current Stock</th><th>Reorder Level</th><th>Shortage Qty</th><th>Supplier</th><th>Last Ordered</th><th>Urgency Status</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td class="reports-money @(row.UrgencyTone == "red" ? "red" : "")">@row.CurrentStock</td><td>@row.ReorderLevel</td><td class="reports-money red">@row.ShortageQuantity</td><td>@row.Supplier</td><td>@row.LastOrdered</td><td><span class="reports-pill @row.UrgencyTone">@row.UrgencyStatus</span></td></tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="9">No low-stock parts found.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count low-stock parts</span></footer>
+    </section>
+</section>

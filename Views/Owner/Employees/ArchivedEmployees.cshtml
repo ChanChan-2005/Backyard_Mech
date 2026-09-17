@@ -1,0 +1,81 @@
+@model IReadOnlyList<EmployeeListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Archived Employees";
+    ViewData["PageTitle"] = "Archived Employees";
+    ViewData["PageSubtitle"] = "EMPLOYEES > ARCHIVE";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell";
+
+    var archived = Model ?? Array.Empty<EmployeeListItem>();
+}
+
+@section TopbarActions {
+    <a class="users-button" href="/Owner/Employees">Back to Employees</a>
+}
+
+<section class="users-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="users-alert">@message</div>
+    }
+
+    <div class="users-stats">
+        <article class="users-stat"><span>Archived Employees</span><strong>@archived.Count</strong></article>
+        <article class="users-stat"><header><span>Restorable</span><small class="users-pill green">Available</small></header><strong>@archived.Count</strong></article>
+        <article class="users-stat"><header><span>Hidden From Active</span><small class="users-pill yellow">Archived</small></header><strong>@archived.Count</strong></article>
+        <article class="users-stat"><header><span>Audit Records</span><small class="users-pill green">Preserved</small></header><strong>@archived.Count</strong></article>
+    </div>
+
+    <nav class="users-tabs">
+        <a href="/Owner/Employees">All</a>
+        <a href="/Owner/Employees">Active</a>
+        <a href="/Owner/Employees">Inactive</a>
+        <a href="/Owner/SoftDeletedEmployees">Soft Deleted</a>
+        <a class="active" href="/Owner/ArchivedEmployees">Archived (@archived.Count)</a>
+    </nav>
+
+    <div class="users-alert">Archived employees are hidden from active views but retain all historical work records. They can be restored at any time.</div>
+
+    <div class="users-filter-card">
+        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <div class="users-filter-right">
+            <button class="users-button" type="button">Role: All V</button>
+            <button class="users-button" type="button">Sort By: Name V</button>
+        </div>
+    </div>
+
+    <section class="users-panel">
+        <table class="users-table">
+            <thead><tr><th>Employee Name</th><th>Role</th><th>Date Archived</th><th>Archived By</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                @foreach (var employee in archived)
+                {
+                    <tr>
+                        <td><span class="users-avatar">@employee.Initials</span><strong>@employee.Name</strong></td>
+                        <td>@employee.Role</td>
+                        <td>@(employee.StateDate ?? "")</td>
+                        <td>System</td>
+                        <td>@(employee.Reason ?? "")</td>
+                        <td><span class="users-pill archived">Archived</span></td>
+                        <td class="users-table-actions">
+                            <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">View</a>
+                            <button class="users-small-button" type="button" data-users-modal="restore" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Restore</button>
+                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Soft Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <footer class="users-panel-footer">
+            <span>Showing @archived.Count archived employee@(archived.Count == 1 ? "" : "s")</span>
+            <nav class="users-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_EmployeeModals")
+
+@section Scripts {
+    <script src="~/js/owner-user-management.js" asp-append-version="true"></script>
+}

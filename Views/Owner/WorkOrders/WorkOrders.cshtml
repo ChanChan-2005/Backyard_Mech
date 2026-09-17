@@ -1,0 +1,209 @@
+@model IReadOnlyList<WorkOrderListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Work Orders";
+    ViewData["PageTitle"] = "Work Orders";
+    ViewData["PageSubtitle"] = "MAIN QUEUE";
+    ViewData["ActiveNav"] = "Work Order and Assignment";
+    ViewData["ShellClass"] = "work-orders-shell";
+
+    var workOrders = Model ?? Array.Empty<WorkOrderListItem>();
+
+    var statusFilters = workOrders.Select(order => order.Status).Distinct().OrderBy(status => status);
+    var mechanicFilters = workOrders.Select(order => order.Mechanic).Distinct().OrderBy(mechanic => mechanic);
+}
+
+@section TopbarActions {
+    <button class="wo-topbar-button" type="button" data-workorder-modal="create-work-order">+ Create Work Order</button>
+}
+
+<section class="wo-page">
+    <div class="wo-stats">
+        <article class="wo-stat-card">
+            <header><span>Total Work Orders</span></header>
+            <strong>@workOrders.Count Active</strong>
+            <p>From database</p>
+        </article>
+        <article class="wo-stat-card">
+            <header><span>In Progress</span><span class="wo-pill green">Live</span></header>
+            <strong>@workOrders.Count(order => string.Equals(order.Status, "In Progress", StringComparison.OrdinalIgnoreCase))</strong>
+            <p>Currently in bays</p>
+        </article>
+        <article class="wo-stat-card">
+            <header><span>Completed</span></header>
+            <strong>@workOrders.Count(order => string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase))</strong>
+            <p>Ready for delivery</p>
+        </article>
+        <article class="wo-stat-card">
+            <header><span>Pending QC</span><span class="wo-pill urgent">Urgent</span></header>
+            <strong>@workOrders.Count(order => string.Equals(order.Status, "Pending QC", StringComparison.OrdinalIgnoreCase))</strong>
+            <p>Requires inspection</p>
+        </article>
+    </div>
+
+    <div class="wo-filter-card">
+        <div class="wo-filter-left">
+            <label class="wo-search-box">
+                <span>Q</span>
+                <input id="workOrderSearch" type="search" placeholder="Search WO #, Customer, VIN..." />
+            </label>
+            <label class="wo-filter-select">
+                <span>Status</span>
+                <select id="workOrderStatusFilter" class="wo-select" aria-label="Filter work orders by status">
+                    <option value="">All jobs</option>
+                    @foreach (var status in statusFilters)
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+            </label>
+            <label class="wo-filter-select">
+                <span>Mechanic</span>
+                <select id="workOrderMechanicFilter" class="wo-select" aria-label="Filter work orders by mechanic">
+                    <option value="">All mechanics</option>
+                    @foreach (var mechanic in mechanicFilters)
+                    {
+                        <option value="@mechanic">@mechanic</option>
+                    }
+                </select>
+            </label>
+        </div>
+        <div class="wo-filter-right">
+            <label class="wo-filter-select">
+                <span>Sort</span>
+                <select id="workOrderSort" class="wo-select" aria-label="Sort work orders">
+                    <option value="expected">Expected completion</option>
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="customer">Customer</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <section class="wo-panel">
+        <table class="wo-table">
+            <thead>
+                <tr>
+                    <th>WO #</th>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Bay</th>
+                    <th>Mechanic</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Expected By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in workOrders)
+                {
+                    <tr data-work-order-row
+                        data-search="@($"{order.Id} {order.Customer} {order.Vehicle} {order.Bay} {order.Mechanic} {order.Status} {order.Priority}".ToLowerInvariant())"
+                        data-status="@order.Status"
+                        data-mechanic="@order.Mechanic"
+                        data-priority="@order.Priority"
+                        data-sort-order="@order.SortOrder"
+                        data-customer="@order.Customer">
+                        <td><a class="wo-link" href="/Owner/WorkOrderDetails/@order.Id.ToLowerInvariant()">@order.Id</a></td>
+                        <td><strong>@order.Customer</strong></td>
+                        <td>@order.Vehicle</td>
+                        <td>@order.Bay</td>
+                        <td>@order.Mechanic</td>
+                        <td><span class="wo-pill @order.StatusTone">@order.Status</span></td>
+                        <td><span class="wo-pill @order.PriorityTone">@order.Priority</span></td>
+                        <td>@order.Expected</td>
+                        <td>
+                            <a class="wo-small-button" href="/Owner/WorkOrderDetails/@order.Id.ToLowerInvariant()">View</a>
+                            <a class="wo-small-button blue" href="/Owner/WorkOrderStatus/@order.Id.ToLowerInvariant()">Manage</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <footer class="wo-panel-footer">
+            <span id="workOrderResultCount">Showing @workOrders.Count of @workOrders.Count work orders</span>
+            <nav class="wo-pagination" aria-label="Work order pagination">
+                <button type="button">Previous</button>
+                <button class="active" type="button">1</button>
+                <button type="button">2</button>
+                <button type="button">3</button>
+                <button type="button">Next</button>
+            </nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_CreateWorkOrderModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_WorkOrderModalScripts")
+    <script>
+        (() => {
+            const searchInput = document.getElementById("workOrderSearch");
+            const statusFilter = document.getElementById("workOrderStatusFilter");
+            const mechanicFilter = document.getElementById("workOrderMechanicFilter");
+            const sortSelect = document.getElementById("workOrderSort");
+            const resultCount = document.getElementById("workOrderResultCount");
+            const tableBody = document.querySelector("[data-work-order-row]")?.closest("tbody");
+
+            if (!searchInput || !statusFilter || !mechanicFilter || !sortSelect || !resultCount || !tableBody) {
+                return;
+            }
+
+            const rows = Array.from(tableBody.querySelectorAll("[data-work-order-row]"));
+            const priorityRank = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+
+            const compareText = (left, right) => left.localeCompare(right, undefined, { sensitivity: "base" });
+
+            const applyFilters = () => {
+                const query = searchInput.value.trim().toLowerCase();
+                const selectedStatus = statusFilter.value;
+                const selectedMechanic = mechanicFilter.value;
+                const sortMode = sortSelect.value;
+                let visibleCount = 0;
+
+                rows
+                    .sort((left, right) => {
+                        if (sortMode === "status") {
+                            return compareText(left.dataset.status || "", right.dataset.status || "");
+                        }
+
+                        if (sortMode === "priority") {
+                            return (priorityRank[left.dataset.priority || ""] ?? 99) - (priorityRank[right.dataset.priority || ""] ?? 99);
+                        }
+
+                        if (sortMode === "customer") {
+                            return compareText(left.dataset.customer || "", right.dataset.customer || "");
+                        }
+
+                        return Number(left.dataset.sortOrder || 0) - Number(right.dataset.sortOrder || 0);
+                    })
+                    .forEach(row => {
+                        const matchesSearch = !query || (row.dataset.search || "").includes(query);
+                        const matchesStatus = !selectedStatus || row.dataset.status === selectedStatus;
+                        const matchesMechanic = !selectedMechanic || row.dataset.mechanic === selectedMechanic;
+                        const isVisible = matchesSearch && matchesStatus && matchesMechanic;
+
+                        row.hidden = !isVisible;
+                        tableBody.appendChild(row);
+
+                        if (isVisible) {
+                            visibleCount += 1;
+                        }
+                    });
+
+                resultCount.textContent = `Showing ${visibleCount} of ${rows.length} work orders`;
+            };
+
+            [searchInput, statusFilter, mechanicFilter, sortSelect].forEach(control => {
+                control.addEventListener("input", applyFilters);
+                control.addEventListener("change", applyFilters);
+            });
+
+            applyFilters();
+        })();
+    </script>
+}

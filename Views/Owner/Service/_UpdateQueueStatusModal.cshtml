@@ -1,0 +1,63 @@
+@{
+    var details = Model as ServiceQueueDetailsViewModel;
+    var bays = ViewData["QueueBayOptions"] as IReadOnlyList<QueueBayOption> ?? Array.Empty<QueueBayOption>();
+    var employees = ViewData["QueueEmployeeOptions"] as IReadOnlyList<QueueEmployeeOption> ?? Array.Empty<QueueEmployeeOption>();
+    var statuses = new[] { "Inspection", "In Bay", "QC Check", "Completed" };
+}
+<div class="queue-modal" data-queue-modal-panel="update-status" aria-hidden="true">
+    <div class="queue-modal-backdrop" data-queue-modal-close></div>
+    <section class="queue-modal-card queue-modal-compact" role="dialog" aria-modal="true" aria-labelledby="update-status-title">
+        <form class="queue-modal-form">
+            <header class="queue-modal-header">
+                <div>
+                    <h2 id="update-status-title">Transition Status</h2>
+                    <p>Update the status of @(details?.Customer ?? "this queue item")'s vehicle</p>
+                </div>
+                <button class="queue-modal-close" type="button" data-queue-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="queue-modal-section">
+                <span class="queue-modal-label">Select New Status</span>
+                <div class="queue-status-options">
+                    @foreach (var status in statuses)
+                    {
+                        <button class="@(string.Equals(status, details?.Status, StringComparison.OrdinalIgnoreCase) ? "active" : "")" type="button">@status</button>
+                    }
+                </div>
+            </section>
+
+            <section class="queue-modal-section required">
+                <h3>Required for "In Bay" Status</h3>
+                <div class="queue-modal-grid">
+                    <label>
+                        <span>Assign Technician *</span>
+                        <select>
+                            @foreach (var employee in employees)
+                            {
+                                <option value="@employee.Id" selected="@employee.IsSelected">@employee.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span>Assign Bay *</span>
+                        <select>
+                            @foreach (var bay in bays)
+                            {
+                                <option value="@bay.Id" selected="@bay.IsSelected">@bay.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="queue-modal-wide">
+                        <span>Status Transition Notes</span>
+                        <textarea>@(details?.Notes == "No notes recorded" ? "" : details?.Notes)</textarea>
+                    </label>
+                </div>
+            </section>
+
+            <footer class="queue-modal-actions">
+                <button class="queue-modal-secondary" type="button" data-queue-modal-close>Cancel</button>
+                <button class="queue-modal-primary" type="button" data-queue-modal-close>Update Status</button>
+            </footer>
+        </form>
+    </section>
+</div>

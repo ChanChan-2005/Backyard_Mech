@@ -1,0 +1,94 @@
+@model ServiceQueueDetailsViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Queue Item Details";
+    ViewData["PageTitle"] = "Queue Item Details";
+    ViewData["PageSubtitle"] = $"SERVICE QUEUE > {Model.Customer.ToUpperInvariant()} > DETAILS";
+    ViewData["ActiveNav"] = "Service Queue";
+    ViewData["ShellClass"] = "service-queue-shell";
+}
+
+@section TopbarActions {
+    <a class="queue-action" asp-controller="Owner" asp-action="ServiceQueue">Back to Board</a>
+}
+
+<section class="queue-detail-page">
+    <div class="queue-detail-main">
+        <section class="queue-detail-hero">
+            <span class="queue-avatar" aria-hidden="true"></span>
+            <div>
+                <h2>@Model.Customer</h2>
+                <p>@Model.Vehicle &bull; @(string.IsNullOrWhiteSpace(Model.Plate) ? "No plate" : Model.Plate)</p>
+            </div>
+            <span class="queue-detail-status">@Model.Status</span>
+
+            <div class="queue-detail-actions">
+                <button class="queue-action-blue" type="button" data-queue-modal="update-status">Update Status</button>
+                <button class="queue-action" type="button" data-queue-modal="assign-mechanic">Assign Mechanic</button>
+                <button class="queue-action" type="button" data-queue-modal="assign-bay">Assign Bay</button>
+                <a class="queue-action" asp-controller="Owner" asp-action="WorkOrders">View Work Order</a>
+            </div>
+        </section>
+
+        <section class="queue-detail-grid">
+            <article class="queue-detail-card">
+                <h3>Queue Specifications</h3>
+                <dl class="queue-detail-list">
+                    <div><dt>Assigned Mechanic</dt><dd>@Model.Technician</dd></div>
+                    <div><dt>Assigned Bay</dt><dd>@Model.Bay</dd></div>
+                    <div><dt>Priority Level</dt><dd class="queue-danger">Normal</dd></div>
+                    <div><dt>Check-In Time</dt><dd>@Model.Start</dd></div>
+                    <div><dt>Estimated Duration</dt><dd>@Model.Duration</dd></div>
+                </dl>
+            </article>
+
+            <article class="queue-detail-card">
+                <h3>Service Type & Diagnostic Notes</h3>
+                @if (Model.Services.Count == 0)
+                {
+                    <a class="queue-detail-link" href="#">@Model.Type</a>
+                }
+                else
+                {
+                    @foreach (var service in Model.Services)
+                    {
+                        <a class="queue-detail-link" href="#">@service</a><br />
+                    }
+                }
+                <p>@Model.Notes</p>
+            </article>
+        </section>
+    </div>
+
+    <aside class="queue-history-card">
+        <h3>Status History Timeline</h3>
+        <div class="queue-status-timeline">
+            @if (Model.History.Count == 0)
+            {
+                <article class="green">
+                    <strong>@Model.Status</strong>
+                    <span>No status history recorded yet</span>
+                </article>
+            }
+            else
+            {
+                @foreach (var row in Model.History)
+                {
+                    var tone = row.Status.Contains("Waiting", StringComparison.OrdinalIgnoreCase) ? "amber" : "green";
+                    <article class="@tone">
+                        <strong>@row.Status</strong>
+                        <span>@row.Changed &bull; @row.ChangedBy</span>
+                    </article>
+                }
+            }
+        </div>
+    </aside>
+</section>
+
+@await Html.PartialAsync("_AssignMechanicModal")
+@await Html.PartialAsync("_AssignBayModal")
+@await Html.PartialAsync("_UpdateQueueStatusModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_QueueModalScripts")
+}

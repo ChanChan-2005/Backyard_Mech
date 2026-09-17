@@ -1,0 +1,287 @@
+.customer-modal-card,
+.bay-modal-card,
+.parts-modal-card,
+.tools-modal-card,
+.estimate-modal-card,
+.wo-modal-card,
+.appointment-modal-card,
+.users-modal {
+  border: 1px solid #dfe5ec;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+.customer-modal-backdrop,
+.bay-modal-backdrop,
+.parts-modal-backdrop,
+.tools-modal-backdrop,
+.estimate-modal-backdrop,
+.wo-modal-backdrop,
+.appointment-modal-backdrop,
+.users-modal-layer {
+  background: rgba(17, 24, 32, 0.42);
+}
+
+.customer-modal-header,
+.bay-form-header,
+.parts-modal-header,
+.tools-modal-header,
+.estimate-modal-header,
+.wo-modal-header,
+.appointment-modal-header,
+.users-modal-header {
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.customer-modal-header h2,
+.bay-form-header h2,
+.parts-modal-header h2,
+.tools-modal-header h2,
+.estimate-modal-header h2,
+.wo-modal-header h2,
+.appointment-modal-header h2,
+.users-modal-header h2 {
+  margin: 0;
+  color: #111820;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.customer-modal-header p,
+.bay-form-header p,
+.parts-modal-header p,
+.tools-modal-header p,
+.estimate-modal-header p,
+.wo-modal-header p,
+.appointment-modal-header p {
+  margin: 4px 0 0;
+  color: #687385;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.customer-modal-close,
+.bay-close,
+.parts-modal-close,
+.tools-modal-close,
+.estimate-modal-close,
+.wo-modal-close,
+.appointment-modal-close,
+.users-modal-close {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  border: 1px solid #9ca8b7;
+  border-radius: 50%;
+  color: #6b7280;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.customer-modal-form,
+.bay-form-body,
+.parts-modal-card .parts-form-panel,
+.tools-modal-card .tools-form-panel,
+.estimate-modal-form,
+.wo-modal-form,
+.appointment-modal-form,
+.users-modal-form {
+  padding: 16px;
+}
+
+.customer-form-grid,
+.parts-modal-card .parts-form-grid,
+.tools-modal-card .tools-form-grid,
+.estimate-modal-grid,
+.wo-modal-card .wo-form-grid,
+.appointment-modal-grid,
+.users-employee-form-grid {
+  gap: 12px 10px;
+}
+
+.customer-form-grid label,
+.bay-form-body label,
+.parts-modal-card .parts-form-grid label,
+.tools-modal-card .tools-form-grid label,
+.estimate-modal-grid label,
+.wo-modal-card .wo-form-grid label,
+.wo-modal-card .wo-wide-label,
+.appointment-modal-grid label,
+.appointment-modal-wide,
+.users-employee-form-grid label {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.customer-form-grid span,
+.bay-modal-card .bay-label,
+.parts-modal-card .parts-label,
+.tools-modal-card .tools-label,
+.estimate-modal-grid span,
+.wo-modal-card .wo-label,
+.appointment-modal-grid span,
+.users-add-employee-modal .users-label {
+  color: #273241;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.customer-form-grid input,
+.customer-form-grid textarea,
+.bay-modal-card .bay-input,
+.bay-modal-card .bay-select,
+.bay-modal-card .bay-textarea,
+.parts-modal-card .parts-input,
+.parts-modal-card .parts-select,
+.tools-modal-card .tools-input,
+.tools-modal-card .tools-select,
+.estimate-modal-grid input,
+.estimate-modal-grid select,
+.estimate-modal-grid textarea,
+.estimate-modal-table input,
+.estimate-modal-table select,
+.estimate-modal-table textarea,
+.estimate-modal-notes textarea,
+.wo-modal-card .wo-field,
+.wo-modal-card .wo-select,
+.wo-modal-card .wo-textarea,
+.appointment-modal-grid input,
+.appointment-modal-grid select,
+.appointment-modal-grid textarea,
+.users-add-employee-modal .users-input,
+.users-add-employee-modal .users-select,
+.users-add-employee-modal .users-textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 25px;
+  padding: 5px 8px;
+  border: 1.5px solid #c9d2df;
+  border-radius: 3px;
+  color: #111820;
+  background: #f3f4f7;
+  font-size: 10px;
+  line-height: 1.25;
+  outline: none;
+}
+
+.customer-form-grid textarea,
+.bay-modal-card .bay-textarea,
+.estimate-modal-grid textarea,
+.estimate-modal-table textarea,
+.estimate-modal-notes textarea,
+.wo-modal-card .wo-textarea,
+.appointment-modal-grid textarea,
+.users-add-employee-modal .users-textarea {
+  min-height: 105px;
+  resize: vertical;
+}
+
+.users-add-employee-modal .users-employee-skills {
+  min-height: 134px;
+}
+
+.customer-form-grid input:focus,
+.customer-form-grid textarea:focus,
+.bay-modal-card .bay-input:focus,
+.bay-modal-card .bay-select:focus,
+.bay-modal-card .bay-textarea:focus,
+.parts-modal-card .parts-input:focus,
+.parts-modal-card .parts-select:focus,
+.tools-modal-card .tools-input:focus,
+.tools-modal-card .tools-select:focus,
+.estimate-modal-grid input:focus,
+.estimate-modal-grid select:focus,
+.estimate-modal-grid textarea:focus,
+.estimate-modal-table input:focus,
+.estimate-modal-table select:focus,
+.estimate-modal-table textarea:focus,
+.estimate-modal-notes textarea:focus,
+.wo-modal-card .wo-field:focus,
+.wo-modal-card .wo-select:focus,
+.wo-modal-card .wo-textarea:focus,
+.appointment-modal-grid input:focus,
+.appointment-modal-grid select:focus,
+.appointment-modal-grid textarea:focus,
+.users-add-employee-modal .users-input:focus,
+.users-add-employee-modal .users-select:focus,
+.users-add-employee-modal .users-textarea:focus {
+  border-color: #2f6fff;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(47, 111, 255, 0.16);
+}
+
+.customer-modal-actions,
+.bay-form-footer,
+.parts-modal-actions,
+.tools-modal-actions,
+.estimate-modal-actions,
+.wo-modal-actions,
+.appointment-modal-actions,
+.users-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.bay-form-footer {
+  padding: 14px 16px 16px;
+  background: #fff;
+  border-top: 1px solid #edf1f5;
+}
+
+.customer-modal-secondary,
+.customer-modal-primary,
+.bay-form-footer .bay-button,
+.bay-form-footer .bay-button-blue,
+.parts-modal-actions .parts-button,
+.parts-modal-actions .parts-button-blue,
+.tools-modal-actions .tools-button,
+.tools-modal-actions .tools-button-blue,
+.estimate-modal-actions .dark-estimate-button,
+.estimate-modal-actions .primary-estimate-button,
+.wo-modal-actions .wo-button,
+.wo-modal-actions .wo-topbar-button,
+.appointment-modal-actions .appointment-modal-secondary,
+.appointment-modal-actions .appointment-modal-primary,
+.users-modal-actions .users-button,
+.users-modal-actions .users-button-blue,
+.users-modal-actions .users-button-green,
+.users-modal-actions .users-button-orange,
+.users-modal-actions .users-button-red {
+  min-width: 72px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+@media (max-width: 760px) {
+  .customer-modal,
+  .bay-modal,
+  .parts-modal,
+  .tools-modal,
+  .estimate-modal,
+  .wo-modal,
+  .appointment-modal,
+  .users-modal-layer {
+    padding: 14px;
+  }
+}

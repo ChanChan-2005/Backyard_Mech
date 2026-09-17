@@ -1,0 +1,141 @@
+@{
+    var scheduleModel = Model as EmployeeScheduleViewModel;
+    var shiftEmployees = scheduleModel?.EmployeeOptions ?? Array.Empty<ProductListingOption>();
+}
+<div class="users-modal-layer" data-users-modal-layer>
+    @await Html.PartialAsync("_AddEmployeeModal")
+
+    <section class="users-modal" data-modal-id="add-shift">
+        <h2>Add Shift</h2>
+        <form class="users-modal-form" asp-controller="Owner" asp-action="SetEmployeeShift" method="post">
+            @Html.AntiForgeryToken()
+            <p>Create or update an employee's weekly availability.</p>
+            <label>
+                <span class="users-label">Employee *</span>
+                <select class="users-select" name="EmployeeProfileId" required>
+                    <option value="" selected disabled>Select employee</option>
+                    @foreach (var employee in shiftEmployees)
+                    {
+                        <option value="@employee.Id">@employee.Label</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span class="users-label">Day *</span>
+                <select class="users-select" name="DayOfWeek" required>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                    <option value="0">Sunday</option>
+                </select>
+            </label>
+            <label>
+                <span class="users-label">Availability *</span>
+                <select class="users-select" name="IsAvailable">
+                    <option value="true">Available</option>
+                    <option value="false">Off</option>
+                </select>
+            </label>
+            <div class="users-form-grid">
+                <label>
+                    <span class="users-label">Start Time *</span>
+                    <input class="users-input" type="time" name="StartTime" value="08:00" required />
+                </label>
+                <label>
+                    <span class="users-label">End Time *</span>
+                    <input class="users-input" type="time" name="EndTime" value="17:00" required />
+                </label>
+            </div>
+            <div class="users-modal-actions">
+                <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+                <button class="users-button-blue" type="submit">Save Shift</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="users-modal" data-modal-id="archive">
+        <h2>Archive Employee?</h2>
+        <form class="users-modal-form" asp-controller="Owner" asp-action="ArchiveEmployee" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
+            <p>This employee will be moved to the archive and will no longer appear in the active employee list. Their records and history will be preserved.</p>
+            <label><span class="users-label">Employee:</span><strong data-employee-state-field="name">Selected employee</strong></label>
+            <label>
+                <span class="users-label">Reason for Archiving *</span>
+                <select class="users-select" name="Reason" required><option value="">Select a reason...</option><option>Resigned</option><option>Retired</option><option>End of contract</option><option>Position eliminated</option></select>
+            </label>
+            <label>
+                <span class="users-label">Notes</span>
+                <textarea class="users-textarea" name="Notes" placeholder="Optional archive notes..."></textarea>
+            </label>
+            <div class="users-modal-actions">
+                <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+                <button class="users-button-orange" type="submit">Archive Employee</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="users-modal" data-modal-id="restore">
+        <h2>Restore Employee?</h2>
+        <form class="users-modal-form" asp-controller="Owner" asp-action="RestoreEmployee" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
+            <p>This employee will be restored to the employee list while preserving their account history.</p>
+            <label><span class="users-label">Employee:</span><strong data-employee-state-field="name">Selected employee</strong></label>
+            <div class="users-alert">Please note: restored employees become active again.</div>
+            <div class="users-modal-actions">
+                <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+                <button class="users-button-green" type="submit">Restore Employee</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="users-modal" data-modal-id="delete">
+        <h2>Delete Employee?</h2>
+        <form class="users-modal-form" asp-controller="Owner" asp-action="SoftDeleteEmployee" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
+            <p>This employee will be hidden from normal employee records. Their historical records and audit history will be preserved.</p>
+            <label><span class="users-label">Employee:</span><strong data-employee-state-field="name">Selected employee</strong></label>
+            <label>
+                <span class="users-label">Reason for Deletion *</span>
+                <select class="users-select" name="Reason" required><option value="">Select a reason...</option><option>Performance issues</option><option>Behavioral violation</option><option>Voluntary quit</option><option>Position eliminated</option></select>
+            </label>
+            <label>
+                <span class="users-label">Internal Notes</span>
+                <textarea class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
+            </label>
+            <div class="users-modal-warning">Warning: this will move the employee to soft deleted records.</div>
+            <label><input type="checkbox" required /> I understand this action will hide this employee.</label>
+            <div class="users-modal-actions">
+                <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+                <button class="users-button-red" type="submit">Delete Employee</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="users-modal" data-modal-id="soft-delete">
+        <h2>Confirm Soft Delete</h2>
+        <form class="users-modal-form" asp-controller="Owner" asp-action="SoftDeleteEmployee" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
+            <p>This will move the employee to the soft deleted list while preserving historical records.</p>
+            <label><span class="users-label">Employee:</span><strong data-employee-state-field="name">Selected employee</strong></label>
+            <label>
+                <span class="users-label">Reason for Deletion *</span>
+                <select class="users-select" name="Reason" required><option value="">Select a reason...</option><option>Voluntary quit</option><option>Position eliminated</option><option>Performance issues</option><option>Behavioral violation</option></select>
+            </label>
+            <label>
+                <span class="users-label">Internal Notes</span>
+                <textarea class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
+            </label>
+            <div class="users-modal-actions">
+                <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+                <button class="users-button-red" type="submit">Confirm Delete</button>
+            </div>
+        </form>
+    </section>
+</div>

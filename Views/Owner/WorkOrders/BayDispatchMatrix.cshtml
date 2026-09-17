@@ -1,0 +1,82 @@
+@model WorkOrderBayDispatchViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Bay Dispatch Matrix";
+    ViewData["PageTitle"] = "Bay Dispatch Matrix";
+    ViewData["PageSubtitle"] = "WORK ORDERS > BAY ALLOCATION";
+    ViewData["ActiveNav"] = "Work Order and Assignment";
+    ViewData["ShellClass"] = "work-orders-shell";
+}
+
+@section TopbarActions {
+    <a class="wo-button" asp-controller="Owner" asp-action="WorkOrderDetails" asp-route-id="@Model.WorkOrder.Id">Cancel</a>
+    <button class="wo-button-blue" type="submit" form="bay-dispatch-form">Save Dispatch</button>
+}
+
+<section class="wo-page">
+    <form id="bay-dispatch-form" class="wo-panel" asp-controller="Owner" asp-action="DispatchWorkOrderBay" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="WorkOrderId" value="@Model.WorkOrder.WorkOrderId" />
+        <header class="wo-panel-header">
+            <div>
+                <h2>Allocate Shop Bay for @Model.WorkOrder.Id</h2>
+                <p>Coordinate the heavy lifts, diagnostic computer arrays, and alignment racks.</p>
+            </div>
+        </header>
+
+        <table class="wo-table wo-matrix-table">
+            <thead>
+                <tr>
+                    <th>Bay Identifier</th>
+                    <th>Hardware Type</th>
+                    <th>Bay Status</th>
+                    <th>Current Occupant</th>
+                    <th>Estimated Release</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var bay in Model.Bays)
+                {
+                    <tr class="wo-matrix-row @(bay.IsSelected ? "selected" : "")">
+                        <td><strong>@bay.BayIdentifier</strong></td>
+                        <td>@bay.HardwareType</td>
+                        <td><span class="wo-pill @bay.StatusTone">@bay.BayStatus</span></td>
+                        <td><strong>@bay.CurrentOccupant</strong></td>
+                        <td>@bay.EstimatedRelease</td>
+                        <td>
+                            <label class="wo-choice-button @(bay.IsSelected ? "selected" : "") @(bay.CanDispatch ? "" : "disabled")">
+                                <input type="radio" name="BayId" value="@bay.BayId" checked="@bay.IsSelected" disabled="@(!bay.CanDispatch)" />
+                                <span>@(bay.IsSelected ? "Currently Selected" : "Dispatch Here")</span>
+                            </label>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <footer class="wo-panel-footer">
+            <span>Showing @Model.Bays.Count of @Model.Bays.Count shop bays</span>
+            <div class="wo-pagination"><button class="active" type="button">1</button></div>
+        </footer>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll(".wo-choice-button input").forEach((input) => {
+            input.addEventListener("change", () => {
+                document.querySelectorAll(".wo-matrix-row").forEach((row) => row.classList.remove("selected"));
+                document.querySelectorAll(".wo-choice-button").forEach((label) => {
+                    label.classList.remove("selected");
+                    label.querySelector("span").textContent = "Dispatch Here";
+                });
+                const row = input.closest(".wo-matrix-row");
+                const label = input.closest(".wo-choice-button");
+                row?.classList.add("selected");
+                label?.classList.add("selected");
+                const text = label?.querySelector("span");
+                if (text) text.textContent = "Currently Selected";
+            });
+        });
+    </script>
+}

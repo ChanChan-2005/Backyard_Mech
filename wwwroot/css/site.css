@@ -1,0 +1,129 @@
+@import url("/css/account/login.css");
+
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+form label .required-marker,
+.required-marker {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.app-notification-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: none;
+  place-items: center;
+  padding: 20px;
+}
+
+.app-notification-modal.is-open {
+  display: grid;
+}
+
+.app-notification-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 24, 39, 0.48);
+}
+
+.app-notification-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 14px;
+  width: min(430px, calc(100vw - 40px));
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.app-notification-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: #fff;
+  background: #10b981;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.app-notification-modal.error .app-notification-icon {
+  background: #ef4444;
+}
+
+.app-notification-card h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.app-notification-card p {
+  margin: 8px 0 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.app-notification-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  color: #6b7280;
+  background: #f3f4f6;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.app-notification-card footer {
+  grid-column: 2 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.app-notification-card footer button {
+  min-width: 86px;
+  height: 36px;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  background: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}

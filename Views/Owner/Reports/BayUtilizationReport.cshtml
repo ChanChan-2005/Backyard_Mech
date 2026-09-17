@@ -1,0 +1,51 @@
+@model BayUtilizationReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Bay Utilization Report";
+    ViewData["PageTitle"] = "Bay Utilization Report";
+    ViewData["PageSubtitle"] = "Shop space efficiency and turnover rates";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Bay Number: All</option></select><select><option>Shift: All</option></select></div>
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong></article>
+        }
+    </div>
+    <section class="reports-card reports-chart-card"><h2>Bay Occupancy Timeline (Avg Weekday)</h2><canvas id="bayUtilizationChart" height="190"></canvas></section>
+    <section class="reports-panel">
+        <table class="reports-table">
+            <thead><tr><th>Bay Identifier</th><th>Hours Available</th><th>Hours Occupied</th><th>Utilization Rate</th><th>Jobs Completed</th><th>Avg Job Duration</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td><strong>@row.BayIdentifier</strong></td><td>@row.HoursAvailable</td><td>@row.HoursOccupied</td><td class="reports-link">@row.UtilizationRate</td><td>@row.JobsCompleted</td><td>@row.AverageJobDuration</td></tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="6">No bays found.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count bays</span></footer>
+    </section>
+</section>
+
+@section Scripts {
+    <script>
+        window.ownerReportCharts = {
+            bayUtilizationChart: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.BayChart, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

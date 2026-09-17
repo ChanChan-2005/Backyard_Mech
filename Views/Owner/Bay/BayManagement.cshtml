@@ -1,0 +1,100 @@
+@model IReadOnlyList<BayListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Bay Management";
+    ViewData["PageTitle"] = "Bay Management";
+    ViewData["PageSubtitle"] = "";
+    ViewData["ActiveNav"] = "Bay Management";
+    ViewData["ShellClass"] = "bay-shell";
+
+    var bays = Model ?? Array.Empty<BayListItem>();
+}
+
+<section class="bay-page">
+    <div class="bay-stats">
+        <article class="bay-stat">
+            <span>Total Bays</span>
+            <strong>@bays.Count</strong>
+            <p>Active System</p>
+        </article>
+        <article class="bay-stat">
+            <span>Active Bays</span>
+            <strong>@bays.Count(bay => bay.Status == "In Use")</strong>
+            <p>In Use Currently</p>
+        </article>
+        <article class="bay-stat">
+            <span>Under Maintenance</span>
+            <strong>@bays.Count(bay => bay.Status == "Maintenance")</strong>
+            <p>Diagnostics Offline</p>
+        </article>
+        <article class="bay-stat">
+            <span>Avg Utilization</span>
+            <strong>84%</strong>
+            <p>Last 7 days avg</p>
+        </article>
+    </div>
+
+    <section class="bay-panel">
+        <div class="bay-panel-header">
+            <h2>Garage Bays & Equipment Stations</h2>
+            <button class="bay-button-dark" type="button" data-bay-modal="add-bay">+ Add Bay</button>
+        </div>
+
+        <table class="bay-table">
+            <thead>
+                <tr>
+                    <th>Bay No.</th>
+                    <th>Bay Name</th>
+                    <th>Status</th>
+                    <th>Current Vehicle</th>
+                    <th>Assigned Tech</th>
+                    <th>Tools</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var bay in bays)
+                {
+                    var baySlug = bay.BayId.ToString();
+                    <tr>
+                        <td><a class="bay-name-link" href="/Owner/BayDetails/@baySlug">@bay.No</a></td>
+                        <td><a class="bay-name-link" href="/Owner/BayDetails/@baySlug">@bay.BayNumber</a></td>
+                        <td><span class="bay-pill @bay.Tone">@bay.Status</span></td>
+                        <td>@bay.Vehicle</td>
+                        <td>@bay.Tech</td>
+                        <td>@bay.Tools</td>
+                        <td>
+                            <button class="bay-small-button"
+                                    type="button"
+                                    data-bay-modal="edit-bay"
+                                    data-bay-id="@bay.BayId"
+                                    data-bay-name="@bay.Name"
+                                    data-bay-description="@bay.Description"
+                                    data-bay-status="@bay.Status">Edit</button>
+                            <button class="bay-small-button" type="button" data-bay-modal="set-maintenance">Set Maintenance</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <footer class="bay-panel-footer">
+            <span>Showing @bays.Count bay@(bays.Count == 1 ? "" : "s")</span>
+            <nav class="bay-pagination" aria-label="Bay pagination">
+                <button type="button">Previous</button>
+                <button class="active" type="button">1</button>
+                <button type="button">2</button>
+                <button type="button">3</button>
+                <button type="button">Next</button>
+            </nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_AddBayModal")
+@await Html.PartialAsync("_EditBayModal")
+@await Html.PartialAsync("_SetMaintenanceModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_BayModalScripts")
+}

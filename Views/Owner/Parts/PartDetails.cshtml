@@ -1,0 +1,88 @@
+@model PartDetailsViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = Model.Name;
+    ViewData["PageTitle"] = Model.Name;
+    ViewData["PageSubtitle"] = $"INVENTORY > PARTS > {Model.Sku}";
+    ViewData["ActiveNav"] = "Parts Management";
+    ViewData["ShellClass"] = "parts-shell";
+}
+
+@section TopbarActions {
+    <button class="parts-button" type="button" data-parts-modal="edit-part">Edit Part</button>
+}
+
+<section class="parts-page">
+    <div class="parts-detail-grid">
+        <article class="parts-card">
+            <div class="parts-card-header">
+                <h2>Part Specifications</h2>
+                <span class="parts-pill @Model.StatusTone">@Model.Status</span>
+            </div>
+            <dl class="parts-spec-grid">
+                <div><dt class="parts-label">SKU</dt><dd><a class="parts-link" href="/Owner/PartDetails/@Model.PartId">@Model.Sku</a></dd></div>
+                <div><dt class="parts-label">Category</dt><dd>@Model.Category</dd></div>
+                <div><dt class="parts-label">Description</dt><dd>@Model.Description</dd></div>
+                <div><dt class="parts-label">Cost Price</dt><dd>@Model.CostPrice</dd></div>
+                <div><dt class="parts-label">Selling Price</dt><dd>@Model.SellingPrice</dd></div>
+                <div><dt class="parts-label">Markup</dt><dd class="parts-positive">@Model.Markup</dd></div>
+            </dl>
+        </article>
+
+        <aside class="parts-card">
+            <h2>Stock Levels</h2>
+            <dl class="parts-detail-list parts-detail-list-spaced">
+                <div><dt>Available</dt><dd class="@Model.StatusClass">@Model.Available</dd></div>
+                <div><dt>Reserved (Pending)</dt><dd>@Model.Reserved</dd></div>
+                <div><dt>Total On Hand</dt><dd>@Model.TotalOnHand</dd></div>
+                <div><dt>Reorder Threshold</dt><dd>@Model.ReorderThreshold</dd></div>
+                <div><dt>Status Assessment</dt><dd class="@Model.StatusClass">@Model.StatusAssessment</dd></div>
+            </dl>
+        </aside>
+    </div>
+
+    <section class="parts-panel">
+        <div class="parts-panel-header">
+            <h2>Recent Stock Transactions</h2>
+            <a class="parts-button" href="/Owner/PartAuditLog/@Model.PartId">View Audit Log</a>
+        </div>
+        <table class="parts-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Work Order</th>
+                    <th>Qty</th>
+                    <th>Running Bal.</th>
+                    <th>Performed By</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var transaction in Model.Transactions)
+                {
+                    <tr>
+                        <td>@transaction.Date</td>
+                        <td><span class="parts-pill @transaction.Tone">@transaction.Type</span></td>
+                        <td>@transaction.WorkOrder</td>
+                        <td><span class="@transaction.QuantityClass">@transaction.Quantity</span></td>
+                        <td><strong>@transaction.Balance</strong></td>
+                        <td>@transaction.By</td>
+                    </tr>
+                }
+                @if (!Model.Transactions.Any())
+                {
+                    <tr><td colspan="6">No stock transactions recorded.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="parts-panel-footer">
+            <span>Showing @Model.Transactions.Count of @Model.Transactions.Count transactions</span>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_EditPartModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_PartModalScripts")
+}

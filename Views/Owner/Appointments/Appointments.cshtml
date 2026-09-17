@@ -1,0 +1,219 @@
+@model IReadOnlyList<AppointmentListItem>
+@{
+    Layout = "_AppLayout";
+    var mode = ViewData["AppointmentViewMode"]?.ToString() ?? "calendar";
+    var isList = string.Equals(mode, "list", StringComparison.OrdinalIgnoreCase);
+
+    ViewData["Title"] = isList ? "Appointments > List View" : "Appointments";
+    ViewData["PageTitle"] = isList ? "Appointments > List View" : "Appointments";
+    ViewData["PageSubtitle"] = "";
+    ViewData["ActiveNav"] = "Appointments and Check-In";
+    ViewData["ShellClass"] = "appointments-shell";
+
+    var listRows = Model ?? Array.Empty<AppointmentListItem>();
+    var calendarAppointments = listRows;
+    var times = listRows.Select(row => row.Time).Where(time => !string.IsNullOrWhiteSpace(time)).Distinct().DefaultIfEmpty("08:00 AM").ToArray();
+    var baySlots = listRows
+        .Where(row => row.BayNumber > 0)
+        .Select(row => (Number: row.BayNumber, Name: row.Bay))
+        .Distinct()
+        .DefaultIfEmpty((Number: 1, Name: "Bay 1"))
+        .ToArray();
+    var weekdays = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+    var monthAppointments = listRows.Select(row => new { Day = DateTime.Parse(row.Date).Day, row.Customer, row.Status, row.Tone }).ToArray();
+    var weekStart = listRows.Select(row => DateTime.Parse(row.Date)).DefaultIfEmpty(DateTime.Today).Min().Date;
+}
+
+<section class="appointments-page">
+    @if (!isList)
+    {
+        <div class="appointment-calendar-toolbar">
+            <div class="appointment-view-buttons">
+                <button type="button" data-appointment-view="day">Day</button>
+                <button class="active" type="button" data-appointment-view="week">Week</button>
+                <button type="button" data-appointment-view="month">Month</button>
+                <button type="button" data-appointment-view="today">Today</button>
+                <button class="icon-button" type="button">&lt;</button>
+                <strong data-appointment-range>Oct 14 - Oct 20, 2024</strong>
+                <button class="icon-button" type="button">&gt;</button>
+            </div>
+            <div class="appointment-actions">
+                <button class="walkin-button" type="button" data-appointment-modal="walk-in">+ Walk-In</button>
+                <button class="new-appointment-button" type="button" data-appointment-modal="new-appointment">+ New Appointment</button>
+            </div>
+        </div>
+    }
+
+    <nav class="appointment-tabs" aria-label="Appointment views">
+        <a class="@(isList ? "" : "active")" href="/Owner/Appointments">Calendar Grid</a>
+        <a class="@(isList ? "active" : "")" href="/Owner/Appointments?view=list">List View</a>
+    </nav>
+
+    @if (isList)
+    {
+        <div class="appointment-list-toolbar">
+            <label class="appointment-list-search">
+                <span>Q</span>
+                <input type="search" placeholder="Search by customer, vehicle, VIN, plate, or ID..." />
+            </label>
+            <button type="button">All Dates</button>
+            <button type="button">Type: All</button>
+            <button type="button">Status: All</button>
+            <button type="button">Bay: All</button>
+        </div>
+
+        <section class="appointment-list-panel">
+            <table class="appointment-list-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Vehicle / VIN / Plate</th>
+                        <th>Date</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Bay</th>
+                        <th>Status</th>
+                        <th>Advisor</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in listRows)
+                    {
+                        <tr>
+                            <td><a href="#">@row.Id</a></td>
+                            <td><strong>@row.Customer</strong></td>
+                            <td>
+                                <strong>@row.Vehicle</strong>
+                                <span>@row.Vin &nbsp; @row.Plate</span>
+                            </td>
+                            <td>@row.Date</td>
+                            <td>@row.Start</td>
+                            <td>@row.End</td>
+                            <td>@row.Bay</td>
+                            <td><span class="appointment-status @row.Tone">@row.Status</span></td>
+                            <td>@row.Advisor</td>
+                            <td>
+                                <div class="appointment-row-actions">
+                                    <button type="button">E</button>
+                                    <button type="button">C</button>
+                                    <button type="button">⋮</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <footer class="appointment-table-footer">
+                <span>Showing @listRows.Count appointment@(listRows.Count == 1 ? "" : "s")</span>
+                <nav class="appointment-pagination" aria-label="Appointment pagination">
+                    <button type="button">Previous</button>
+                    <button class="active" type="button">1</button>
+                    <button type="button">2</button>
+                    <button type="button">3</button>
+                    <button type="button">Next</button>
+                </nav>
+            </footer>
+        </section>
+    }
+    else
+    {
+        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="day" hidden>
+            <div class="calendar-grid">
+                <div class="calendar-head time-head">Time</div>
+                @foreach (var bay in baySlots)
+                {
+                    <div class="calendar-head">@bay.Name</div>
+                }
+
+                @foreach (var time in times)
+                {
+                    <div class="calendar-time">@time</div>
+                    @foreach (var bay in baySlots)
+                    {
+                        var appointment = calendarAppointments.FirstOrDefault(item => item.Time == time && item.BayNumber == bay.Number);
+                        <div class="calendar-cell">
+                            @if (appointment is not null)
+                            {
+                                <article class="calendar-appointment-card">
+                                    <div>
+                                        <strong>@appointment.Customer</strong>
+                                        <span class="appointment-status @appointment.Tone">@appointment.Status</span>
+                                    </div>
+                                    <p>@appointment.Vehicle</p>
+                                        <time>@appointment.Start - @appointment.End</time>
+                                </article>
+                            }
+                            else
+                            {
+                                <button type="button" data-appointment-modal="new-appointment">+ Add</button>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </section>
+
+        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="week">
+            <div class="appointment-week-grid">
+                @for (var offset = 0; offset < 7; offset++)
+                {
+                    var day = weekStart.AddDays(offset);
+                    var dayRows = listRows.Where(row => DateTime.Parse(row.Date).Date == day).ToArray();
+                    <section class="week-day-column">
+                        <header><strong>@day.ToString("ddd")</strong><span>@day.ToString("MMM dd")</span></header>
+                        @foreach (var row in dayRows)
+                        {
+                            <article class="week-appointment-card">
+                                <div><strong>@row.Customer</strong><span class="appointment-status @row.Tone">@row.Status</span></div>
+                                <p>@row.Vehicle &bull; @row.Bay</p>
+                                <time>@row.Start - @row.End</time>
+                            </article>
+                        }
+                        <button class="week-add-slot" type="button" data-appointment-modal="new-appointment">+ Add</button>
+                    </section>
+                }
+            </div>
+        </section>
+
+        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="month" hidden>
+            <div class="appointment-month-grid">
+                @foreach (var weekday in weekdays)
+                {
+                    <div class="month-weekday">@weekday</div>
+                }
+                @for (var emptyDay = 0; emptyDay < 2; emptyDay++)
+                {
+                    <div class="month-day muted"></div>
+                }
+                @for (var day = 1; day <= 31; day++)
+                {
+                    var dayAppointments = monthAppointments.Where(item => item.Day == day).ToArray();
+                    <div class="month-day @(day == 14 ? "today" : "")">
+                        <strong>@day</strong>
+                        @foreach (var appointment in dayAppointments)
+                        {
+                            <article>
+                                <span>@appointment.Customer</span>
+                                <em class="@appointment.Tone">@appointment.Status</em>
+                            </article>
+                        }
+                    </div>
+                }
+                @for (var emptyDay = 0; emptyDay < 2; emptyDay++)
+                {
+                    <div class="month-day muted"></div>
+                }
+            </div>
+        </section>
+    }
+</section>
+
+@await Html.PartialAsync("_WalkInModal")
+@await Html.PartialAsync("_NewAppointmentModal")
+
+@section Scripts {
+    <script src="~/js/owner-appointments.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("_AppointmentModalScripts")
+}

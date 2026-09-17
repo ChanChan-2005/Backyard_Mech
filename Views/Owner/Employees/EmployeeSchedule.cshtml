@@ -1,0 +1,75 @@
+@model EmployeeScheduleViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Employee Schedule";
+    ViewData["PageTitle"] = "Employee Schedule";
+    ViewData["PageSubtitle"] = "EMPLOYEES > SCHEDULE";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell users-reference-shell";
+}
+
+@section TopbarActions {
+    <div class="users-schedule-top-controls">
+        <button class="users-icon-button" type="button">&lt;</button>
+        <strong>@Model.PeriodLabel</strong>
+        <button class="users-icon-button" type="button">&gt;</button>
+        <button class="users-button-blue" type="button" data-users-modal="add-shift">Add Shift</button>
+    </div>
+}
+
+<section class="users-reference-page users-schedule-reference">
+    <article class="users-reference-card users-schedule-board">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    @foreach (var day in Model.DayLabels)
+                    {
+                        <th>@day</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var employee in Model.Employees)
+                {
+                    <tr>
+                        <td><strong>@employee.Name</strong><small>@employee.Role</small></td>
+                        @foreach (var day in employee.Days)
+                        {
+                            <td><span class="users-schedule-pill @(day.IsOff ? "off" : "")">@day.Label</span></td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </article>
+
+    <aside class="users-schedule-side">
+        <article class="users-reference-card">
+            <h3>Today's Coverage</h3>
+            <dl>
+                <div><dt>Mechanics Active</dt><dd>@Model.MechanicsActive on duty</dd></div>
+                <div><dt>Service Advisors</dt><dd>@Model.AdvisorsActive on duty</dd></div>
+                <div><dt>Shop Load Capacity</dt><dd class="users-green-text">@Model.CapacityLabel</dd></div>
+            </dl>
+        </article>
+
+        <article class="users-reference-card">
+            <h3>Upcoming Time Off</h3>
+            @foreach (var item in Model.UpcomingTimeOff)
+            {
+                <section class="users-timeoff-card">
+                    <strong>@item.Name</strong>
+                    <span>@item.Detail</span>
+                    <small>@item.Status</small>
+                </section>
+            }
+        </article>
+    </aside>
+</section>
+
+@await Html.PartialAsync("_EmployeeModals")
+
+@section Scripts {
+    <script src="~/js/owner-user-management.js" asp-append-version="true"></script>
+}

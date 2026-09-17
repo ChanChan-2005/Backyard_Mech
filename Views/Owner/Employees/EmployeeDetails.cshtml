@@ -1,0 +1,96 @@
+@model EmployeeDetailViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = Model.Name;
+    ViewData["PageTitle"] = Model.Name;
+    ViewData["PageSubtitle"] = $"EMPLOYEES > {Model.Name.ToUpperInvariant()}";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell users-reference-shell";
+}
+
+@section TopbarActions {
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a>
+    <button class="users-icon-button" type="button" aria-label="More actions">...</button>
+}
+
+<section class="users-reference-page users-employee-detail">
+    <div class="users-reference-left">
+        <article class="users-reference-card users-reference-profile">
+            <header>
+                <span class="users-reference-photo">@Model.Initials</span>
+                <div>
+                    <h2>@Model.Name</h2>
+                    <p>@Model.Role</p>
+                    <small>@Model.Status</small>
+                </div>
+            </header>
+            <ul class="users-reference-contact">
+                <li><span>Tel</span>@Model.Phone</li>
+                <li><span>Mail</span>@Model.Email</li>
+                <li><span>Hire</span>Hired: @Model.HireDate</li>
+                <li><span>ID</span>Emp ID: @Model.EmployeeNumber</li>
+            </ul>
+        </article>
+
+        <article class="users-reference-card users-certifications">
+            <header>
+                <h3>Certifications</h3>
+                <small>Verified</small>
+            </header>
+            <ul>
+                @foreach (var certification in Model.Certifications)
+                {
+                    <li><span>Cert</span>@certification</li>
+                }
+            </ul>
+        </article>
+    </div>
+
+    <div class="users-reference-main">
+        <div class="users-reference-kpis">
+            <article><span>Jobs Completed</span><small>Top Tech</small><strong>@Model.JobsCompleted</strong></article>
+            <article><span>Avg Job Time</span><strong>@Model.AvgJobTime</strong><small>@Model.TargetJobTime</small></article>
+            <article><span>Rating</span><strong>@Model.Rating</strong><small>@Model.RatingDetail</small></article>
+            <article><span>Utilization</span><strong>@Model.Utilization</strong><small>@Model.UtilizationDetail</small></article>
+        </div>
+
+        <article class="users-reference-card">
+            <h3>Recent Active Work Orders</h3>
+            <table class="users-reference-table">
+                <thead>
+                    <tr><th>Order #</th><th>Vehicle</th><th>Service</th><th>Hours</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.RecentWorkOrders)
+                    {
+                        <tr>
+                            <td><strong>@order.OrderNumber</strong></td>
+                            <td>@order.Vehicle</td>
+                            <td>@order.Service</td>
+                            <td>@order.Hours</td>
+                            <td><span class="users-mini-status @order.Tone">@order.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <footer class="users-reference-table-footer">
+                <span>Showing @Model.RecentWorkOrders.Count of @Math.Max(Model.RecentWorkOrders.Count, 42) appointments</span>
+                <nav><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+            </footer>
+        </article>
+
+        <article class="users-reference-card">
+            <h3>Shift Schedule (This Week)</h3>
+            <div class="users-week-strip">
+                @foreach (var day in Model.WeekSchedule)
+                {
+                    <div class="@(day.IsOff ? "off" : "")">
+                        <span>@day.Day</span>
+                        <strong>@day.Time</strong>
+                        <small>@day.Detail</small>
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+</section>

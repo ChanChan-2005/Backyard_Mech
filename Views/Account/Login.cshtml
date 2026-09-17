@@ -1,0 +1,108 @@
+@model LoginViewModel
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Login";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Backyard Mech</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/account/login.css" asp-append-version="true" />
+</head>
+<body class="login-page">
+    <main class="login-shell" aria-label="Backyard Mech sign in">
+        <section class="login-brand-panel">
+            <img class="login-logo" src="~/Project_Images/Logo/backyard-mech-logo-transparent.png" alt="Backyard Mech logo" />
+
+            <div class="login-copy">
+                <h1>The ultimate operating system for independent garages.</h1>
+                <p>Professional shop management, real-time tracking, and automated estimates.</p>
+            </div>
+
+            <div class="login-feature-list" aria-label="Product highlights">
+                <div class="login-feature">
+                    <span class="feature-check" aria-hidden="true">&#10003;</span>
+                    <div>
+                        <strong>Real-time Service Queue</strong>
+                        <span>Keep mechanics on track and vehicles moving through live shop capacity indicators.</span>
+                    </div>
+                </div>
+                <div class="login-feature">
+                    <span class="feature-check" aria-hidden="true">&#10003;</span>
+                    <div>
+                        <strong>Estimates</strong>
+                        <span>Send diagnostic reports and secure approvals digitally without picking up the phone.</span>
+                    </div>
+                </div>
+                <div class="login-feature">
+                    <span class="feature-check" aria-hidden="true">&#10003;</span>
+                    <div>
+                        <strong>Automated Work Orders</strong>
+                        <span>Convert incoming requests directly into active jobs with assigned bays, mechanics and technicians.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="login-card-wrap" aria-labelledby="login-title">
+            <div class="login-card-outer">
+                <h2 class="login-product-name">Backyard Mech</h2>
+
+                <div class="login-card">
+                    <h3 id="login-title">Welcome Back</h3>
+                    <p>Enter your credentials to access your workshop dashboard</p>
+
+                    <form asp-controller="Account" asp-action="Login" method="post" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger login-validation-summary"></div>
+
+                        <div class="login-field">
+                            <label asp-for="Email"></label>
+                            <div class="input-with-icon">
+                                <svg aria-hidden="true" viewBox="0 0 24 24">
+                                    <path d="M4 6.5h16v11H4z" />
+                                    <path d="m4.5 7 7.5 6 7.5-6" />
+                                </svg>
+                                <input asp-for="Email" autocomplete="username" placeholder="admin123" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="login-field">
+                            <label asp-for="Password"></label>
+                            <div class="input-with-icon">
+                                <svg aria-hidden="true" viewBox="0 0 24 24">
+                                    <rect x="5" y="10" width="14" height="10" rx="2" />
+                                    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                                </svg>
+                                <input asp-for="Password" autocomplete="current-password" placeholder="********" />
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="login-form-row">
+                            <a href="#" aria-label="Forgot password">Forgot password?</a>
+                        </div>
+
+                        <button class="login-submit" type="submit">Sign in</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

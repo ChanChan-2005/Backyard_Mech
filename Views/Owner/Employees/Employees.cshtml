@@ -1,0 +1,83 @@
+@model IReadOnlyList<EmployeeListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Employees";
+    ViewData["PageTitle"] = "Employees";
+    ViewData["PageSubtitle"] = "EMPLOYEES";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell";
+
+    var employees = Model ?? Array.Empty<EmployeeListItem>();
+    var activeCount = employees.Count(employee => string.Equals(employee.Status, "Active", StringComparison.OrdinalIgnoreCase));
+    var inactiveCount = employees.Count - activeCount;
+}
+
+@section TopbarActions {
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeePerformance">Performance</a>
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeeSchedule">Schedule</a>
+    <button class="users-button-blue" type="button" data-users-modal="add-employee">+ Add Employee</button>
+}
+
+<section class="users-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="users-alert">@message</div>
+    }
+
+    <div class="users-stats">
+        <article class="users-stat"><span>Total Employees</span><strong>@employees.Count</strong></article>
+        <article class="users-stat"><header><span>Active</span><small class="users-pill green">Available</small></header><strong>@activeCount</strong></article>
+        <article class="users-stat"><header><span>Inactive</span><small class="users-pill yellow">Not active</small></header><strong>@inactiveCount</strong></article>
+        <article class="users-stat"><header><span>Avg Utilization</span><small class="users-pill green">Current</small></header><strong>0%</strong></article>
+    </div>
+
+    <nav class="users-tabs">
+        <a class="active" href="/Owner/Employees">All (@employees.Count)</a>
+        <a href="/Owner/Employees">Active (@activeCount)</a>
+        <a href="/Owner/Employees">Inactive (@inactiveCount)</a>
+        <a href="/Owner/SoftDeletedEmployees">Soft Deleted</a>
+        <a href="/Owner/ArchivedEmployees">Archived</a>
+    </nav>
+
+    <div class="users-filter-card">
+        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <div class="users-filter-right">
+            <button class="users-button" type="button">Role: All V</button>
+            <button class="users-button" type="button">Sort By: Name V</button>
+        </div>
+    </div>
+
+    <section class="users-panel">
+        <table class="users-table">
+            <thead><tr><th>Employee Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Status</th><th>Utilization</th><th>Actions</th></tr></thead>
+            <tbody>
+                @foreach (var employee in employees)
+                {
+                    <tr>
+                        <td><span class="users-avatar">@employee.Initials</span><a class="users-link" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">@employee.Name</a></td>
+                        <td>@employee.Role</td>
+                        <td>@employee.Phone</td>
+                        <td>@employee.Email</td>
+                        <td><span class="users-pill @employee.Tone">@employee.Status</span></td>
+                        <td><strong>@employee.Util</strong><span class="users-progress @employee.Progress"><span></span></span></td>
+                        <td class="users-table-actions">
+                            <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@employee.EmployeeProfileId">Edit</a>
+                            <button class="users-small-button" type="button" data-users-modal="archive" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Archive</button>
+                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Soft Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <footer class="users-panel-footer">
+            <span>Showing @employees.Count employee@(employees.Count == 1 ? "" : "s")</span>
+            <nav class="users-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_EmployeeModals")
+
+@section Scripts {
+    <script src="~/js/owner-user-management.js" asp-append-version="true"></script>
+}

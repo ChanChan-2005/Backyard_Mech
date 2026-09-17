@@ -1,0 +1,70 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-customer-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("customer-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, button");
+            firstField?.focus();
+        };
+
+        const populateEditCustomerModal = (button) => {
+            const modal = document.querySelector('[data-customer-modal-panel="edit-customer"]');
+            if (!modal) return;
+
+            const fields = {
+                id: button.dataset.customerId,
+                firstName: button.dataset.firstName,
+                lastName: button.dataset.lastName,
+                phone: button.dataset.phone,
+                email: button.dataset.email,
+                address: button.dataset.address,
+                notes: button.dataset.notes
+            };
+
+            Object.entries(fields).forEach(([name, value]) => {
+                const field = modal.querySelector(`[data-edit-customer-field="${name}"]`);
+                if (field) {
+                    field.value = value || "";
+                }
+            });
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".customer-modal.is-open")) {
+                document.body.classList.remove("customer-modal-open");
+            }
+        };
+
+        document.addEventListener("click", (event) => {
+            const openButton = event.target.closest("[data-customer-modal]");
+            if (openButton) {
+                if (openButton.dataset.customerModal === "edit-customer") {
+                    populateEditCustomerModal(openButton);
+                }
+
+                openModal(openButton.dataset.customerModal);
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-customer-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".customer-modal"));
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            closeModal(document.querySelector(".customer-modal.is-open"));
+        });
+    })();
+</script>

@@ -1,0 +1,59 @@
+@model WorkOrderDetailsViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = $"{Model.Id} Status";
+    ViewData["PageTitle"] = "Job State & Dispatch Logs";
+    ViewData["PageSubtitle"] = $"WORK ORDERS > {Model.Id} > STATUS";
+    ViewData["ActiveNav"] = "Work Order and Assignment";
+    ViewData["ShellClass"] = "work-orders-shell";
+}
+
+@section TopbarActions {
+    <a class="wo-button" asp-controller="Owner" asp-action="WorkOrderDetails" asp-route-id="@Model.Id">Back to Details</a>
+}
+
+<section class="wo-page">
+    <section class="wo-stepper-card">
+        <div class="wo-stepper-header">
+            <h2>Active Stepper for Repair Cycle</h2>
+            <span class="wo-pill @Model.StatusTone">@Model.Status</span>
+        </div>
+        <div class="wo-stepper">
+            <span class="wo-step done"><b>1</b>Pending Setup</span>
+            <span class="wo-step @(Model.Status.Contains("Progress", StringComparison.OrdinalIgnoreCase) || Model.Status.Contains("Paused", StringComparison.OrdinalIgnoreCase) ? "active" : "done")"><b>2</b>In Progress</span>
+            <span class="wo-step @(Model.Status.Contains("Complete", StringComparison.OrdinalIgnoreCase) ? "done" : "")"><b>3</b>Repair Complete</span>
+            <span class="wo-step @(Model.Status.Contains("QC", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><b>4</b>Quality Control</span>
+            <span class="wo-step @(Model.Status.Contains("Pickup", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><b>5</b>Ready for Pickup</span>
+        </div>
+    </section>
+
+    <div class="wo-transition-grid">
+        <main class="wo-stepper-card">
+            <form class="wo-action-area" asp-controller="Owner" asp-action="TransitionWorkOrderStatus" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
+                <h2>Transition Action log</h2>
+                <label class="wo-wide-label">
+                    <span class="wo-mini-label">Append Mechanic Diagnostics and Repair Notes</span>
+                    <textarea class="wo-textarea" name="Notes">@Model.Notes</textarea>
+                </label>
+                <div class="wo-action-row">
+                    <button class="wo-button-warning" type="submit" name="Transition" value="pause">Pause Work Order</button>
+                    <button class="wo-button-green" type="submit" name="Transition" value="qc">Complete Repair (Dispatch to QC)</button>
+                </div>
+            </form>
+        </main>
+
+        <aside class="wo-side-card">
+            <h2>Labor Timer Tracking</h2>
+            <dl class="wo-detail-list">
+                <div><dt>Logged Hours</dt><dd>@Model.LoggedHours / @Model.PlannedHours</dd></div>
+                <div><dt>Clock In Time</dt><dd>@Model.ActualStart</dd></div>
+                <div><dt>Labor efficiency status</dt><dd><span class="wo-pill green">Ahead of Schedule</span></dd></div>
+            </dl>
+            <div class="wo-side-list-spaced">
+                <a class="wo-button-blue" asp-controller="Owner" asp-action="WorkOrderLaborTracking" asp-route-id="@Model.Id">Open Labor Tracking</a>
+            </div>
+        </aside>
+    </div>
+</section>

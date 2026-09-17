@@ -1,0 +1,89 @@
+@model PartsManagementViewModel
+
+<div class="parts-modal" data-parts-modal-panel="add-product-listing" aria-hidden="true">
+    <div class="parts-modal-backdrop" data-parts-modal-close></div>
+    <section class="parts-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-product-listing-title">
+        <form class="parts-form-panel" asp-controller="Owner" asp-action="AddProductListing" method="post">
+            @Html.AntiForgeryToken()
+            <header class="parts-modal-header">
+                <div>
+                    <h2 id="add-product-listing-title">Add Item to Product List</h2>
+                    <p>Add a part, service, or shop offer used inside estimates and work orders.</p>
+                </div>
+                <button class="parts-modal-close" type="button" data-parts-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="parts-form-section">
+                <h2>Section 1: What Are You Adding?</h2>
+                <div class="parts-form-grid">
+                    <label>
+                        <span class="parts-label">Item Type *</span>
+                        <select class="parts-select" name="ListingType" data-product-listing-type required>
+                            <option value="" selected disabled>Select item type</option>
+                            <option value="Part">Part</option>
+                            <option value="Service">Service</option>
+                            <option value="General">General Offer</option>
+                        </select>
+                    </label>
+                    <label data-product-listing-link="part">
+                        <span class="parts-label">Choose Part</span>
+                        <select class="parts-select" name="PartId">
+                            <option value="">Select part</option>
+                            @foreach (var part in Model.PartOptions)
+                            {
+                                <option value="@part.Id">@part.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="parts-wide-label" data-product-listing-link="service" hidden>
+                        <span class="parts-label">Choose Service</span>
+                        <select class="parts-select" name="ServiceId">
+                            <option value="">Select service</option>
+                            @foreach (var service in Model.ServiceOptions)
+                            {
+                                <option value="@service.Id">@service.Label</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="parts-form-section">
+                <h2>Section 2: Listing Details</h2>
+                <div class="parts-form-grid">
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Display Name *</span>
+                        <input class="parts-input" name="ListingTitle" type="text" placeholder="Example: Ceramic Brake Pads Package" required />
+                    </label>
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Short Description</span>
+                        <textarea class="parts-input parts-textarea" name="ListingDescription" placeholder="Example: Durable ceramic front brake pads for smoother and quieter braking."></textarea>
+                    </label>
+                    <label class="parts-wide-label">
+                        <span class="parts-label">Image Link</span>
+                        <input class="parts-input" name="ImageUrl" type="url" placeholder="Example: https://example.com/brake-pads.jpg" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="parts-form-section">
+                <h2>Section 3: Price and Order</h2>
+                <div class="parts-form-grid">
+                    <label>
+                        <span class="parts-label">Price</span>
+                        <input class="parts-input" name="DisplayPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                    </label>
+                    <label>
+                        <span class="parts-label">Sort Order</span>
+                        <input class="parts-input" name="DisplayOrder" type="number" min="0" placeholder="Enter sort order" />
+                    </label>
+                </div>
+            </section>
+
+            <footer class="parts-modal-actions">
+                <button class="parts-button" type="button" data-parts-modal-close>Cancel</button>
+                <button class="parts-button-blue" type="submit">Save Listing</button>
+            </footer>
+        </form>
+    </section>
+</div>

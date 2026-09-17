@@ -1,0 +1,973 @@
+Oo. Gawin nating **hierarchical ang category ng Parts, Services, at Tools** gamit ang `Parent...CategoryId`, para hindi na kailangan ng hiwalay na `Subcategory` table.
+
+Example:
+
+```text
+ServiceCategory
+Preventive Maintenance
+└── Oil & Fluid Services
+    └── Oil Change
+```
+
+Same concept sa Parts at Tools.
+
+Eto na ang **updated complete list ng tables + attributes** based sa lahat ng napag-usapan natin.
+
+## 1. EmployeeProfile
+
+```text
+EmployeeProfile
+- EmployeeProfileId
+- UserId
+- EmployeeNumber
+- JobTitle
+- HourlyRate
+- HireDate
+- Phone
+- IsActive
+```
+
+## 2. EmployeeRateHistory
+
+```text
+EmployeeRateHistory
+- EmployeeRateHistoryId
+- EmployeeProfileId
+- HourlyRate
+- EffectiveFrom
+- EffectiveTo
+- ChangedByUserId
+- ChangedByName
+- CreatedUtc
+```
+
+## 3. EmployeeAvailability
+
+```text
+EmployeeAvailability
+- EmployeeAvailabilityId
+- EmployeeProfileId
+- DayOfWeek
+- StartTime
+- EndTime
+- IsAvailable
+```
+
+## 4. EmployeeAvailabilityException
+
+```text
+EmployeeAvailabilityException
+- EmployeeAvailabilityExceptionId
+- EmployeeProfileId
+- StartUtc
+- EndUtc
+- Reason
+- IsAvailable
+```
+
+## 5. Permission
+
+```text
+Permission
+- PermissionId
+- ModuleName
+- ActionName
+- PermissionCode
+- Description
+- IsActive
+```
+
+## 6. RolePermission
+
+```text
+RolePermission
+- RolePermissionId
+- RoleId
+- PermissionId
+```
+
+`RoleId` → ASP.NET Identity `AspNetRoles`.
+
+## 7. AuditLogEntry
+
+```text
+AuditLogEntry
+- AuditLogEntryId
+- UserId
+- UserName
+- Action
+- EntityName
+- EntityId
+- TimestampUtc
+- Details
+```
+
+---
+
+# CUSTOMER / VEHICLE
+
+## 8. Customer
+
+```text
+Customer
+- CustomerId
+- FirstName
+- MiddleName
+- LastName
+- Email
+- Phone
+- StreetAddress
+- City
+- Province
+- PostalCode
+- Notes
+- CreatedUtc
+```
+
+## 9. Vehicle
+
+```text
+Vehicle
+- VehicleId
+- VIN
+- Make
+- Model
+- Year
+- LicensePlate
+- Color
+- Odometer
+- CreatedUtc
+```
+
+## 10. VehicleOwnership
+
+```text
+VehicleOwnership
+- VehicleOwnershipId
+- VehicleId
+- CustomerId
+- OwnerFirstName
+- OwnerMiddleName
+- OwnerLastName
+- OwnershipStartUtc
+- OwnershipEndUtc
+```
+
+Ito ang nagha-handle ng:
+
+```text
+Owner 1
+2024 → 2026
+
+Owner 2
+2026 → Present
+```
+
+## 11. VehicleOdometerHistory
+
+```text
+VehicleOdometerHistory
+- VehicleOdometerHistoryId
+- VehicleId
+- AppointmentId
+- Odometer
+- RecordedUtc
+- RecordedByUserId
+- RecordedByName
+```
+
+---
+
+# BAY / APPOINTMENT
+
+## 12. Bay
+
+```text
+Bay
+- BayId
+- Name
+- Description
+- IsActive
+```
+
+## 13. Appointment
+
+```text
+Appointment
+- AppointmentId
+- CustomerId
+- CustomerName
+- VehicleId
+- BayId
+- PreferredMechanicUserId
+- PreferredMechanicName
+- AssignedMechanicUserId
+- AssignedMechanicName
+- ScheduledStart
+- ScheduledEnd
+- AppointmentType
+- AppointmentStatus
+- CreatedByUserId
+- CreatedByName
+- CheckedInUtc
+- CheckedInByUserId
+- CheckedInByName
+- Notes
+- CreatedUtc
+```
+
+## 14. AppointmentService
+
+```text
+AppointmentService
+- AppointmentServiceId
+- AppointmentId
+- ServiceId
+- ServiceName
+- Notes
+- CreatedUtc
+```
+
+So one appointment can have:
+
+```text
+Appointment #100
+├── Oil Change
+├── Brake Inspection
+└── Tire Rotation
+```
+
+## 15. QueueStatusHistory
+
+```text
+QueueStatusHistory
+- QueueStatusHistoryId
+- AppointmentId
+- QueueStatus
+- ChangedUtc
+- ChangedByUserId
+- ChangedByName
+- Notes
+```
+
+---
+
+# INSPECTION
+
+## 16. Inspection
+
+```text
+Inspection
+- InspectionId
+- AppointmentId
+- MechanicUserId
+- MechanicName
+- StartedUtc
+- CompletedUtc
+- Notes
+```
+
+## 17. InspectionMedia
+
+```text
+InspectionMedia
+- InspectionMediaId
+- InspectionId
+- FileType
+- BlobUrl
+- UploadedUtc
+- UploadedByUserId
+- UploadedByName
+```
+
+---
+
+# SUPPLIER
+
+## 18. Supplier
+
+```text
+Supplier
+- SupplierId
+- SupplierName
+- ContactFirstName
+- ContactMiddleName
+- ContactLastName
+- Phone
+- Email
+- StreetAddress
+- City
+- Province
+- PostalCode
+- AccountNumber
+- IsActive
+```
+
+---
+
+# PARTS
+
+## 19. PartCategory
+
+Ito na yung hierarchical version.
+
+```text
+PartCategory
+- PartCategoryId
+- ParentPartCategoryId
+- CategoryName
+- Description
+- IsActive
+```
+
+Example:
+
+```text
+Brake System
+├── Brake Pads
+├── Brake Rotors
+└── Brake Fluids
+```
+
+Database:
+
+```text
+Id | ParentId | Category
+1  | NULL     | Brake System
+2  | 1        | Brake Pads
+3  | 1        | Brake Rotors
+```
+
+## 20. Part
+
+```text
+Part
+- PartId
+- SupplierId
+- PartCategoryId
+- SKU
+- Name
+- Description
+- UnitCost
+- UnitPrice
+- QuantityOnHand
+- ReorderThreshold
+- IsActive
+```
+
+Example:
+
+```text
+Brake System
+    ↓
+Brake Pads
+    ↓
+Premium Ceramic Brake Pads
+```
+
+## 21. PartTransaction
+
+```text
+PartTransaction
+- PartTransactionId
+- PartId
+- WorkOrderId
+- TransactionType
+- Quantity
+- UnitCostAtTransaction
+- PerformedByUserId
+- PerformedByName
+- PerformedUtc
+- Notes
+```
+
+Possible `TransactionType`:
+
+```text
+Received
+Reserved
+Installed
+Returned
+Wasted
+Adjustment
+```
+
+---
+
+# SERVICE CATALOG
+
+## 22. ServiceCategory
+
+Hierarchical din.
+
+```text
+ServiceCategory
+- ServiceCategoryId
+- ParentServiceCategoryId
+- CategoryName
+- Description
+- IsActive
+```
+
+Example:
+
+```text
+Preventive Maintenance
+├── Oil & Fluid Services
+│   ├── Oil Change
+│   └── Coolant Flush
+│
+└── Filter Services
+```
+
+## 23. Service
+
+```text
+Service
+- ServiceId
+- ServiceCategoryId
+- ServiceName
+- Description
+- DefaultPrice
+- DefaultEstimatedHours
+- IsActive
+```
+
+Example:
+
+```text
+ServiceCategory:
+Preventive Maintenance
+
+Subcategory:
+Oil & Fluid Services
+
+Service:
+Synthetic Oil Change
+```
+
+Important: yung `ServiceCategoryId` ng `Service` normally ituturo natin sa **lowest/leaf category**:
+
+```text
+Oil Change
+    ↓
+Oil & Fluid Services
+```
+
+Hindi directly sa `Preventive Maintenance`.
+
+---
+
+# ESTIMATE
+
+## 24. Estimate
+
+```text
+Estimate
+- EstimateId
+- AppointmentId
+- CreatedByUserId
+- CreatedByName
+- CreatedUtc
+```
+
+## 25. EstimateRevision
+
+```text
+EstimateRevision
+- EstimateRevisionId
+- EstimateId
+- RevisionNumber
+- EstimateStatus
+- ApprovalToken
+- ApprovalTokenExpiresUtc
+- SentToCustomerUtc
+- RespondedUtc
+- Subtotal
+- TaxAmount
+- Total
+- RevisionReason
+- CreatedByUserId
+- CreatedByName
+- CreatedUtc
+```
+
+## 26. EstimateRevisionLineItem
+
+```text
+EstimateRevisionLineItem
+- EstimateRevisionLineItemId
+- EstimateRevisionId
+- PartId
+- ServiceId
+- Description
+- LineType
+- Quantity
+- UnitPrice
+- LineTotal
+- ApprovalStatus
+```
+
+Possible:
+
+```text
+LineType
+- Service
+- Part
+```
+
+And:
+
+```text
+ApprovalStatus
+- Pending
+- Approved
+- Declined
+```
+
+---
+
+# WORK ORDER
+
+## 27. WorkOrder
+
+```text
+WorkOrder
+- WorkOrderId
+- AppointmentId
+- EstimateId
+- ApprovedEstimateRevisionId
+- BayId
+- WorkOrderStatus
+- ScheduledStart
+- ScheduledEnd
+- ActualStart
+- ActualEnd
+- CreatedUtc
+```
+
+## 28. WorkOrderAssignment
+
+```text
+WorkOrderAssignment
+- WorkOrderAssignmentId
+- WorkOrderId
+- MechanicUserId
+- MechanicName
+- AssignmentRole
+- AssignedUtc
+```
+
+Possible role:
+
+```text
+PrimaryMechanic
+SecondaryMechanic
+Supervisor
+```
+
+---
+
+# ACTUAL SERVICE / LABOUR
+
+## 29. ServiceEntry
+
+Ito ang actual service performed.
+
+```text
+ServiceEntry
+- ServiceEntryId
+- WorkOrderId
+- ServiceId
+- MechanicUserId
+- MechanicName
+- ServiceDescription
+- EstimatedHours
+- DurationMinutes
+- HourlyRate
+- ServiceCost
+- Notes
+```
+
+Example:
+
+```text
+Service:
+Brake Pad Replacement
+
+EstimatedHours:
+2.0
+
+Actual Duration:
+150 minutes
+
+HourlyRate:
+$100
+
+ServiceCost:
+$250
+```
+
+## 30. ServiceTimeSegment
+
+```text
+ServiceTimeSegment
+- ServiceTimeSegmentId
+- ServiceEntryId
+- SegmentStart
+- SegmentEnd
+- SegmentType
+```
+
+Possible:
+
+```text
+Work
+Pause
+```
+
+or:
+
+```text
+Started
+Paused
+Resumed
+Completed
+```
+
+depending sa application logic.
+
+---
+
+# TOOLS
+
+## 31. ToolCategory
+
+Hierarchical din.
+
+```text
+ToolCategory
+- ToolCategoryId
+- ParentToolCategoryId
+- CategoryName
+- Description
+- IsActive
+```
+
+Example:
+
+```text
+Diagnostic Equipment
+├── OBD Scanners
+├── Battery Testers
+└── Electrical Testers
+```
+
+Or:
+
+```text
+Power Tools
+├── Impact Wrenches
+├── Drills
+└── Grinders
+```
+
+## 32. Tool
+
+```text
+Tool
+- ToolId
+- ToolCategoryId
+- Name
+- SerialNumber
+- Location
+- Condition
+- LastCalibratedUtc
+- NextCalibrationDueUtc
+- IsActive
+```
+
+So tinanggal na natin yung:
+
+```text
+Category NVARCHAR(...)
+```
+
+dahil normalized na:
+
+```text
+ToolCategoryId
+```
+
+## 33. ToolCheckout
+
+```text
+ToolCheckout
+- ToolCheckoutId
+- ToolId
+- WorkOrderId
+- MechanicUserId
+- MechanicName
+- CheckedOutUtc
+- ReturnedUtc
+- ConditionAtCheckout
+- ConditionAtReturn
+- ToolIssueStatus
+- Notes
+```
+
+Possible `ToolIssueStatus`:
+
+```text
+None
+Damaged
+Missing
+```
+
+## 34. ToolMaintenance
+
+```text
+ToolMaintenance
+- ToolMaintenanceId
+- ToolId
+- MaintenanceType
+- PerformedUtc
+- NextDueUtc
+- PerformedByUserId
+- PerformedByName
+- Cost
+- Notes
+```
+
+---
+
+# QUALITY CONTROL
+
+## 35. QualityCheck
+
+```text
+QualityCheck
+- QualityCheckId
+- WorkOrderId
+- InspectorUserId
+- InspectorName
+- Passed
+- PerformedUtc
+- Notes
+```
+
+---
+
+# TAX / BILLING
+
+## 36. TaxRate
+
+```text
+TaxRate
+- TaxRateId
+- Description
+- Rate
+- EffectiveFrom
+- EffectiveTo
+```
+
+---
+
+# INVOICE
+
+## 37. Invoice
+
+```text
+Invoice
+- InvoiceId
+- WorkOrderId
+- CustomerId
+- CustomerFirstName
+- CustomerMiddleName
+- CustomerLastName
+- InvoiceNumber
+- IssuedUtc
+- TaxRateId
+- Subtotal
+- TaxAmount
+- Total
+- InvoiceStatus
+- PaidUtc
+```
+
+Possible status:
+
+```text
+Open
+Paid
+Void
+Credited
+```
+
+`PaymentMethod` **wala na rito** dahil nasa `Payment` na ang actual payment method.
+
+## 38. InvoiceLineItem
+
+```text
+InvoiceLineItem
+- InvoiceLineItemId
+- InvoiceId
+- Description
+- SourceType
+- SourceId
+- Quantity
+- UnitPrice
+- LineTotal
+```
+
+Possible:
+
+```text
+SourceType
+- Service
+- Part
+```
+
+`SourceId` = ID ng original source record kung meron.
+
+---
+
+## 39. InvoiceAdjustment
+
+```text
+InvoiceAdjustment
+- InvoiceAdjustmentId
+- InvoiceId
+- AdjustmentType
+- Amount
+- Reason
+- PerformedByUserId
+- PerformedByName
+- PerformedUtc
+```
+
+Possible:
+
+```text
+Void
+Credit
+Adjustment
+```
+
+---
+
+# PAYMENT
+
+## 40. Payment
+
+```text
+Payment
+- PaymentId
+- InvoiceId
+- Amount
+- PaymentMethod
+- ReferenceNumber
+- PaidUtc
+- ReceivedByUserId
+- ReceivedByName
+- Notes
+```
+
+---
+
+# INVOICE NUMBERING
+
+## 41. InvoiceNumberCounter
+
+```text
+InvoiceNumberCounter
+- InvoiceNumberCounterId
+- Prefix
+- LastNumber
+```
+
+Example:
+
+```text
+Prefix = INV-
+LastNumber = 125
+```
+
+Next invoice:
+
+```text
+INV-000126
+```
+
+---
+
+# Final hierarchy ng tatlong catalog
+
+Ito na ngayon ang consistent structure:
+
+```text
+PARTS
+
+PartCategory
+│
+├── Brake System
+│   ├── Brake Pads
+│   │     ↓
+│   │   Part
+│   │   Ceramic Brake Pads
+│   │
+│   └── Brake Rotors
+│         ↓
+│       Part
+│       Front Brake Rotor
+```
+
+```text
+SERVICES
+
+ServiceCategory
+│
+├── Preventive Maintenance
+│   ├── Oil & Fluid Services
+│   │       ↓
+│   │     Service
+│   │     Synthetic Oil Change
+│   │
+│   └── Filter Services
+│           ↓
+│         Service
+│         Air Filter Replacement
+```
+
+```text
+TOOLS
+
+ToolCategory
+│
+├── Diagnostic Equipment
+│   ├── OBD Scanners
+│   │       ↓
+│   │     Tool
+│   │     Autel Scanner
+│   │
+│   └── Battery Testers
+│           ↓
+│         Tool
+│         Digital Battery Tester
+```
+
+So **41 business/support tables** ngayon sa consolidated structure natin, excluding the standard ASP.NET Identity tables such as `AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, etc.
+
+At ang magandang part ng `ParentCategoryId` approach: kung someday gusto mong:
+
+```text
+Category
+  ↓
+Subcategory
+  ↓
+Sub-subcategory
+  ↓
+Item
+```
+
+**wala ka nang bagong table na gagawin.** Same category table lang ang gagamitin recursively.

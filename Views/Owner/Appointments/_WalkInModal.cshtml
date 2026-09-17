@@ -1,0 +1,86 @@
+<div class="appointment-modal" data-appointment-modal-panel="walk-in" aria-hidden="true">
+    <div class="appointment-modal-backdrop" data-appointment-modal-close></div>
+    <section class="appointment-modal-card" role="dialog" aria-modal="true" aria-labelledby="walk-in-title">
+        <form class="appointment-modal-form">
+            <header class="appointment-modal-header">
+                <div>
+                    <h2 id="walk-in-title">Walk-In Check-In</h2>
+                    <p>Create a walk-in service ticket and place it in today&apos;s queue.</p>
+                </div>
+                <button class="appointment-modal-close" type="button" data-appointment-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="appointment-modal-section">
+                <h3>Customer and Vehicle</h3>
+                <div class="appointment-modal-grid">
+                    <label>
+                        <span>Customer Name *</span>
+                        <input placeholder="Customer name" />
+                    </label>
+                    <label>
+                        <span>Contact Number *</span>
+                        <input type="tel" placeholder="Phone number" />
+                    </label>
+                    <label>
+                        <span>Vehicle *</span>
+                        <input placeholder="Year Make Model" />
+                    </label>
+                    <label>
+                        <span>Plate / VIN</span>
+                        <input placeholder="Plate or VIN" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="appointment-modal-section">
+                <h3>Walk-In Details</h3>
+                <div class="appointment-modal-grid">
+                    <label>
+                        <span>Arrival Time *</span>
+                        <input type="time" placeholder="Select arrival time" />
+                    </label>
+                    <label>
+                        <span>Priority *</span>
+                        <select>
+                            <option value="" selected disabled>Select priority</option>
+                            <option>Normal</option>
+                            <option>Low</option>
+                            <option>High</option>
+                            <option>Urgent</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Service Type *</span>
+                        <select>
+                            <option value="" selected disabled>Select service type</option>
+                            <option>Diagnostics</option>
+                            <option>Oil Change</option>
+                            <option>Brake Service</option>
+                            <option>Tire Service</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Assign Bay</span>
+                        <select>
+                            <option value="" selected disabled>Select bay</option>
+                            <option>Unassigned</option>
+                            <option>Bay 1 (Lift)</option>
+                            <option>Bay 2 (Alignment)</option>
+                            <option>Bay 3 (Diagnostics)</option>
+                            <option>Bay 4 (Tires)</option>
+                        </select>
+                    </label>
+                    <label class="appointment-modal-wide">
+                        <span>Customer Concern *</span>
+                        <textarea placeholder="Describe the issue or requested service."></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <footer class="appointment-modal-actions">
+                <button class="appointment-modal-secondary" type="button" data-appointment-modal-close>Cancel</button>
+                <button class="appointment-modal-primary" type="button" data-appointment-modal-close>Add Walk-In</button>
+            </footer>
+        </form>
+    </section>
+</div>

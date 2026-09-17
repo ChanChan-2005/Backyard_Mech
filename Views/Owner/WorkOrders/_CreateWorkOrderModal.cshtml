@@ -1,0 +1,90 @@
+@{
+    var bayOptions = ViewData["BayOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+    var employeeOptions = ViewData["EmployeeOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+    var approvedEstimateOptions = ViewData["ApprovedEstimateOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+}
+<div class="wo-modal" data-workorder-modal-panel="create-work-order" aria-hidden="true">
+    <div class="wo-modal-backdrop" data-workorder-modal-close></div>
+    <section class="wo-modal-card" role="dialog" aria-modal="true" aria-labelledby="create-work-order-title">
+        <form class="wo-modal-form">
+            <header class="wo-modal-header">
+                <div>
+                    <h2 id="create-work-order-title">Create Work Order</h2>
+                    <p>Convert an approved estimate into an active repair job with mechanic and bay dispatch.</p>
+                </div>
+                <button class="wo-modal-close" type="button" data-workorder-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="wo-modal-section">
+                <div class="wo-form-section-header">
+                    <h2>1. Approved Estimate & Customer Specs</h2>
+                    <p>Choose or review the approved items ready to be converted into active maintenance logs.</p>
+                </div>
+                <div class="wo-form-grid">
+                    <label>
+                        <span class="wo-label">Originating Estimate</span>
+                        <select class="wo-select">
+                            <option value="" selected disabled>Select approved estimate</option>
+                            @foreach (var estimate in approvedEstimateOptions)
+                            {
+                                <option value="@estimate.Id">@estimate.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span class="wo-label">Owner & Asset</span>
+                        <input class="wo-field" placeholder="Enter owner and vehicle details" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="wo-modal-section">
+                <div class="wo-form-section-header">
+                    <h2>2. Labor Allocation & Bay Dispatch</h2>
+                </div>
+                <div class="wo-form-grid">
+                    <label>
+                        <span class="wo-label">Assign Primary Lead Mechanic</span>
+                        <select class="wo-select">
+                            <option value="" selected disabled>Select lead mechanic</option>
+                            @foreach (var employee in employeeOptions)
+                            {
+                                <option value="@employee.Id">@employee.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span class="wo-label">Assign Service Bay Location</span>
+                        <select class="wo-select">
+                            <option value="" selected disabled>Select service bay</option>
+                            @foreach (var bay in bayOptions)
+                            {
+                                <option value="@bay.Id">@bay.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span class="wo-label">Expected Job Start</span>
+                        <input class="wo-field" placeholder="Select or enter expected start time" />
+                    </label>
+                    <label>
+                        <span class="wo-label">Expected Completion Deadline</span>
+                        <input class="wo-field" placeholder="Select or enter completion deadline" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="wo-modal-section">
+                <label class="wo-wide-label">
+                    <span class="wo-label">Maintenance and Dispatch Instructions</span>
+                    <textarea class="wo-textarea" placeholder="Enter maintenance notes, parts instructions, and dispatch details."></textarea>
+                </label>
+            </section>
+
+            <footer class="wo-modal-actions">
+                <button class="wo-button" type="button" data-workorder-modal-close>Cancel</button>
+                <a class="wo-topbar-button" href="/Owner/WorkOrders">Generate WO</a>
+            </footer>
+        </form>
+    </section>
+</div>

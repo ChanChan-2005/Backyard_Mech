@@ -1,0 +1,73 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-queue-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("queue-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, select, button");
+            firstField?.focus();
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".queue-modal.is-open")) {
+                document.body.classList.remove("queue-modal-open");
+            }
+        };
+
+        document.addEventListener("click", (event) => {
+            const mechanicChoice = event.target.closest("[data-queue-mechanic-choice]");
+            if (mechanicChoice) {
+                const modal = mechanicChoice.closest("[data-queue-modal-panel='assign-mechanic']");
+                const input = mechanicChoice.querySelector("input[type='radio']");
+
+                if (modal && input && !input.disabled) {
+                    input.checked = true;
+                    modal.querySelectorAll("[data-queue-mechanic-choice]").forEach(choice => {
+                        choice.classList.toggle("selected", choice === mechanicChoice);
+                    });
+                }
+            }
+
+            const bayChoice = event.target.closest("[data-queue-bay-choice]");
+            if (bayChoice) {
+                const modal = bayChoice.closest("[data-queue-modal-panel='assign-bay']");
+                const input = bayChoice.querySelector("input[type='radio']");
+
+                if (modal && input && !input.disabled) {
+                    input.checked = true;
+                    input.dispatchEvent(new Event("change", { bubbles: true }));
+                    modal.querySelectorAll("[data-queue-bay-choice]").forEach(choice => {
+                        choice.classList.toggle("selected", choice === bayChoice);
+                    });
+                }
+            }
+
+            const openButton = event.target.closest("[data-queue-modal]");
+            if (openButton) {
+                event.preventDefault();
+                openModal(openButton.getAttribute("data-queue-modal"));
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-queue-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".queue-modal"));
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeModal(document.querySelector(".queue-modal.is-open"));
+            }
+        });
+    })();
+</script>

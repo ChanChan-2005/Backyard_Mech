@@ -1,0 +1,61 @@
+@model SalesRevenueReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Sales & Revenue Report";
+    ViewData["PageTitle"] = "Sales & Revenue Report";
+    ViewData["PageSubtitle"] = "Invoice registries and income distribution";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card">
+        <select><option>@Model.PeriodLabel</option></select>
+        <select><option>Service: All</option></select>
+        <select><option>Mechanic: All</option></select>
+    </div>
+
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong></article>
+        }
+    </div>
+
+    <section class="reports-card reports-chart-card">
+        <h2>Daily Revenue History</h2>
+        <canvas id="salesRevenueChart" height="190"></canvas>
+    </section>
+
+    <section class="reports-panel">
+        <table class="reports-table">
+            <thead><tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Vehicle</th><th>Service Type</th><th>Mechanic</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td>@row.Date</td><td><a class="reports-link" href="/Owner/InvoiceDetails/@row.InvoiceId">@row.Invoice</a></td><td><strong>@row.Customer</strong></td><td>@row.Vehicle</td><td>@row.Service</td><td>@row.Mechanic</td><td><strong>@row.Amount</strong></td><td><span class="reports-pill @row.Tone">@row.Status</span></td></tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8">No invoices found for this period.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count invoices</span></footer>
+    </section>
+</section>
+
+@section Scripts {
+    <script>
+        window.ownerReportCharts = {
+            salesRevenueChart: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueChart, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

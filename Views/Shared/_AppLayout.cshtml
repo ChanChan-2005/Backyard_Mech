@@ -1,0 +1,176 @@
+@{
+    var pageTitle = ViewData["PageTitle"]?.ToString() ?? ViewData["Title"]?.ToString() ?? "Dashboard";
+    var pageSubtitle = ViewData["PageSubtitle"]?.ToString() ?? DateTime.Now.ToString("dddd, MMMM dd, yyyy");
+    var activeNav = ViewData["ActiveNav"]?.ToString() ?? "Dashboard";
+    var sessionUserName = Context.Session.GetString("UserName") ?? "Owner";
+    var sessionUserRole = Context.Session.GetString("UserRole") ?? "Owner";
+    var userName = ViewData["ShellUserName"]?.ToString() ?? sessionUserName;
+    var userRole = ViewData["ShellUserRole"]?.ToString() ?? sessionUserRole;
+    var initials = ViewData["ShellUserInitials"]?.ToString() ?? string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+    if (string.IsNullOrWhiteSpace(initials))
+    {
+        initials = "O";
+    }
+    var shellClass = ViewData["ShellClass"]?.ToString() ?? "";
+    var searchPlaceholderOverride = ViewData["SearchPlaceholder"]?.ToString();
+    var isServiceQueue = string.Equals(activeNav, "Service Queue", StringComparison.OrdinalIgnoreCase);
+    var isAppointments = string.Equals(activeNav, "Appointments and Check-In", StringComparison.OrdinalIgnoreCase);
+    var isEstimates = string.Equals(activeNav, "Estimates / Customers Approval", StringComparison.OrdinalIgnoreCase);
+    var isWorkOrders = string.Equals(activeNav, "Work Order and Assignment", StringComparison.OrdinalIgnoreCase);
+    var isBayManagement = string.Equals(activeNav, "Bay Management", StringComparison.OrdinalIgnoreCase);
+    var isPartsManagement = string.Equals(activeNav, "Parts Management", StringComparison.OrdinalIgnoreCase);
+    var isLabourTracking = string.Equals(activeNav, "Labour Time Tracking", StringComparison.OrdinalIgnoreCase);
+    var isQualityControl = string.Equals(activeNav, "Quality Control", StringComparison.OrdinalIgnoreCase);
+    var isToolsTracking = string.Equals(activeNav, "Tools Tracking", StringComparison.OrdinalIgnoreCase);
+    var isInvoicing = string.Equals(activeNav, "Invoicing and Payments", StringComparison.OrdinalIgnoreCase);
+    var isArchive = string.Equals(activeNav, "Archive", StringComparison.OrdinalIgnoreCase);
+    var isRecordsDisposition = string.Equals(activeNav, "Records Disposition", StringComparison.OrdinalIgnoreCase);
+    var isUserManagement = string.Equals(activeNav, "User Management", StringComparison.OrdinalIgnoreCase);
+    var isReports = string.Equals(activeNav, "Reports", StringComparison.OrdinalIgnoreCase);
+    var isSettings = string.Equals(activeNav, "Settings", StringComparison.OrdinalIgnoreCase);
+
+    var navItems = new[]
+    {
+        new { Icon = "dashboard", Label = "Dashboard", Href = "/Owner/Dashboard" },
+        new { Icon = "queue", Label = "Service Queue", Href = "/Owner/ServiceQueue" },
+        new { Icon = "vehicle", Label = "Customer and Vehicle", Href = "/Owner/CustomerVehicle" },
+        new { Icon = "calendar", Label = "Appointments and Check-In", Href = "/Owner/Appointments" },
+        new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals" },
+        new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders" },
+        new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement" },
+        new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement" },
+        new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking" },
+        new { Icon = "quality", Label = "Quality Control", Href = "/Owner/QualityControl" },
+        new { Icon = "tools", Label = "Tools Tracking", Href = "/Owner/ToolTracking" },
+        new { Icon = "invoice", Label = "Invoicing and Payments", Href = "/Owner/InvoiceRegistry" },
+        new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords" },
+        new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition" },
+        new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports" },
+        new { Icon = "users", Label = "User Management", Href = "/Owner/Employees" },
+        new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings" },
+        new { Icon = "logout", Label = "Logout", Href = "/Account/Logout" }
+    };
+
+    string NavIconSvg(string icon) => icon switch
+    {
+        "dashboard" => "<svg viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1.5\"/></svg>",
+        "queue" => "<svg viewBox=\"0 0 24 24\"><path d=\"M8 6h13\"/><path d=\"M8 12h13\"/><path d=\"M8 18h13\"/><circle cx=\"4\" cy=\"6\" r=\"1\"/><circle cx=\"4\" cy=\"12\" r=\"1\"/><circle cx=\"4\" cy=\"18\" r=\"1\"/></svg>",
+        "vehicle" => "<svg viewBox=\"0 0 24 24\"><path d=\"M5 16h14l-1.4-5.2A3 3 0 0 0 14.7 8H9.3a3 3 0 0 0-2.9 2.8L5 16Z\"/><path d=\"M6 16v3\"/><path d=\"M18 16v3\"/><circle cx=\"8\" cy=\"17\" r=\"1\"/><circle cx=\"16\" cy=\"17\" r=\"1\"/></svg>",
+        "calendar" => "<svg viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M8 3v4\"/><path d=\"M16 3v4\"/><path d=\"M4 10h16\"/></svg>",
+        "estimate" => "<svg viewBox=\"0 0 24 24\"><path d=\"M6 3h9l3 3v15H6z\"/><path d=\"M14 3v4h4\"/><path d=\"M8 12h8\"/><path d=\"M8 16h6\"/></svg>",
+        "workorder" => "<svg viewBox=\"0 0 24 24\"><path d=\"M14 7 7 14\"/><path d=\"m8 6 3 3\"/><path d=\"m15 13 3 3\"/><path d=\"M5 19h14\"/></svg>",
+        "bay" => "<svg viewBox=\"0 0 24 24\"><path d=\"M4 20V9l8-5 8 5v11\"/><path d=\"M8 20v-7h8v7\"/><path d=\"M9 16h6\"/></svg>",
+        "parts" => "<svg viewBox=\"0 0 24 24\"><path d=\"m12 3 8 4.5v9L12 21l-8-4.5v-9Z\"/><path d=\"M12 12 4.5 7.8\"/><path d=\"M12 12v9\"/><path d=\"m12 12 7.5-4.2\"/></svg>",
+        "time" => "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M12 7v5l3 2\"/></svg>",
+        "quality" => "<svg viewBox=\"0 0 24 24\"><path d=\"M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6z\"/><path d=\"m9 12 2 2 4-5\"/></svg>",
+        "tools" => "<svg viewBox=\"0 0 24 24\"><path d=\"M14.5 6.5 17 4l3 3-2.5 2.5\"/><path d=\"m16 8-9 9a2 2 0 0 0 3 3l9-9\"/><path d=\"M5 5l4 4\"/></svg>",
+        "invoice" => "<svg viewBox=\"0 0 24 24\"><path d=\"M7 3h10v18l-2-1-2 1-2-1-2 1-2-1z\"/><path d=\"M9 8h6\"/><path d=\"M9 12h6\"/><path d=\"M9 16h4\"/></svg>",
+        "archive" => "<svg viewBox=\"0 0 24 24\"><path d=\"M4 7h16\"/><path d=\"M6 7v13h12V7\"/><path d=\"M9 3h6l1 4H8z\"/><path d=\"M9 12h6\"/></svg>",
+        "disposition" => "<svg viewBox=\"0 0 24 24\"><path d=\"M5 6h14\"/><path d=\"M8 6V4h8v2\"/><path d=\"M7 6l1 14h8l1-14\"/><path d=\"M10 11v5\"/><path d=\"M14 11v5\"/></svg>",
+        "reports" => "<svg viewBox=\"0 0 24 24\"><path d=\"M5 19V9\"/><path d=\"M12 19V5\"/><path d=\"M19 19v-7\"/><path d=\"M3 19h18\"/></svg>",
+        "users" => "<svg viewBox=\"0 0 24 24\"><circle cx=\"9\" cy=\"8\" r=\"3\"/><path d=\"M3 20c.5-3 2.5-5 6-5s5.5 2 6 5\"/><circle cx=\"17\" cy=\"9\" r=\"2\"/><path d=\"M15 15c2.6.2 4.2 1.7 4.7 4\"/></svg>",
+        "settings" => "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 3v3\"/><path d=\"M12 18v3\"/><path d=\"M3 12h3\"/><path d=\"M18 12h3\"/><path d=\"m5 5 2 2\"/><path d=\"m17 17 2 2\"/><path d=\"m19 5-2 2\"/><path d=\"m7 17-2 2\"/></svg>",
+        "logout" => "<svg viewBox=\"0 0 24 24\"><path d=\"M10 6H5v12h5\"/><path d=\"M13 12h8\"/><path d=\"m18 8 4 4-4 4\"/></svg>",
+        _ => "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8\"/></svg>"
+    };
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Backyard Mech</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/app-layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/dashboard/owner-dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/customers/owner-customer-vehicle.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/customers/owner-customer-detail.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/service/owner-service-queue.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/appointments/owner-appointments.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/estimates/owner-estimates.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/workorders/owner-work-orders.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/bay/owner-bay-management.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/parts/owner-parts-management.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/labour/owner-labour-tracking.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/qualitycontrol/owner-quality-control.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/tools/owner-tool-tracking.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/invoicing/owner-invoicing.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/records/owner-records.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/employees/owner-user-management.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/reports/owner-reports.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/settings/owner-settings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/owner-modal-fields.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Backyard_Mech.styles.css" asp-append-version="true" />
+</head>
+<body class="app-shell-body @shellClass">
+    @await Html.PartialAsync("_AppNotificationModal")
+
+    <div class="app-shell">
+        <aside class="app-sidebar" aria-label="Application navigation">
+            <div class="app-brand">
+                <span>Backyard Mech</span>
+            </div>
+
+            <nav class="app-nav">
+                @foreach (var item in navItems)
+                {
+                    var isActive = string.Equals(activeNav, item.Label, StringComparison.OrdinalIgnoreCase);
+                    <a class="@(isActive ? "active" : "")" href="@item.Href">
+                        <span class="nav-icon" aria-hidden="true">@Html.Raw(NavIconSvg(item.Icon))</span>
+                        <span>@item.Label</span>
+                    </a>
+                }
+            </nav>
+
+            <div class="app-profile">
+                <span class="avatar">@initials</span>
+                <div>
+                    <strong>@userName</strong>
+                    <span>@userRole</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="app-main">
+            <header class="app-topbar">
+                <div class="app-title">
+                    <h1>@pageTitle</h1>
+                    <p>@pageSubtitle</p>
+                </div>
+                <div class="app-actions">
+                    <button class="app-bell" type="button" aria-label="Notifications">!<b>2</b></button>
+                    @if (!isBayManagement && !isReports && !isSettings)
+                    {
+                        <label class="app-search">
+                            <span>Q</span>
+                            <input type="search" placeholder="@(searchPlaceholderOverride ?? (isEstimates ? "Search estimates..." : isAppointments ? "Search tickets, VIN, plate, customer..." : isServiceQueue ? "Search queue, plate, VIN..." : isQualityControl ? "Search WO#, plate, customer..." : isToolsTracking ? "Search item by name, serial, category..." : isInvoicing ? "Search invoice #, customer..." : isUserManagement ? "Search by name, role, email..." : isWorkOrders || isPartsManagement || isLabourTracking ? "Search plate, customer, phone..." : "Search plate, customer, phone..."))" aria-label="Search plate, customer, phone" />
+                        </label>
+                    }
+                    @await RenderSectionAsync("TopbarActions", required: false)
+                    @if (isServiceQueue)
+                    {
+                        <div class="queue-view-switch" aria-label="Queue view mode">
+                            <button class="active" type="button" data-queue-view-button="board">Board</button>
+                            <button type="button" data-queue-view-button="list">List</button>
+                        </div>
+                    }
+                </div>
+            </header>
+
+            <section class="dashboard-content">
+                @RenderBody()
+            </section>
+        </main>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

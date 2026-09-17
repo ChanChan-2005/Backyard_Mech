@@ -1,0 +1,73 @@
+@model IReadOnlyList<EstimateListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "All Estimates - Approval Overview";
+    ViewData["PageTitle"] = "All Estimates - Approval Overview";
+    ViewData["PageSubtitle"] = "ESTIMATES";
+    ViewData["ActiveNav"] = "Estimates / Customers Approval";
+    ViewData["ShellClass"] = "estimates-shell";
+
+    var estimates = Model ?? Array.Empty<EstimateListItem>();
+}
+
+<section class="estimates-page">
+    <div class="estimate-top-actions">
+        <button class="primary-estimate-button" type="button" data-estimate-modal="new-estimate">New Estimate</button>
+    </div>
+
+    <div class="estimate-filter-bar">
+        <label class="estimate-search-box">
+            <span>Q</span>
+            <input type="search" placeholder="Search client or car..." />
+        </label>
+        <button type="button">Approval Status: All Statuses V</button>
+    </div>
+
+    <section class="estimate-panel">
+        <h2>Estimates Index</h2>
+        <table class="estimate-table">
+            <thead>
+                <tr>
+                    <th>Estimate #</th>
+                    <th>Date Created</th>
+                    <th>Client Name</th>
+                    <th>Vehicle</th>
+                    <th>Total Estimate</th>
+                    <th>Approval Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var estimate in estimates)
+                {
+                    <tr>
+                        <td><a href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">@estimate.Id</a></td>
+                        <td>@estimate.Date</td>
+                        <td><strong>@estimate.Customer</strong></td>
+                        <td>@estimate.Vehicle</td>
+                        <td><strong>@estimate.Total</strong></td>
+                        <td><span class="estimate-status @estimate.Tone">@estimate.Status</span></td>
+                        <td><a class="estimate-view-link" href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">View Details</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <footer class="estimate-table-footer">
+            <span>Showing @estimates.Count estimate@(estimates.Count == 1 ? "" : "s")</span>
+            <nav class="estimate-pagination" aria-label="Estimate pagination">
+                <button type="button">Previous</button>
+                <button class="active" type="button">1</button>
+                <button type="button">2</button>
+                <button type="button">3</button>
+                <button type="button">Next</button>
+            </nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_NewEstimateModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_EstimateModalScripts")
+}

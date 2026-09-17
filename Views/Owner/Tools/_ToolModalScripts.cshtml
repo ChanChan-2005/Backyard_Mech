@@ -1,0 +1,67 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-tools-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("tools-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, select, button");
+            firstField?.focus();
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".tools-modal.is-open")) {
+                document.body.classList.remove("tools-modal-open");
+            }
+        };
+
+        const setEditToolField = (modal, field, value) => {
+            const input = modal?.querySelector(`[data-edit-tool-field="${field}"]`);
+            if (input) input.value = value ?? "";
+        };
+
+        const populateEditToolModal = (button) => {
+            const modal = document.querySelector('[data-tools-modal-panel="edit-tool"]');
+            if (!modal || !button) return;
+
+            setEditToolField(modal, "id", button.dataset.toolId);
+            setEditToolField(modal, "name", button.dataset.toolName);
+            setEditToolField(modal, "serial", button.dataset.toolSerial);
+            setEditToolField(modal, "category", button.dataset.toolCategory);
+            setEditToolField(modal, "location", button.dataset.toolLocation);
+            setEditToolField(modal, "condition", button.dataset.toolCondition);
+            setEditToolField(modal, "lastCalibrated", button.dataset.toolLastCalibrated);
+            setEditToolField(modal, "nextCalibration", button.dataset.toolNextCalibration);
+        };
+
+        document.addEventListener("click", (event) => {
+            const openButton = event.target.closest("[data-tools-modal]");
+            if (openButton) {
+                if (openButton.dataset.toolsModal === "edit-tool") {
+                    populateEditToolModal(openButton);
+                }
+
+                openModal(openButton.dataset.toolsModal);
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-tools-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".tools-modal"));
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            closeModal(document.querySelector(".tools-modal.is-open"));
+        });
+    })();
+</script>

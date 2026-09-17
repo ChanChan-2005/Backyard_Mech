@@ -1,0 +1,10 @@
+@{
+    var activeTab = ViewData["SettingsTab"]?.ToString() ?? "General";
+}
+
+<nav class="settings-tabs">
+    <a class="@(activeTab == "General" ? "active" : "")" href="/Owner/Settings">General</a>
+    <a class="@(activeTab == "Tax" ? "active" : "")" href="/Owner/SettingsTax">Tax</a>
+    <a class="@(activeTab == "Roles" ? "active" : "")" href="/Owner/SettingsRoles">Roles & Permissions</a>
+    <a class="@(activeTab == "System" ? "active" : "")" href="/Owner/SettingsSystemPreferences">System Preferences</a>
+</nav>

@@ -1,0 +1,44 @@
+@{
+    var details = Model as ServiceQueueDetailsViewModel;
+    var employees = ViewData["QueueEmployeeOptions"] as IReadOnlyList<QueueEmployeeOption> ?? Array.Empty<QueueEmployeeOption>();
+}
+<div class="queue-modal" data-queue-modal-panel="assign-mechanic" aria-hidden="true">
+    <div class="queue-modal-backdrop" data-queue-modal-close></div>
+    <section class="queue-modal-card queue-modal-compact queue-assign-tech-card" role="dialog" aria-modal="true" aria-labelledby="assign-mechanic-title">
+        <form class="queue-modal-form queue-assign-tech-form">
+            <header class="queue-modal-header">
+                <div>
+                    <h2 id="assign-mechanic-title">Assign Technician</h2>
+                    <p>Select an available mechanic for @(details?.Customer ?? "this queue item") (@(details?.Vehicle ?? "vehicle"))</p>
+                </div>
+                <button class="queue-modal-close" type="button" data-queue-modal-close aria-label="Close">x</button>
+            </header>
+
+            <div class="queue-warning-banner">Warning: overlapping appointment detected for selected mechanic.</div>
+
+            <div class="queue-choice-list">
+                @for (var index = 0; index < employees.Count; index++)
+                {
+                    var employee = employees[index];
+                    var isSelected = employee.IsSelected || (!employees.Any(item => item.IsSelected) && index == 0);
+                    var selectedClass = isSelected ? "selected" : "";
+                    var workloadClass = employee.ActiveJobs > 0 ? "busy" : "available";
+                    var workloadLabel = employee.ActiveJobs > 0 ? "Busy" : "Available";
+                    var initials = string.Join("", employee.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+                    <label class="queue-choice @selectedClass" data-queue-mechanic-choice>
+                        <input type="radio" name="mechanic" value="@employee.Id" checked="@isSelected" />
+                        <span class="queue-choice-avatar">@initials</span>
+                        <span><strong>@employee.Name</strong><small>@employee.Role</small></span>
+                        <em class="@workloadClass">@workloadLabel</em>
+                        <b>@employee.ActiveJobs Active</b>
+                    </label>
+                }
+            </div>
+
+            <footer class="queue-modal-actions">
+                <button class="queue-modal-secondary" type="button" data-queue-modal-close>Cancel</button>
+                <button class="queue-modal-primary" type="button" data-queue-modal-close>Assign Tech</button>
+            </footer>
+        </form>
+    </section>
+</div>

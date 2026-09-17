@@ -1,0 +1,104 @@
+@model RecordGovernanceViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Archive";
+    ViewData["PageTitle"] = "Archive";
+    ViewData["PageSubtitle"] = "RECORDS > ARCHIVE";
+    ViewData["ActiveNav"] = "Archive";
+    ViewData["ShellClass"] = "records-shell";
+
+    var pageModel = Model ?? new RecordGovernanceViewModel();
+    var records = pageModel.Records;
+    var activeTab = pageModel.ActiveTab;
+}
+
+<section class="records-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="records-alert">@message</div>
+    }
+
+    <div class="records-stats">
+        <article class="records-stat"><span>Archived Records</span><strong>@records.Count</strong><p>Hidden from active modules</p></article>
+        <article class="records-stat"><span>Restorable</span><strong>@records.Count</strong><p>Can return to active workflow</p></article>
+        <article class="records-stat"><span>Pending Deletion</span><strong>@records.Count</strong><p>Can move to disposition</p></article>
+        <article class="records-stat"><span>Modules Covered</span><strong>@records.Select(record => record.ModuleName).Distinct().Count()</strong><p>Project modules</p></article>
+    </div>
+
+    <nav class="records-subtabs" aria-label="Archived record filters">
+        <a class="@(activeTab == "all" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="all">All (@pageModel.AllCount)</a>
+        <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="parts">Parts (@pageModel.PartsCount)</a>
+        <a class="@(activeTab == "tools" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="tools">Tools (@pageModel.ToolsCount)</a>
+    </nav>
+
+    <div class="records-filter-card">
+        <label class="records-search-box"><span>Q</span><input type="search" placeholder="Search archived records..." /></label>
+        <a class="records-button" href="/Owner/RecordsDisposition">Open Records Disposition</a>
+    </div>
+
+    <section class="records-panel">
+        <header class="records-panel-header">
+            <div>
+                <h2>Archived Data</h2>
+                <p>Archived records are retained for reference and can be restored or moved to records disposition.</p>
+            </div>
+        </header>
+
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Record</th>
+                    <th>Module</th>
+                    <th>Details</th>
+                    <th>Date Archived</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (records.Count == 0)
+                {
+                    <tr><td class="records-empty" colspan="7">No archived records yet.</td></tr>
+                }
+                else
+                {
+                    @foreach (var record in records)
+                    {
+                        <tr>
+                            <td><strong>@record.RecordName</strong><span>@record.RecordType</span></td>
+                            <td>@record.ModuleName</td>
+                            <td>@record.Details</td>
+                            <td>@record.MovedDate</td>
+                            <td>@record.Reason</td>
+                            <td><span class="records-pill @record.Tone">@record.Status</span></td>
+                            <td class="records-actions">
+                                <a class="records-small-button" asp-controller="Owner" asp-action="ViewGovernanceRecord" asp-route-type="@record.RecordType" asp-route-id="@record.RecordId">View</a>
+                                <form asp-controller="Owner" asp-action="RestoreArchivedRecord" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="RecordType" value="@record.RecordType" />
+                                    <input type="hidden" name="RecordId" value="@record.RecordId" />
+                                    <input type="hidden" name="tab" value="@activeTab" />
+                                    <button class="records-small-button" type="submit">Restore</button>
+                                </form>
+                                <form asp-controller="Owner" asp-action="DeleteArchivedRecord" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="RecordType" value="@record.RecordType" />
+                                    <input type="hidden" name="RecordId" value="@record.RecordId" />
+                                    <input type="hidden" name="Reason" value="Moved from archive to records disposition" />
+                                    <input type="hidden" name="tab" value="@activeTab" />
+                                    <button class="records-small-button danger" type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        <footer class="records-panel-footer">
+            <span>Showing @records.Count archived record@(records.Count == 1 ? "" : "s")</span>
+            <nav class="records-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+        </footer>
+    </section>
+</section>

@@ -1,0 +1,299 @@
+@model IReadOnlyList<ServiceQueueColumnItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Service Queue Board";
+    ViewData["PageTitle"] = "Service Queue Board";
+    ViewData["PageSubtitle"] = "SERVICE QUEUE > BOARD VIEW";
+    ViewData["ActiveNav"] = "Service Queue";
+    ViewData["ShellClass"] = "service-queue-shell";
+
+    var columns = Model ?? Array.Empty<ServiceQueueColumnItem>();
+
+    var allCards = columns.SelectMany(column => column.Cards.Select(card => new
+    {
+        Status = column.Title,
+        card.Type,
+        card.Priority,
+        card.Customer,
+        card.Vehicle,
+        card.Plate,
+        card.Advisor,
+        card.Bay
+    })).ToArray();
+
+    var technicianFilters = allCards.Select(card => card.Advisor).Distinct().OrderBy(mechanic => mechanic);
+    var bayFilters = allCards.Select(card => card.Bay).Distinct().OrderBy(bay => bay);
+    var priorityFilters = allCards.Select(card => card.Priority).Distinct().OrderBy(priority => priority);
+    var statusFilters = columns.Select(column => column.Title).OrderBy(status => status);
+    var typeFilters = allCards.Select(card => card.Type).Distinct().OrderBy(type => type);
+}
+
+<section class="queue-board-module">
+    <div class="queue-filter-bar">
+        <div class="queue-filters">
+            <span>Filters:</span>
+            <select data-queue-filter="technician" aria-label="Technician filter">
+                <option value="">Technician: All</option>
+                @foreach (var technician in technicianFilters)
+                {
+                    <option value="@technician">Technician: @technician</option>
+                }
+            </select>
+            <select data-queue-filter="bay" aria-label="Bay filter">
+                <option value="">Bay: All</option>
+                @foreach (var bay in bayFilters)
+                {
+                    <option value="@bay">Bay: @bay</option>
+                }
+            </select>
+            <select data-queue-filter="priority" aria-label="Priority filter">
+                <option value="">Priority: All</option>
+                @foreach (var priority in priorityFilters)
+                {
+                    <option value="@priority">Priority: @priority</option>
+                }
+            </select>
+            <select data-queue-filter="status" aria-label="Status filter">
+                <option value="">Status: All</option>
+                @foreach (var status in statusFilters)
+                {
+                    <option value="@status">Status: @status</option>
+                }
+            </select>
+            <select data-queue-filter="type" aria-label="Visit type filter">
+                <option value="">Type: All</option>
+                @foreach (var type in typeFilters)
+                {
+                    <option value="@type">Type: @type</option>
+                }
+            </select>
+            <button class="queue-clear-filters" type="button" data-queue-clear-filters>Clear</button>
+        </div>
+        <span class="queue-hint">Drag and drop cards to change status</span>
+    </div>
+
+    <div class="queue-board">
+        @foreach (var column in columns)
+        {
+            <section class="queue-column" data-queue-column="@column.Title">
+                <header class="queue-column-heading">
+                    <h2>@column.Title (<span data-queue-column-count>@column.Count</span>)</h2>
+                    <span class="queue-dot @column.Dot" aria-hidden="true"></span>
+                </header>
+
+                <div class="queue-card-list">
+                    @foreach (var card in column.Cards)
+                    {
+                        <a class="queue-job-card"
+                           href="/Owner/ServiceQueueDetails/@card.AppointmentId"
+                           data-queue-card
+                           data-status="@column.Title"
+                           data-type="@card.Type"
+                           data-priority="@card.Priority"
+                           data-technician="@card.Advisor"
+                           data-bay="@card.Bay"
+                           data-search="@($"{card.Customer} {card.Vehicle} {card.Plate} {card.Advisor} {card.Bay} {card.Type} {card.Priority} {column.Title}".ToLowerInvariant())">
+                            <div class="queue-card-top">
+                                <span class="queue-type">@card.Type</span>
+                                <span class="queue-priority @card.PriorityTone">@card.Priority</span>
+                            </div>
+
+                            <strong>@card.Customer</strong>
+                            <p>@card.Vehicle &bull; @card.Plate</p>
+
+                            <div class="queue-meta">
+                                <span class="queue-meta-line technician">
+                                    <svg class="queue-card-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8b98a7" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="8" r="3.5" />
+                                        <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+                                    </svg>
+                                    Tech: <b>@card.Advisor</b>
+                                </span>
+                                <span class="queue-meta-line bay">
+                                    <svg class="queue-card-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8b98a7" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+                                        <path d="m4.5 8 7.5 4 7.5-4" />
+                                        <path d="M12 12v8.5" />
+                                    </svg>
+                                    Bay: <b>@card.Bay</b>
+                                </span>
+                            </div>
+
+                            <footer>
+                                <span>In: @card.Time</span>
+                                <span>
+                                    <svg class="queue-card-icon" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#8b98a7" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="8" />
+                                        <path d="M12 7.5v5l3.5 2" />
+                                    </svg>
+                                    @card.Duration
+                                </span>
+                            </footer>
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+
+    <section class="queue-list-panel" data-queue-view-panel="list" hidden>
+        <table class="queue-list-table">
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Vehicle</th>
+                    <th>Status</th>
+                    <th>Technician</th>
+                    <th>Bay</th>
+                    <th>Priority</th>
+                    <th>Time</th>
+                    <th>Duration</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var column in columns)
+                {
+                    @foreach (var card in column.Cards)
+                    {
+                        <tr data-queue-list-row
+                            data-status="@column.Title"
+                            data-type="@card.Type"
+                            data-priority="@card.Priority"
+                            data-technician="@card.Advisor"
+                            data-bay="@card.Bay"
+                            data-search="@($"{card.Customer} {card.Vehicle} {card.Plate} {card.Advisor} {card.Bay} {card.Type} {card.Priority} {column.Title}".ToLowerInvariant())">
+                            <td>
+                                <strong>@card.Customer</strong>
+                                <span>@card.Type</span>
+                            </td>
+                            <td>@card.Vehicle &bull; @card.Plate</td>
+                            <td><span class="queue-list-status">@column.Title</span></td>
+                            <td>@card.Advisor</td>
+                            <td>@card.Bay</td>
+                            <td><span class="queue-priority @card.PriorityTone">@card.Priority</span></td>
+                            <td>@card.Time</td>
+                            <td>@card.Duration</td>
+                            <td><a class="queue-list-action" href="/Owner/ServiceQueueDetails/@card.AppointmentId">Open</a></td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+        <div class="queue-list-empty" data-queue-list-empty hidden>No jobs match the selected filters.</div>
+    </section>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const filters = Array.from(document.querySelectorAll("[data-queue-filter]"));
+            const cards = Array.from(document.querySelectorAll("[data-queue-card]"));
+            const listRows = Array.from(document.querySelectorAll("[data-queue-list-row]"));
+            const columns = Array.from(document.querySelectorAll("[data-queue-column]"));
+            const clearButton = document.querySelector("[data-queue-clear-filters]");
+            const topbarSearch = document.querySelector(".service-queue-shell .app-search input");
+            const viewButtons = Array.from(document.querySelectorAll("[data-queue-view-button]"));
+            const boardPanel = document.querySelector(".queue-board");
+            const listPanel = document.querySelector("[data-queue-view-panel='list']");
+            const listEmpty = document.querySelector("[data-queue-list-empty]");
+
+            if (!filters.length || !cards.length || !columns.length) {
+                return;
+            }
+
+            const getFilterValues = () => filters.reduce((values, filter) => {
+                values[filter.dataset.queueFilter] = filter.value;
+                return values;
+            }, {});
+
+            const applyFilters = () => {
+                const values = getFilterValues();
+                const query = topbarSearch?.value.trim().toLowerCase() || "";
+
+                const isMatch = item => {
+                    const matchesDropdowns =
+                        (!values.technician || item.dataset.technician === values.technician) &&
+                        (!values.bay || item.dataset.bay === values.bay) &&
+                        (!values.priority || item.dataset.priority === values.priority) &&
+                        (!values.status || item.dataset.status === values.status) &&
+                        (!values.type || item.dataset.type === values.type);
+                    const matchesSearch = !query || (item.dataset.search || "").includes(query);
+
+                    return matchesDropdowns && matchesSearch;
+                };
+
+                cards.forEach(card => {
+                    card.hidden = !isMatch(card);
+                });
+
+                let visibleListRows = 0;
+                listRows.forEach(row => {
+                    const isVisible = isMatch(row);
+                    row.hidden = !isVisible;
+
+                    if (isVisible) {
+                        visibleListRows += 1;
+                    }
+                });
+
+                columns.forEach(column => {
+                    const visibleCards = column.querySelectorAll("[data-queue-card]:not([hidden])").length;
+                    const count = column.querySelector("[data-queue-column-count]");
+
+                    if (count) {
+                        count.textContent = visibleCards;
+                    }
+
+                    column.classList.toggle("queue-column-empty", visibleCards === 0);
+                });
+
+                if (listEmpty) {
+                    listEmpty.hidden = visibleListRows > 0;
+                }
+            };
+
+            const setView = view => {
+                const showList = view === "list";
+
+                if (boardPanel) {
+                    boardPanel.hidden = showList;
+                }
+
+                if (listPanel) {
+                    listPanel.hidden = !showList;
+                }
+
+                viewButtons.forEach(button => {
+                    const isActive = button.dataset.queueViewButton === view;
+                    button.classList.toggle("active", isActive);
+                    button.setAttribute("aria-pressed", String(isActive));
+                });
+
+                const url = new URL(window.location.href);
+                url.searchParams.set("view", view);
+                window.history.replaceState({}, "", url);
+            };
+
+            filters.forEach(filter => filter.addEventListener("change", applyFilters));
+            topbarSearch?.addEventListener("input", applyFilters);
+            viewButtons.forEach(button => {
+                button.addEventListener("click", () => setView(button.dataset.queueViewButton || "board"));
+            });
+            clearButton?.addEventListener("click", () => {
+                filters.forEach(filter => {
+                    filter.value = "";
+                });
+
+                if (topbarSearch) {
+                    topbarSearch.value = "";
+                }
+
+                applyFilters();
+            });
+
+            applyFilters();
+            setView(new URLSearchParams(window.location.search).get("view") === "list" ? "list" : "board");
+        })();
+    </script>
+}

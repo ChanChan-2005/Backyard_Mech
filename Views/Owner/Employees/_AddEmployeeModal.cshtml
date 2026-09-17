@@ -1,0 +1,116 @@
+<section class="users-modal users-modal-large users-add-employee-modal" data-modal-id="add-employee" aria-labelledby="addEmployeeModalTitle">
+    <header class="users-modal-header">
+        <h2 id="addEmployeeModalTitle">Add Employee</h2>
+        <button class="users-modal-close" type="button" aria-label="Close add employee modal" data-users-modal-close>&times;</button>
+    </header>
+
+    <form class="users-modal-form" asp-controller="Owner" asp-action="AddEmployee" method="post">
+        @Html.AntiForgeryToken()
+        <div class="users-employee-form-grid">
+            <label>
+                <span class="users-label">Employee ID *</span>
+                <input class="users-input users-input-muted" placeholder="System-generated" readonly />
+            </label>
+            <label>
+                <span class="users-label">First Name *</span>
+                <input class="users-input" name="FirstName" placeholder="Enter first name" required />
+            </label>
+            <label>
+                <span class="users-label">Last Name *</span>
+                <input class="users-input" name="LastName" placeholder="Enter last name" required />
+            </label>
+            <label>
+                <span class="users-label">Middle Initial</span>
+                <input class="users-input" name="MiddleInitial" maxlength="1" placeholder="M" />
+            </label>
+
+            <label>
+                <span class="users-label">Address *</span>
+                <input class="users-input" name="StreetAddress" placeholder="Enter street address" required />
+            </label>
+            <label>
+                <span class="users-label">Unit/Apt No. *</span>
+                <input class="users-input" placeholder="Enter unit or apartment number" />
+            </label>
+            <label>
+                <span class="users-label">Street No. *</span>
+                <input class="users-input" placeholder="Enter street number" />
+            </label>
+            <label>
+                <span class="users-label">Postal Code *</span>
+                <input class="users-input" name="PostalCode" placeholder="Enter postal code" required />
+            </label>
+
+            <label class="users-span-2">
+                <span class="users-label">Street Name *</span>
+                <input class="users-input" placeholder="Enter street name" />
+            </label>
+            <label class="users-span-2">
+                <span class="users-label">Street Type *</span>
+                <input class="users-input" placeholder="Enter street type" />
+            </label>
+
+            <label>
+                <span class="users-label">City *</span>
+                <input class="users-input" name="City" placeholder="Enter city" required />
+            </label>
+            <label class="users-span-2">
+                <span class="users-label">Province/Territory</span>
+                <input class="users-input" name="Province" placeholder="Enter province or territory" />
+            </label>
+
+            <label class="users-span-2">
+                <span class="users-label">Contact Number *</span>
+                <input class="users-input" name="Phone" type="tel" placeholder="Enter contact number" required />
+            </label>
+            <label class="users-span-2">
+                <span class="users-label">Email Address *</span>
+                <input class="users-input" name="Email" type="email" placeholder="Enter email address" required />
+            </label>
+
+            <label class="users-span-2">
+                <span class="users-label">Employment Type *</span>
+                <select class="users-select">
+                    <option value="" selected disabled>Select employment type</option>
+                    <option>Full-time</option>
+                    <option>Part-time</option>
+                </select>
+            </label>
+            <label class="users-span-2">
+                <span class="users-label">Employment Classification *</span>
+                <select class="users-select" name="JobTitle" required>
+                    <option value="" selected disabled>Select classification</option>
+                    <option value="Mechanic">Mechanic</option>
+                    <option value="Lead Mechanic">Lead Mechanic</option>
+                    <option value="Service Advisor">Service Advisor</option>
+                    <option value="Parts Specialist">Parts Specialist</option>
+                    <option value="Quality Inspector">Quality Inspector</option>
+                    <option value="Bookkeeper">Bookkeeper</option>
+                </select>
+            </label>
+
+            <label class="users-span-2">
+                <span class="users-label">Employment Status *</span>
+                <select class="users-select">
+                    <option value="" selected disabled>Select employment status</option>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                </select>
+            </label>
+            <label class="users-span-2">
+                <span class="users-label">Hourly Rate *</span>
+                <input class="users-input" name="HourlyRate" type="number" min="0" step="0.01" placeholder="Enter hourly rate" required />
+            </label>
+
+            <label class="users-span-full">
+                <span class="users-label">Skills and Qualifications</span>
+                <textarea class="users-textarea users-employee-skills" placeholder="Enter skills, certifications, and qualifications."></textarea>
+            </label>
+        </div>
+
+        <div class="users-modal-actions">
+            <button class="users-button" type="button" data-users-modal-close>Cancel</button>
+            <button class="users-button-blue" type="submit">Save</button>
+        </div>
+    </form>
+</section>

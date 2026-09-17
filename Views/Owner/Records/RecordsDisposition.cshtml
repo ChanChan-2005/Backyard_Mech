@@ -1,0 +1,122 @@
+@model RecordGovernanceViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Records Disposition";
+    ViewData["PageTitle"] = "Records Disposition";
+    ViewData["PageSubtitle"] = "RECORDS > DISPOSITION";
+    ViewData["ActiveNav"] = "Records Disposition";
+    ViewData["ShellClass"] = "records-shell";
+
+    var pageModel = Model ?? new RecordGovernanceViewModel();
+    var records = pageModel.Records;
+    var activeTab = pageModel.ActiveTab;
+    var readyCount = records.Count(record => record.Status == "Soft Deleted" && record.Tone == "ready");
+}
+
+<section class="records-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="records-alert">@message</div>
+    }
+
+    <div class="records-stats">
+        <article class="records-stat"><span>Disposition Records</span><strong>@records.Count</strong><p>Soft-deleted retained records</p></article>
+        <article class="records-stat"><span>Retention Window</span><strong>@pageModel.RetentionValue @pageModel.RetentionUnit</strong><p>@pageModel.RetentionDays calendar days</p></article>
+        <article class="records-stat"><span>Ready for Review</span><strong>@readyCount</strong><p>Retention date reached</p></article>
+        <article class="records-stat"><span>Restorable</span><strong>@records.Count</strong><p>Can be returned to active records</p></article>
+    </div>
+
+    <nav class="records-subtabs" aria-label="Disposition record filters">
+        <a class="@(activeTab == "all" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="all">All (@pageModel.AllCount)</a>
+        <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="parts">Parts (@pageModel.PartsCount)</a>
+        <a class="@(activeTab == "tools" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="tools">Tools (@pageModel.ToolsCount)</a>
+    </nav>
+
+    <section class="records-policy-card">
+        <div>
+            <h2>Disposition Retention Setting</h2>
+            <p>Set how long soft-deleted records stay in disposition. The countdown starts on the date the record was moved here.</p>
+        </div>
+        <form asp-controller="Owner" asp-action="SaveRecordsDispositionPolicy" method="post" class="records-policy-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="tab" value="@activeTab" />
+            <label>
+                <span>Length</span>
+                <input name="RetentionValue" type="number" min="1" value="@pageModel.RetentionValue" />
+            </label>
+            <label>
+                <span>Unit</span>
+                <select name="RetentionUnit">
+                    <option selected="@(pageModel.RetentionUnit == "Days")">Days</option>
+                    <option selected="@(pageModel.RetentionUnit == "Weeks")">Weeks</option>
+                    <option selected="@(pageModel.RetentionUnit == "Months")">Months</option>
+                    <option selected="@(pageModel.RetentionUnit == "Years")">Years</option>
+                </select>
+            </label>
+            <button class="records-button-dark" type="submit">Save Setting</button>
+        </form>
+    </section>
+
+    <div class="records-filter-card">
+        <label class="records-search-box"><span>Q</span><input type="search" placeholder="Search disposition records..." /></label>
+        <a class="records-button" href="/Owner/ArchiveRecords">Open Archive</a>
+    </div>
+
+    <section class="records-panel">
+        <header class="records-panel-header">
+            <div>
+                <h2>Soft Deleted Data</h2>
+                <p>These records are hidden from active modules and retained until the configured disposition date.</p>
+            </div>
+        </header>
+
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th>Record</th>
+                    <th>Module</th>
+                    <th>Date Moved</th>
+                    <th>Eligible Date</th>
+                    <th>Retention Status</th>
+                    <th>Reason</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (records.Count == 0)
+                {
+                    <tr><td class="records-empty" colspan="7">No records in disposition yet.</td></tr>
+                }
+                else
+                {
+                    @foreach (var record in records)
+                    {
+                        <tr>
+                            <td><strong>@record.RecordName</strong><span>@record.RecordType</span></td>
+                            <td>@record.ModuleName</td>
+                            <td>@record.MovedDate</td>
+                            <td>@record.EligibleDate</td>
+                            <td><span class="records-pill @record.Tone">@record.Remaining</span></td>
+                            <td>@record.Reason</td>
+                            <td class="records-actions">
+                                <a class="records-small-button" asp-controller="Owner" asp-action="ViewGovernanceRecord" asp-route-type="@record.RecordType" asp-route-id="@record.RecordId">View</a>
+                                <form asp-controller="Owner" asp-action="RestoreDispositionRecord" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="RecordType" value="@record.RecordType" />
+                                    <input type="hidden" name="RecordId" value="@record.RecordId" />
+                                    <input type="hidden" name="tab" value="@activeTab" />
+                                    <button class="records-small-button" type="submit">Restore</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        <footer class="records-panel-footer">
+            <span>Showing @records.Count disposition record@(records.Count == 1 ? "" : "s")</span>
+            <nav class="records-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+        </footer>
+    </section>
+</section>

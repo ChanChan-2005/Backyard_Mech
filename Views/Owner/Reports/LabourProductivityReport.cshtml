@@ -1,0 +1,51 @@
+@model LabourProductivityReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Labour Productivity Report";
+    ViewData["PageTitle"] = "Labour Productivity Report";
+    ViewData["PageSubtitle"] = "Mechanic efficiency and resource tracking";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Role: All</option></select></div>
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong></article>
+        }
+    </div>
+    <section class="reports-card reports-chart-card"><h2>Billable Hours Comparison (MTD)</h2><canvas id="labourProductivityChart" height="170"></canvas></section>
+    <section class="reports-panel">
+        <table class="reports-table">
+            <thead><tr><th>Employee Name</th><th>Role</th><th>Total Hours</th><th>Billable</th><th>Non-Billable</th><th>Utilization %</th><th>Completed Jobs</th><th>Avg Time/Job</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td><strong>@row.EmployeeName</strong></td><td>@row.Role</td><td>@row.TotalHours</td><td class="reports-money profit">@row.BillableHours</td><td>@row.NonBillableHours</td><td><strong>@row.Utilization</strong></td><td>@row.CompletedJobs</td><td>@row.AverageTimePerJob</td></tr>
+                }
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8">No labour records found for this period.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count employees</span></footer>
+    </section>
+</section>
+
+@section Scripts {
+    <script>
+        window.ownerReportCharts = {
+            labourProductivityChart: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.LabourChart, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

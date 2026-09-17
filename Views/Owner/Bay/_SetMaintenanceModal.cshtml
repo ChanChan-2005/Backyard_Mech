@@ -1,0 +1,51 @@
+<div class="bay-modal" data-bay-modal-panel="set-maintenance" aria-hidden="true">
+    <div class="bay-modal-backdrop" data-bay-modal-close></div>
+    <section class="bay-modal-card" role="dialog" aria-modal="true" aria-labelledby="set-maintenance-title">
+        <form class="bay-form-card">
+            <header class="bay-form-header">
+                <div>
+                    <h2 id="set-maintenance-title">Set Maintenance</h2>
+                    <p>Schedule downtime and record the maintenance reason</p>
+                </div>
+                <button class="bay-close" type="button" data-bay-modal-close aria-label="Close">x</button>
+            </header>
+
+            <div class="bay-form-body">
+                <label>
+                    <span class="bay-label">Bay *</span>
+                    <input class="bay-input" type="text" placeholder="Select or enter bay" />
+                </label>
+                <label>
+                    <span class="bay-label">Maintenance Type *</span>
+                    <select class="bay-select">
+                        <option>Routine Inspection</option>
+                        <option>Lift Service</option>
+                        <option>Tool Calibration</option>
+                        <option>Emergency Repair</option>
+                    </select>
+                </label>
+                <label>
+                    <span class="bay-label">Start Date *</span>
+                    <input class="bay-input" type="date" />
+                </label>
+                <label>
+                    <span class="bay-label">Estimated Return *</span>
+                    <input class="bay-input" type="date" />
+                </label>
+                <label>
+                    <span class="bay-label">Assigned Technician</span>
+                    <input class="bay-input" type="text" placeholder="Select or enter technician" />
+                </label>
+                <label>
+                    <span class="bay-label">Notes *</span>
+                    <textarea class="bay-textarea" placeholder="Add maintenance notes."></textarea>
+                </label>
+            </div>
+
+            <footer class="bay-form-footer">
+                <button class="bay-button" type="button" data-bay-modal-close>Cancel</button>
+                <button class="bay-button-blue" type="button" data-bay-modal-close>Set Maintenance</button>
+            </footer>
+        </form>
+    </section>
+</div>

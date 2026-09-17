@@ -1,0 +1,229 @@
+@model PartsManagementViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Parts & Materials Registry";
+    ViewData["PageTitle"] = "Parts & Materials Registry";
+    ViewData["PageSubtitle"] = "INVENTORY > DIRECTORY";
+    ViewData["ActiveNav"] = "Parts Management";
+    ViewData["ShellClass"] = "parts-shell";
+
+    var parts = Model?.Parts ?? Array.Empty<PartListItem>();
+    var productListings = Model?.ProductListings ?? Array.Empty<ProductListingListItem>();
+    var activeTab = Model?.ActiveTab ?? "parts";
+}
+
+@section TopbarActions {
+    @if (activeTab == "product-listings")
+    {
+        <button class="parts-button-blue" type="button" data-parts-modal="add-product-listing">+ Add Product Listing</button>
+    }
+    else
+    {
+        <button class="parts-button-blue" type="button" data-parts-modal="add-part">+ Add Part</button>
+    }
+}
+
+<section class="parts-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="parts-alert">@message</div>
+    }
+
+    <nav class="parts-subtabs" aria-label="Parts management views">
+        <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="parts">Inventory Registry</a>
+        <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="product-listings">Product Listing</a>
+    </nav>
+
+    <div class="parts-stat-grid">
+        <article class="parts-stat clean">
+            <span>Total Parts</span>
+            <strong>@parts.Count</strong>
+            <p>@parts.Select(part => part.Category).Distinct().Count() Categories</p>
+        </article>
+        <article class="parts-stat clean">
+            <span>In Stock</span>
+            <strong>@parts.Count(part => part.Status == "In Stock")</strong>
+            <p>90.4% Availability</p>
+        </article>
+        <article class="parts-stat">
+            <span>Low Stock Alerts</span>
+            <strong class="alert">@parts.Count(part => part.Status == "Low Stock")</strong>
+            <small>Reorder Required</small>
+        </article>
+        <article class="parts-stat">
+            <span>Out of Stock</span>
+            <strong class="alert">@parts.Count(part => part.Status == "Out of Stock")</strong>
+            <small>Halt Maintenance</small>
+        </article>
+    </div>
+
+    @if (activeTab == "product-listings")
+    {
+        <div class="parts-filter-card">
+            <div class="parts-filter-left">
+                <label class="parts-search-box">
+                    <span>Q</span>
+                    <input type="search" placeholder="Search listing title, part, service..." />
+                </label>
+            </div>
+            <div class="parts-filter-right">
+                <button class="parts-filter-button" type="button">Type: All V</button>
+                <button class="parts-filter-button" type="button">Status: All V</button>
+            </div>
+        </div>
+
+        <section class="parts-panel">
+            <header class="parts-panel-header">
+                <div>
+                    <h2>Product Listing</h2>
+                    <p>Internal list of parts, services, and shop offers used for estimates and work orders.</p>
+                </div>
+            </header>
+
+            <table class="parts-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Linked Item</th>
+                        <th>Listing Title</th>
+                        <th>Description</th>
+                        <th>Display Price</th>
+                        <th>Order</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (productListings.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="parts-empty-row">No product listings yet. Add one from the button above.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var listing in productListings)
+                        {
+                            <tr>
+                                <td><span class="parts-pill neutral">@listing.ListingType</span></td>
+                                <td><strong>@listing.LinkedItem</strong></td>
+                                <td><strong>@listing.ListingTitle</strong></td>
+                                <td class="parts-description-cell">@listing.ListingDescription</td>
+                                <td><strong>@listing.DisplayPrice</strong></td>
+                                <td>@listing.DisplayOrder</td>
+                                <td>@listing.Created</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+            <footer class="parts-panel-footer">
+                <span>Showing @productListings.Count product listing@(productListings.Count == 1 ? "" : "s")</span>
+                <nav class="parts-pagination">
+                    <button type="button">Previous</button>
+                    <button class="active" type="button">1</button>
+                    <button type="button">2</button>
+                    <button type="button">3</button>
+                    <button type="button">Next</button>
+                </nav>
+            </footer>
+        </section>
+    }
+    else
+    {
+        <div class="parts-filter-card">
+            <div class="parts-filter-left">
+                <label class="parts-search-box">
+                    <span>Q</span>
+                    <input type="search" placeholder="Search parts by SKU, category, name..." />
+                </label>
+            </div>
+            <div class="parts-filter-right">
+                <button class="parts-filter-button" type="button">Category: All V</button>
+                <button class="parts-filter-button" type="button">Status: All V</button>
+            </div>
+        </div>
+
+        <section class="parts-panel">
+            <table class="parts-table">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Cost</th>
+                        <th>Selling Price</th>
+                        <th>Available</th>
+                        <th>Reserved</th>
+                        <th>Reorder Thresh</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var part in parts)
+                    {
+                        var skuSlug = part.PartId.ToString();
+                        <tr>
+                            <td><a class="parts-link" href="/Owner/PartDetails/@skuSlug">@part.Sku</a></td>
+                            <td><strong>@part.Description</strong></td>
+                            <td>@part.Category</td>
+                            <td>@part.Cost</td>
+                            <td><strong>@part.Selling</strong></td>
+                            <td><span class="@part.QuantityClass">@part.Available</span></td>
+                            <td>@part.Reserved</td>
+                            <td>@part.Threshold</td>
+                            <td><span class="parts-pill @part.Tone">@part.Status</span></td>
+                            <td class="parts-row-actions">
+                                <button class="parts-small-button" type="button"
+                                        data-parts-modal="edit-part"
+                                        data-part-id="@part.PartId"
+                                        data-part-sku="@part.Sku"
+                                        data-part-name="@part.Description"
+                                        data-part-description="@part.RawDescription"
+                                        data-part-category="@part.PartCategoryId"
+                                        data-part-supplier="@part.SupplierId"
+                                        data-part-cost="@(part.UnitCost?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                                        data-part-price="@(part.UnitPrice?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                                        data-part-quantity="@part.QuantityOnHand"
+                                        data-part-threshold="@part.ReorderThreshold">Edit</button>
+                                <a class="parts-small-button" href="/Owner/PartAuditLog/@skuSlug">Log</a>
+                                <form asp-controller="Owner" asp-action="ArchivePart" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="PartId" value="@part.PartId" />
+                                    <input type="hidden" name="Reason" value="Archived from Parts Management" />
+                                    <button class="parts-small-button" type="submit">Archive</button>
+                                </form>
+                                <form asp-controller="Owner" asp-action="SoftDeletePart" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="PartId" value="@part.PartId" />
+                                    <input type="hidden" name="Reason" value="Deleted from Parts Management" />
+                                    <button class="parts-small-button danger" type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <footer class="parts-panel-footer">
+                <span>Showing @parts.Count part@(parts.Count == 1 ? "" : "s")</span>
+                <nav class="parts-pagination">
+                    <button type="button">Previous</button>
+                    <button class="active" type="button">1</button>
+                    <button type="button">2</button>
+                    <button type="button">3</button>
+                    <button type="button">Next</button>
+                </nav>
+            </footer>
+        </section>
+    }
+</section>
+
+@await Html.PartialAsync("_AddPartModal", Model)
+@await Html.PartialAsync("_EditPartModal", Model)
+@await Html.PartialAsync("_AddProductListingModal", Model)
+
+@section Scripts {
+    @await Html.PartialAsync("_PartModalScripts")
+}

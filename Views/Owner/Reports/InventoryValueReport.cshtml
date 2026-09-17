@@ -1,0 +1,52 @@
+@model InventoryValueReportViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Inventory Value Report";
+    ViewData["PageTitle"] = "Inventory Value Report";
+    ViewData["PageSubtitle"] = "Capital asset analysis and current stock values";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">Export PDF</button>
+    <button class="reports-button" type="button">CSV</button>
+}
+
+<section class="reports-page">
+    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Category: All</option></select><select><option>Supplier: All</option></select><select><option>Location: All</option></select></div>
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong><p>@metric.Detail</p></article>
+        }
+    </div>
+    <div class="reports-two-column">
+        <section class="reports-card reports-chart-card"><h2>Value by Category</h2><div class="reports-donut-wrap"><canvas id="inventoryValueChart" height="190"></canvas></div></section>
+        <section class="reports-panel">
+            <table class="reports-table">
+                <thead><tr><th>Part #</th><th>Part Name</th><th>Category</th><th>Supplier</th><th>Qty in Stock</th><th>Unit Cost</th><th>Total Value</th><th>Reorder Status</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td>@row.Supplier</td><td>@row.QuantityInStock</td><td>@row.UnitCost</td><td><strong>@row.TotalValue</strong></td><td>@row.ReorderLevel<br /><span class="reports-money @row.StatusTone">@row.Status</span></td></tr>
+                    }
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr><td colspan="8">No active parts found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        window.ownerReportCharts = {
+            inventoryValueChart: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.InventoryChart, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

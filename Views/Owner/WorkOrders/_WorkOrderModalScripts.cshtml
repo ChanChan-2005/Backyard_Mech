@@ -1,0 +1,46 @@
+<script>
+    (() => {
+        const openModal = (name) => {
+            const modal = document.querySelector(`[data-workorder-modal-panel="${name}"]`);
+            if (!modal) return;
+
+            modal.classList.add("is-open");
+            modal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("wo-modal-open");
+
+            const firstField = modal.querySelector("input, textarea, select, button, a");
+            firstField?.focus();
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) return;
+
+            modal.classList.remove("is-open");
+            modal.setAttribute("aria-hidden", "true");
+
+            if (!document.querySelector(".wo-modal.is-open")) {
+                document.body.classList.remove("wo-modal-open");
+            }
+        };
+
+        document.addEventListener("click", (event) => {
+            const openButton = event.target.closest("[data-workorder-modal]");
+            if (openButton) {
+                event.preventDefault();
+                openModal(openButton.getAttribute("data-workorder-modal"));
+                return;
+            }
+
+            const closeButton = event.target.closest("[data-workorder-modal-close]");
+            if (closeButton) {
+                closeModal(closeButton.closest(".wo-modal"));
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeModal(document.querySelector(".wo-modal.is-open"));
+            }
+        });
+    })();
+</script>

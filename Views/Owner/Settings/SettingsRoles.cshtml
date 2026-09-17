@@ -1,0 +1,105 @@
+@model SettingsRolesViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Roles & Permissions";
+    ViewData["PageTitle"] = "Settings";
+    ViewData["PageSubtitle"] = "GARAGE & APP CONFIGURATION";
+    ViewData["ActiveNav"] = "Settings";
+    ViewData["ShellClass"] = "settings-shell settings-reference-shell";
+    ViewData["SettingsTab"] = "Roles";
+}
+
+@await Html.PartialAsync("_SettingsTabs")
+
+<section class="settings-reference-roles">
+    <aside class="settings-reference-card settings-role-rail">
+        <h2>App User Roles</h2>
+        <nav>
+            @foreach (var role in Model.Roles)
+            {
+                <a class="@(role.IsSelected ? "active" : "")"
+                   asp-controller="Owner"
+                   asp-action="SettingsRoles"
+                   asp-route-role="@role.RoleId">@role.Label</a>
+            }
+        </nav>
+    </aside>
+
+    <section class="settings-reference-card settings-permission-matrix">
+        <form asp-controller="Owner" asp-action="SaveRolePermissions" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="RoleId" value="@Model.SelectedRoleId" />
+
+            <header>
+                <div>
+                    <h2>Role Permissions: @Model.SelectedRoleLabel</h2>
+                    <p>@(Model.IsSystemProtected ? "Standard owner system-protected profile. Full access read-only indicator." : "Editable role profile. Select the permissions this role can use.")</p>
+                </div>
+                @if (Model.IsSystemProtected)
+                {
+                    <span>System Protected</span>
+                }
+                else
+                {
+                    <button class="settings-button-blue" type="submit">Save Permissions</button>
+                }
+            </header>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Module / Feature</th>
+                        @foreach (var action in Model.ActionColumns)
+                        {
+                            <th>@action</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.PermissionRows)
+                    {
+                        <tr>
+                            <td><strong>@row.ModuleName</strong></td>
+                            @foreach (var action in Model.ActionColumns)
+                            {
+                                var cell = row.Actions[action];
+                                <td>
+                                    @if (cell.Exists && cell.PermissionId.HasValue)
+                                    {
+                                        <label class="settings-permission-check">
+                                            <input type="checkbox"
+                                                   name="PermissionIds"
+                                                   value="@cell.PermissionId"
+                                                   checked="@cell.IsChecked"
+                                                   disabled="@Model.IsSystemProtected" />
+                                            <span aria-hidden="true"></span>
+                                        </label>
+                                    }
+                                    else
+                                    {
+                                        <span class="settings-permission-empty">-</span>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                    @if (!Model.PermissionRows.Any())
+                    {
+                        <tr><td colspan="6">No permissions configured.</td></tr>
+                    }
+                </tbody>
+            </table>
+
+            <footer class="settings-panel-footer">
+                <span>Showing @Model.PermissionRows.Count of @Model.TotalPermissionCount permissions</span>
+                <nav class="settings-pagination">
+                    <button type="button">Previous</button>
+                    <button class="active" type="button">1</button>
+                    <button type="button">2</button>
+                    <button type="button">3</button>
+                    <button type="button">Next</button>
+                </nav>
+            </footer>
+        </form>
+    </section>
+</section>

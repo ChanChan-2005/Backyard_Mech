@@ -1,0 +1,131 @@
+@model ToolTrackingViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Tool Inventory Management";
+    ViewData["PageTitle"] = "Tool Inventory Management";
+    ViewData["PageSubtitle"] = "TOOLS & EQUIPMENT";
+    ViewData["ActiveNav"] = "Tools Tracking";
+    ViewData["ShellClass"] = "tools-shell";
+
+    var pageModel = Model ?? new ToolTrackingViewModel();
+    var tools = pageModel.Tools;
+}
+
+@section TopbarActions {
+    <button class="tools-button-blue" type="button" data-tools-modal="add-tool">+ Add Tool</button>
+}
+
+<section class="tools-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="tools-alert info">@message</div>
+    }
+
+    <div class="tools-stats">
+        <article class="tools-stat"><span>Total Inventory</span><strong>@tools.Count Tools</strong></article>
+        <article class="tools-stat"><header><span>Available Now</span><small class="tools-green">Live</small></header><strong>@tools.Count(tool => tool.Status == "Available")</strong></article>
+        <article class="tools-stat"><header><span>Checked Out</span><small class="tools-blue">Active</small></header><strong>@tools.Count(tool => tool.Status == "Checked Out")</strong></article>
+        <article class="tools-stat"><header><span>Under Maintenance</span><small class="tools-orange">Review</small></header><strong>@tools.Count(tool => tool.Status == "Under Maintenance")</strong></article>
+        <article class="tools-stat"><header><span>Damaged & Missing</span><small class="tools-red">Alert</small></header><strong>@tools.Count(tool => tool.Tone == "missing")</strong></article>
+    </div>
+
+    <div class="tools-filter-card">
+        <div class="tools-filter-left">
+            <button class="tools-filter-button" type="button">Category: All V</button>
+            <button class="tools-filter-button" type="button">Status: All V</button>
+        </div>
+        <div class="tools-filter-right">
+            <div class="tools-view-switch">
+                <button class="active" type="button">Table</button>
+                <button type="button">Grid</button>
+            </div>
+        </div>
+    </div>
+
+    <section class="tools-panel">
+        <table class="tools-table">
+            <thead>
+                <tr>
+                    <th>Tool Name</th>
+                    <th>Serial Number</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Condition</th>
+                    <th>Calibration Due</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tool in tools)
+                {
+                    var toolSlug = tool.ToolId.ToString();
+                    <tr>
+                        <td><a class="tools-link" href="/Owner/ToolProfile/@toolSlug">@tool.Name</a></td>
+                        <td>@tool.Serial</td>
+                        <td>@tool.Category</td>
+                        <td>@tool.Location</td>
+                        <td>@tool.Condition</td>
+                        <td><strong class="@(tool.Calibration.StartsWith("Overdue") ? "tools-red" : "")">@tool.Calibration</strong></td>
+                        <td><span class="tools-pill @tool.Tone">@tool.Status</span></td>
+                        <td class="tools-row-actions">
+                            <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">View</a>
+                            <button class="tools-small-button" type="button"
+                                    data-tools-modal="edit-tool"
+                                    data-tool-id="@tool.ToolId"
+                                    data-tool-name="@tool.Name"
+                                    data-tool-serial="@tool.Serial"
+                                    data-tool-category="@tool.ToolCategoryId"
+                                    data-tool-location="@tool.RawLocation"
+                                    data-tool-condition="@tool.RawCondition"
+                                    data-tool-last-calibrated="@tool.LastCalibratedDate"
+                                    data-tool-next-calibration="@tool.NextCalibrationDueDate">Edit</button>
+                            @if (tool.Action == "Checkout")
+                            {
+                                <a class="tools-small-button" href="/Owner/CheckoutTool/@toolSlug">Checkout</a>
+                            }
+                            else if (tool.Action == "Return")
+                            {
+                                <a class="tools-small-button" href="/Owner/ReturnEquipment/@toolSlug">Return</a>
+                            }
+                            else
+                            {
+                                <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">@tool.Action</a>
+                            }
+                            <form asp-controller="Owner" asp-action="ArchiveTool" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="ToolId" value="@tool.ToolId" />
+                                <input type="hidden" name="Reason" value="Archived from Tools Tracking" />
+                                <button class="tools-small-button" type="submit">Archive</button>
+                            </form>
+                            <form asp-controller="Owner" asp-action="SoftDeleteTool" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="ToolId" value="@tool.ToolId" />
+                                <input type="hidden" name="Reason" value="Deleted from Tools Tracking" />
+                                <button class="tools-small-button danger" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <footer class="tools-panel-footer">
+            <span>Showing @tools.Count tool@(tools.Count == 1 ? "" : "s")</span>
+            <nav class="tools-pagination">
+                <button type="button">Previous</button>
+                <button class="active" type="button">1</button>
+                <button type="button">2</button>
+                <button type="button">3</button>
+                <button type="button">Next</button>
+            </nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_AddToolModal", pageModel)
+@await Html.PartialAsync("_EditToolModal", pageModel)
+
+@section Scripts {
+    @await Html.PartialAsync("_ToolModalScripts")
+}

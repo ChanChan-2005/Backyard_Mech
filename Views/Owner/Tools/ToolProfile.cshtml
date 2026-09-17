@@ -1,0 +1,109 @@
+@model ToolProfileViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Tool Profile & History";
+    ViewData["PageTitle"] = "Tool Profile & History";
+    ViewData["PageSubtitle"] = $"TOOLS > {Model.Name.ToUpperInvariant()}";
+    ViewData["ActiveNav"] = "Tools Tracking";
+    ViewData["ShellClass"] = "tools-shell";
+    ViewData["SearchPlaceholder"] = "Search diagnostic reports, updates...";
+}
+
+@section TopbarActions {
+    <a class="tools-button" href="/Owner/ToolTracking">Edit Specs</a>
+    <a class="tools-button-blue" href="/Owner/ToolTracking">Calibrate Tool</a>
+}
+
+<section class="tools-page">
+    <article class="tools-panel tools-profile-hero">
+        <span class="tools-icon">T</span>
+        <div>
+            <h2>@Model.Name</h2>
+            <p>Serial: @Model.SerialNumber | @Model.Category</p>
+        </div>
+        <span class="tools-pill @Model.StatusTone">@Model.Status</span>
+    </article>
+
+    <div class="tools-profile-grid">
+        <div class="tools-page">
+            <section class="tools-card">
+                <h2>Specifications</h2>
+                <dl class="tools-detail-list">
+                    <div><dt>Category</dt><dd>@Model.Category</dd></div>
+                    <div><dt>Location Storage</dt><dd>@Model.Location</dd></div>
+                    <div><dt>Condition Index</dt><dd>@Model.Condition</dd></div>
+                    <div><dt>Last Calibration</dt><dd>@Model.LastCalibration</dd></div>
+                    <div><dt>Next Calibration Due</dt><dd>@Model.NextCalibration</dd></div>
+                </dl>
+            </section>
+
+            <section class="tools-card">
+                <h2>Calibration & Maintenance Schedule</h2>
+                <dl class="tools-detail-list">
+                    <div><dt>Last Calibration Date</dt><dd>@Model.LastCalibration</dd></div>
+                    <div><dt>Next Calibration Due</dt><dd>@Model.NextCalibration</dd></div>
+                    <div><dt>Maintenance Frequency</dt><dd>As required</dd></div>
+                </dl>
+            </section>
+        </div>
+
+        <aside class="tools-card tools-card-blue">
+            <h2>Active Checkout Details</h2>
+            @if (Model.ActiveCheckout is null)
+            {
+                <dl class="tools-detail-list">
+                    <div><dt>Status</dt><dd>Tool is currently available.</dd></div>
+                </dl>
+            }
+            else
+            {
+                <dl class="tools-detail-list">
+                    <div><dt>Mechanic Assigned</dt><dd>@Model.ActiveCheckout.Mechanic</dd></div>
+                    <div><dt>Work Order Link</dt><dd>@Model.ActiveCheckout.WorkOrder</dd></div>
+                    <div><dt>Checkout Time</dt><dd>@Model.ActiveCheckout.CheckoutTime</dd></div>
+                </dl>
+                <a class="tools-button-blue" href="/Owner/ReturnEquipment/@Model.ToolId">Log Return & Inspection</a>
+            }
+        </aside>
+    </div>
+
+    <section class="tools-panel">
+        <div class="tools-panel-header">
+            <h2>Usage & Checkout Log</h2>
+        </div>
+        <table class="tools-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Mechanic</th>
+                    <th>Work Order</th>
+                    <th>Action</th>
+                    <th>Cond. At Checkout</th>
+                    <th>Cond. At Return</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model.Logs)
+                {
+                    <tr>
+                        <td>@log.Date</td>
+                        <td><strong>@log.Mechanic</strong></td>
+                        <td>@log.WorkOrder</td>
+                        <td><span class="@(log.Action == "Returned" ? "tools-green" : "tools-blue")">@log.Action</span></td>
+                        <td>@log.ConditionOut</td>
+                        <td>@log.ConditionReturn</td>
+                        <td>@log.Notes</td>
+                    </tr>
+                }
+                @if (!Model.Logs.Any())
+                {
+                    <tr><td colspan="7">No checkout records yet.</td></tr>
+                }
+            </tbody>
+        </table>
+        <footer class="tools-panel-footer">
+            <span>Showing @Model.Logs.Count of @Model.Logs.Count checkout records</span>
+        </footer>
+    </section>
+</section>

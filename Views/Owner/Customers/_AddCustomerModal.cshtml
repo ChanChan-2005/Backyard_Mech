@@ -1,0 +1,47 @@
+<div class="customer-modal" data-customer-modal-panel="add-customer" aria-hidden="true">
+    <div class="customer-modal-backdrop" data-customer-modal-close></div>
+    <section class="customer-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-customer-title">
+        <header class="customer-modal-header">
+            <div>
+                <h2 id="add-customer-title">Add Customer</h2>
+                <p>Create a new customer profile.</p>
+            </div>
+            <button class="customer-modal-close" type="button" data-customer-modal-close aria-label="Close">x</button>
+        </header>
+
+        <form class="customer-modal-form" asp-controller="Owner" asp-action="AddCustomer" method="post">
+            @Html.AntiForgeryToken()
+            <div class="customer-form-grid">
+                <label>
+                    <span data-required-label>First Name</span>
+                    <input name="FirstName" type="text" placeholder="First name" required />
+                </label>
+                <label>
+                    <span data-required-label>Last Name</span>
+                    <input name="LastName" type="text" placeholder="Last name" required />
+                </label>
+                <label>
+                    <span data-required-label>Mobile Phone</span>
+                    <input name="Phone" type="tel" placeholder="(512) 555-0100" required />
+                </label>
+                <label>
+                    <span data-required-label>Email Address</span>
+                    <input name="Email" type="email" placeholder="customer@email.com" required />
+                </label>
+                <label class="customer-form-wide">
+                    <span data-required-label>Billing Address</span>
+                    <input name="StreetAddress" type="text" placeholder="Street, city, state" required />
+                </label>
+                <label class="customer-form-wide">
+                    <span>Internal Notes</span>
+                    <textarea name="Notes" rows="3" placeholder="Preferred contact time, service notes, billing notes"></textarea>
+                </label>
+            </div>
+
+            <footer class="customer-modal-actions">
+                <button class="customer-modal-secondary" type="button" data-customer-modal-close>Cancel</button>
+                <button class="customer-modal-primary" type="submit">Save Customer</button>
+            </footer>
+        </form>
+    </section>
+</div>

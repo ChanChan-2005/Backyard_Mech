@@ -1,0 +1,71 @@
+@model EmployeePerformanceViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Employee Performance";
+    ViewData["PageTitle"] = "Employee Performance";
+    ViewData["PageSubtitle"] = "EMPLOYEES > PERFORMANCE";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell users-reference-shell";
+}
+
+@section TopbarActions {
+    <button class="users-button" type="button">Period: This Month⌄</button>
+}
+
+<section class="users-reference-page">
+    <div class="users-reference-kpis">
+        <article><span>Total Jobs Completed</span><strong>@Model.TotalJobsCompleted</strong><small>@Model.TotalJobsTrend</small></article>
+        <article><span>Avg Customer Rating</span><strong>@Model.AverageRating</strong><small>@Model.RatingTarget</small></article>
+        <article><span>Shop Utilization</span><strong>@Model.ShopUtilization</strong><small>@Model.UtilizationTrend</small></article>
+        <article><span>Revenue Per Tech (Avg)</span><strong>@Model.RevenuePerTech</strong><small>@Model.HighestTech</small></article>
+    </div>
+
+    <div class="users-performance-grid">
+        <article class="users-reference-card">
+            <h3>Jobs Completed by Employee</h3>
+            <div class="users-reference-bars">
+                @foreach (var employee in Model.Employees)
+                {
+                    <div>
+                        <header><strong>@employee.Name</strong><span>@employee.Jobs jobs</span></header>
+                        <p><i style="width:@Math.Clamp(employee.Progress * 2, 8, 100)%"></i></p>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="users-reference-card">
+            <h3>Leaderboard & Rankings</h3>
+            <table class="users-reference-table">
+                <thead><tr><th>Rank</th><th>Employee</th><th>Jobs</th><th>Rating</th><th>Revenue</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Employees)
+                    {
+                        <tr>
+                            <td><strong>@row.Rank</strong></td>
+                            <td><strong>@row.Name</strong><small>@row.Role</small></td>
+                            <td>@row.Jobs</td>
+                            <td><b class="users-green-text">@row.Rating</b></td>
+                            <td><strong>@row.Revenue</strong></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </article>
+    </div>
+
+    <article class="users-reference-card users-monthly-chart">
+        <h3>Monthly Shop Efficiency Trend</h3>
+        <div>
+            @foreach (var month in Model.MonthlyEfficiency)
+            {
+                <section>
+                    <span>@month.Value%</span>
+                    <i class="@(month.IsGoal ? "goal" : "")" style="height:@Math.Clamp(month.Value, 12, 96)%"></i>
+                    <small>@month.Month</small>
+                </section>
+            }
+        </div>
+        <em>Goal: 85% Efficiency</em>
+    </article>
+</section>

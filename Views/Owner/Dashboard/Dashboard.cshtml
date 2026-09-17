@@ -1,0 +1,177 @@
+@model DashboardViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Owner Dashboard";
+    ViewData["PageTitle"] = "Dashboard";
+    ViewData["PageSubtitle"] = Model.PageDateLabel;
+    ViewData["ActiveNav"] = "Dashboard";
+}
+
+<div class="metric-grid">
+    @foreach (var metric in Model.Metrics)
+    {
+        <article class="metric-card">
+            <header>
+                <span>@metric.Label</span>
+                @if (!string.IsNullOrWhiteSpace(metric.Note))
+                {
+                    <span class="metric-note @metric.Tone">@metric.Note</span>
+                }
+            </header>
+            <strong>@metric.Value</strong>
+        </article>
+    }
+</div>
+
+<div class="dashboard-grid">
+    <section class="dashboard-panel queue-panel">
+        <div class="panel-heading">
+            <div class="tab-row">
+                <span class="active">Service Queue</span>
+                <span>Appointments</span>
+                <span>Walk-ins</span>
+            </div>
+            <span class="muted">Live</span>
+        </div>
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Vehicle</th>
+                    <th>Customer</th>
+                    <th>Service Type</th>
+                    <th>Mechanic</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.ServiceQueue)
+                {
+                    <tr>
+                        <td>@order.Id</td>
+                        <td>@order.Vehicle</td>
+                        <td>@order.Customer</td>
+                        <td>@order.Service</td>
+                        <td>@order.Mechanic</td>
+                        <td><span class="badge @order.StatusTone">@order.Status</span></td>
+                        <td class="@(order.PriorityTone == "danger" ? "priority-danger" : "")">@order.Priority</td>
+                        <td>@order.Time</td>
+                    </tr>
+                }
+                @if (!Model.ServiceQueue.Any())
+                {
+                    <tr><td colspan="8">No active service queue items.</td></tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="dashboard-panel">
+        <div class="panel-heading">
+            <h2>Labour Productivity</h2>
+            <span class="muted">@Model.ActiveMechanicsLabel</span>
+        </div>
+        <div class="mechanic-list">
+            @foreach (var mechanic in Model.Mechanics)
+            {
+                <article class="mechanic-card">
+                    <span class="mechanic-avatar">@mechanic.Avatar</span>
+                    <div class="mechanic-main">
+                        <strong>@mechanic.Name</strong>
+                        <div class="progress-line">
+                            <span style="width: @mechanic.Bar%;"></span>
+                        </div>
+                    </div>
+                    <div class="mechanic-meta">
+                        <span><b>Work Status:</b> @mechanic.Work</span>
+                        <span><b>Current Job:</b> @mechanic.Current</span>
+                        <span><b>Productivity Rate:</b> @mechanic.Productivity</span>
+                    </div>
+                </article>
+            }
+            @if (!Model.Mechanics.Any())
+            {
+                <article class="mechanic-card"><div class="mechanic-main"><strong>No active employees</strong></div></article>
+            }
+        </div>
+    </section>
+</div>
+
+<div class="lower-grid">
+    <section class="dashboard-panel">
+        <div class="panel-heading"><h2>Pending Customer Approvals</h2></div>
+        <div class="compact-list">
+            @foreach (var approval in Model.PendingApprovals)
+            {
+                <article class="approval-item"><div><span class="compact-primary">@approval.Customer</span><span class="compact-secondary">@approval.Vehicle</span></div><div><span class="approval-amount">@approval.Amount</span><span class="approval-sent">@approval.Sent</span></div><button class="mini-btn link">Resend</button></article>
+            }
+            @if (!Model.PendingApprovals.Any())
+            {
+                <article class="approval-item"><div><span class="compact-primary">No pending approvals</span><span class="compact-secondary">Estimate queue is clear</span></div></article>
+            }
+        </div>
+    </section>
+
+    <section class="dashboard-panel">
+        <div class="panel-heading"><h2>Parts & Inventory Alerts</h2><a href="/Owner/LowStockPartsReport">Order Parts</a></div>
+        <div class="compact-list">
+            @foreach (var part in Model.PartAlerts)
+            {
+                <article class="parts-item"><span class="parts-icon @part.IconTone" aria-hidden="true"></span><div><span class="compact-primary">@part.Name</span><span class="compact-secondary">@part.Detail</span></div><span class="badge @part.BadgeTone">@part.Badge</span></article>
+            }
+            @if (!Model.PartAlerts.Any())
+            {
+                <article class="parts-item"><span class="parts-icon blue" aria-hidden="true"></span><div><span class="compact-primary">Inventory healthy</span><span class="compact-secondary">No parts below reorder threshold</span></div><span class="badge green">clear</span></article>
+            }
+        </div>
+    </section>
+
+    <section class="dashboard-panel">
+        <div class="panel-heading"><h2>QC & Inspections</h2><span class="metric-note warn">@Model.PendingInspectionLabel</span></div>
+        <div class="compact-list">
+            @foreach (var inspection in Model.Inspections)
+            {
+                <article class="inspection-item"><span></span><div><span class="compact-primary">@inspection.Vehicle</span><span class="compact-secondary">@inspection.Detail</span></div><span class="badge @inspection.Tone">@inspection.Status</span></article>
+            }
+            @if (!Model.Inspections.Any())
+            {
+                <article class="inspection-item"><span></span><div><span class="compact-primary">No inspections yet</span><span class="compact-secondary">QC records will appear here</span></div><span class="badge gray">empty</span></article>
+            }
+        </div>
+    </section>
+</div>
+
+<div class="bottom-grid">
+    <section class="dashboard-panel invoice-panel">
+        <div class="panel-heading"><h2>Recent Invoices & Payments</h2><span class="muted">Today's Collected: <span class="collected">@Model.TodayCollected</span></span></div>
+        <table class="invoice-table">
+            <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+                @foreach (var invoice in Model.RecentInvoices)
+                {
+                    <tr><td>@invoice.Invoice</td><td>@invoice.Customer</td><td class="amount">@invoice.Amount</td><td><span class="badge @invoice.Tone">@invoice.Status</span></td><td>@invoice.Date</td></tr>
+                }
+                @if (!Model.RecentInvoices.Any())
+                {
+                    <tr><td colspan="5">No invoices yet.</td></tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="dashboard-panel">
+        <div class="panel-heading"><h2>Recent Shop Activity</h2></div>
+        <div class="activity-list">
+            @foreach (var activity in Model.RecentActivity)
+            {
+                <article><span class="activity-title">@activity.Title</span><span class="activity-time">@activity.Time</span></article>
+            }
+            @if (!Model.RecentActivity.Any())
+            {
+                <article><span class="activity-title">No recent activity yet</span><span class="activity-time">-</span></article>
+            }
+        </div>
+    </section>
+</div>

@@ -1,0 +1,200 @@
+@model IReadOnlyList<CustomerListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Customers and Vehicles";
+    ViewData["PageTitle"] = "Customers and Vehicles";
+    ViewData["PageSubtitle"] = "";
+    ViewData["ActiveNav"] = "Customer and Vehicle";
+
+    var customers = Model ?? Array.Empty<CustomerListItem>();
+    var activeCustomers = customers.Count(customer => string.Equals(customer.Status, "Active", StringComparison.OrdinalIgnoreCase));
+    var newThisMonth = customers.Count(customer => string.Equals(customer.LastVisit, "No visits", StringComparison.OrdinalIgnoreCase));
+    var totalSpend = customers.Sum(customer => decimal.TryParse(customer.TotalSpent.Replace("$", "").Replace(",", ""), out var value) ? value : 0);
+    var averageSpend = customers.Count == 0 ? 0 : totalSpend / customers.Count;
+    var metrics = new[]
+    {
+        new { Label = "Total Customers", Value = customers.Count.ToString() },
+        new { Label = "Active", Value = activeCustomers.ToString() },
+        new { Label = "New This Month", Value = newThisMonth.ToString() },
+        new { Label = "Avg Spend", Value = averageSpend.ToString("C") }
+    };
+}
+
+<section class="customer-page">
+    <div class="customer-metric-grid">
+        @foreach (var metric in metrics)
+        {
+            <article class="customer-metric-card">
+                <span>@metric.Label</span>
+                <strong>@metric.Value</strong>
+            </article>
+        }
+    </div>
+
+    <section class="customer-panel">
+        <div class="customer-toolbar">
+            @if (TempData["OwnerMessage"] is string ownerMessage)
+            {
+                <span class="customer-flash">@ownerMessage</span>
+            }
+            <label class="customer-search-box">
+                <span aria-hidden="true">Q</span>
+                <input data-customer-search type="search" placeholder="Search by name, phone, email, or vehicle..." aria-label="Search customers and vehicles" />
+            </label>
+            <button class="search-button" type="button" data-customer-search-button>Search</button>
+            <button class="add-customer-button" type="button" data-customer-modal="add-customer"><span>+</span> Add Customer</button>
+        </div>
+
+        <div class="customer-table-wrap">
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Vehicles</th>
+                        <th>Last Visit</th>
+                        <th>Total Spent</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var customer in customers)
+                    {
+                        var isActive = string.Equals(customer.Status, "Active", StringComparison.OrdinalIgnoreCase);
+                        var customerSlug = customer.CustomerId.ToString();
+                        <tr data-customer-row
+                            data-search="@($"{customer.Name} {customer.Phone} {customer.Email} {customer.Vehicles} {customer.LastVisit} {customer.TotalSpent} {customer.Status}".ToLowerInvariant())">
+                            <td>
+                                <div class="customer-name-cell">
+                                    <span class="customer-avatar">@customer.Initials</span>
+                                    <strong>@customer.Name</strong>
+                                </div>
+                            </td>
+                            <td>@customer.Phone</td>
+                            <td>@customer.Email</td>
+                            <td><span class="vehicle-pill">@customer.Vehicles</span></td>
+                            <td>@customer.LastVisit</td>
+                            <td class="spent-cell">@customer.TotalSpent</td>
+                            <td><span class="status-pill @(isActive ? "active" : "inactive")">@customer.Status</span></td>
+                            <td>
+                                <div class="customer-actions-cell">
+                                    <a href="/Owner/CustomerDetails/@customerSlug">View</a>
+                                    <button type="button"
+                                            data-customer-modal="edit-customer"
+                                            data-customer-id="@customer.CustomerId"
+                                            data-first-name="@customer.FirstName"
+                                            data-last-name="@customer.LastName"
+                                            data-phone="@customer.Phone"
+                                            data-email="@customer.Email"
+                                            data-address="@customer.StreetAddress"
+                                        data-notes="@customer.Notes">Edit</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <footer class="customer-table-footer">
+        <span data-customer-page-summary>Showing 1-8 of @customers.Count customers</span>
+        <nav class="customer-pagination" aria-label="Customer pagination">
+            <button type="button" data-customer-page="prev">Previous</button>
+            <span data-customer-page-buttons></span>
+            <button type="button" data-customer-page="next">Next</button>
+        </nav>
+    </footer>
+</section>
+</section>
+
+@await Html.PartialAsync("_AddCustomerModal")
+@await Html.PartialAsync("_EditCustomerModal")
+
+@section Scripts {
+    @await Html.PartialAsync("_CustomerModalScripts")
+    <script>
+        (() => {
+            const pageSize = 8;
+            const rows = Array.from(document.querySelectorAll("[data-customer-row]"));
+            const searchInput = document.querySelector("[data-customer-search]");
+            const searchButton = document.querySelector("[data-customer-search-button]");
+            const summary = document.querySelector("[data-customer-page-summary]");
+            const pageButtons = document.querySelector("[data-customer-page-buttons]");
+            const previousButton = document.querySelector("[data-customer-page='prev']");
+            const nextButton = document.querySelector("[data-customer-page='next']");
+            let currentPage = 1;
+
+            if (!rows.length || !searchInput || !summary || !pageButtons || !previousButton || !nextButton) {
+                return;
+            }
+
+            const getFilteredRows = () => {
+                const query = searchInput.value.trim().toLowerCase();
+                return rows.filter(row => !query || (row.dataset.search || "").includes(query));
+            };
+
+            const renderPagination = () => {
+                const filteredRows = getFilteredRows();
+                const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+                currentPage = Math.min(currentPage, totalPages);
+
+                const startIndex = (currentPage - 1) * pageSize;
+                const endIndex = startIndex + pageSize;
+                const visibleRows = new Set(filteredRows.slice(startIndex, endIndex));
+
+                rows.forEach(row => {
+                    row.hidden = !visibleRows.has(row);
+                });
+
+                pageButtons.innerHTML = "";
+                for (let page = 1; page <= totalPages; page += 1) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = String(page);
+                    button.classList.toggle("active", page === currentPage);
+                    button.addEventListener("click", () => {
+                        currentPage = page;
+                        renderPagination();
+                    });
+                    pageButtons.appendChild(button);
+                }
+
+                previousButton.disabled = currentPage === 1;
+                nextButton.disabled = currentPage === totalPages;
+
+                if (!filteredRows.length) {
+                    summary.textContent = "Showing 0 of 0 customers";
+                    return;
+                }
+
+                const firstItem = startIndex + 1;
+                const lastItem = Math.min(endIndex, filteredRows.length);
+                summary.textContent = `Showing ${firstItem}-${lastItem} of ${filteredRows.length} customers`;
+            };
+
+            searchInput.addEventListener("input", () => {
+                currentPage = 1;
+                renderPagination();
+            });
+
+            searchButton?.addEventListener("click", () => {
+                currentPage = 1;
+                renderPagination();
+            });
+
+            previousButton.addEventListener("click", () => {
+                currentPage = Math.max(1, currentPage - 1);
+                renderPagination();
+            });
+
+            nextButton.addEventListener("click", () => {
+                currentPage += 1;
+                renderPagination();
+            });
+
+            renderPagination();
+        })();
+    </script>
+}

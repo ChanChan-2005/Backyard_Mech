@@ -1,0 +1,43 @@
+<div class="bay-modal" data-bay-modal-panel="edit-bay" aria-hidden="true">
+    <div class="bay-modal-backdrop" data-bay-modal-close></div>
+    <section class="bay-modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-bay-title">
+        <form class="bay-form-card" asp-controller="Owner" asp-action="EditBay" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="BayId" id="edit-bay-id" value="0" />
+            <header class="bay-form-header">
+                <div>
+                    <h2 id="edit-bay-title">Edit Bay</h2>
+                    <p>Update bay information, tools, and settings</p>
+                </div>
+                <button class="bay-close" type="button" data-bay-modal-close aria-label="Close">x</button>
+            </header>
+
+            <div class="bay-form-body">
+                <label>
+                    <span class="bay-label">Bay Number *</span>
+                    <input class="bay-input" id="edit-bay-number" type="text" name="BayNumber" value="" required />
+                </label>
+                <label>
+                    <span class="bay-label">Bay Name *</span>
+                    <input class="bay-input" id="edit-bay-name" type="text" name="Name" value="" required />
+                </label>
+                <label>
+                    <span class="bay-label">Description *</span>
+                    <textarea class="bay-textarea" id="edit-bay-description" name="Description" required></textarea>
+                </label>
+                <label>
+                    <span class="bay-label">Status *</span>
+                    <select class="bay-select" id="edit-bay-status" name="Status" required>
+                        <option value="Available">Available</option>
+                        <option value="Maintenance">Maintenance</option>
+                    </select>
+                </label>
+            </div>
+
+            <footer class="bay-form-footer">
+                <button class="bay-button" type="button" data-bay-modal-close>Cancel</button>
+                <button class="bay-button-blue" type="submit">Save Changes</button>
+            </footer>
+        </form>
+    </section>
+</div>

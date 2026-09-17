@@ -1,0 +1,73 @@
+@model IReadOnlyList<EmployeeListItem>
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Archived & Deleted Employees";
+    ViewData["PageTitle"] = "Archived & Deleted Employees";
+    ViewData["PageSubtitle"] = "EMPLOYEES > ARCHIVE";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell";
+
+    var deleted = Model ?? Array.Empty<EmployeeListItem>();
+}
+
+@section TopbarActions {
+    <a class="users-button" href="/Owner/Employees">Back to Employees</a>
+}
+
+<section class="users-page">
+    @if (TempData["OwnerMessage"] is string message)
+    {
+        <div class="users-alert">@message</div>
+    }
+
+    <nav class="users-tabs">
+        <a href="/Owner/Employees">All</a>
+        <a href="/Owner/Employees">Active</a>
+        <a href="/Owner/Employees">Inactive</a>
+        <a class="active" href="/Owner/SoftDeletedEmployees">Soft Deleted (@deleted.Count)</a>
+        <a href="/Owner/ArchivedEmployees">Archived</a>
+    </nav>
+
+    <div class="users-alert red">Soft deleted employees are retained for historical and audit purposes only. Their records cannot be modified.</div>
+
+    <div class="users-filter-card">
+        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <div class="users-filter-right">
+            <button class="users-button" type="button">Role: All V</button>
+            <button class="users-button" type="button">Sort By: Name V</button>
+        </div>
+    </div>
+
+    <section class="users-panel">
+        <table class="users-table">
+            <thead><tr><th>Employee Name</th><th>Role</th><th>Date Deleted</th><th>Deleted By</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                @foreach (var employee in deleted)
+                {
+                    <tr>
+                        <td><span class="users-avatar">@employee.Initials</span><strong>@employee.Name</strong></td>
+                        <td>@employee.Role</td>
+                        <td>@(employee.StateDate ?? "")</td>
+                        <td>System</td>
+                        <td>@(employee.Reason ?? "")</td>
+                        <td><span class="users-pill deleted">Deleted</span></td>
+                        <td class="users-table-actions">
+                            <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@employee.EmployeeProfileId">View</a>
+                            <button class="users-small-button" type="button" data-users-modal="restore" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Restore</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <footer class="users-panel-footer">
+            <span>Showing @deleted.Count soft deleted employee@(deleted.Count == 1 ? "" : "s")</span>
+            <nav class="users-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
+        </footer>
+    </section>
+</section>
+
+@await Html.PartialAsync("_EmployeeModals")
+
+@section Scripts {
+    <script src="~/js/owner-user-management.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,63 @@
+@model ReportsOverviewViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Reports & Analytics";
+    ViewData["PageTitle"] = "Reports & Analytics";
+    ViewData["PageSubtitle"] = Model.PageDateLabel;
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+
+    var reports = new[]
+    {
+        new { Icon = "SR", Title = "Sales & Revenue", Copy = "Breakdown of transactions, invoice history, tax logs, and daily/monthly income trends.", Link = "/Owner/SalesRevenueReport", Action = "View Sales Report" },
+        new { Icon = "LP", Title = "Labour Productivity", Copy = "Track working vs billable hours, efficiency benchmarks, and mechanic output rates.", Link = "/Owner/LabourProductivityReport", Action = "View Labour Report" },
+        new { Icon = "BU", Title = "Bay Utilization", Copy = "Monitor bay turn times, cycle delays, and average daily bay occupancy rates.", Link = "/Owner/BayUtilizationReport", Action = "View Bay Report" },
+        new { Icon = "IV", Title = "Inventory Valuation", Copy = "Current capitalized parts stock levels, cost of goods sold, and general warehouse value.", Link = "/Owner/InventoryValueReport", Action = "View Valuation" },
+        new { Icon = "LS", Title = "Low Stock Parts", Copy = "Automated warnings on critical replacement parts and reorder thresholds.", Link = "/Owner/LowStockPartsReport", Action = "View Alerts" },
+        new { Icon = "TL", Title = "Tool & Equipment Losses", Copy = "Logged loss of lost shop-assets, structural damage, and replacement costs.", Link = "/Owner/ToolLossesReport", Action = "View Losses" },
+        new { Icon = "PR", Title = "Profitability Report", Copy = "Calculations on net margins comparing parts, labour, tax, and operating cost.", Link = "/Owner/ProfitabilityReport", Action = "View Profit" }
+    };
+}
+
+@section TopbarActions {
+    <button class="reports-button" type="button">@Model.PeriodLabel V</button>
+}
+
+<section class="reports-page">
+    <div class="reports-stats">
+        @foreach (var metric in Model.Metrics)
+        {
+            <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong><p>@metric.Detail</p></article>
+        }
+    </div>
+
+    <section class="reports-panel">
+        <header class="reports-panel-header"><h2>Available Reports</h2></header>
+        <div class="reports-grid">
+            @foreach (var report in reports.Take(4))
+            {
+                <a class="reports-card" href="@report.Link">
+                    <span class="reports-card-icon">@report.Icon</span>
+                    <span>
+                        <h2>@report.Title</h2>
+                        <p>@report.Copy</p>
+                        <small>@report.Action +</small>
+                    </span>
+                </a>
+            }
+        </div>
+        <div class="reports-grid compact">
+            @foreach (var report in reports.Skip(4))
+            {
+                <a class="reports-card" href="@report.Link">
+                    <span class="reports-card-icon">@report.Icon</span>
+                    <span>
+                        <h2>@report.Title</h2>
+                        <p>@report.Copy</p>
+                        <small>@report.Action +</small>
+                    </span>
+                </a>
+            }
+        </div>
+    </section>
+</section>

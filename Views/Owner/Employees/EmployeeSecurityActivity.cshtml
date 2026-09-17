@@ -1,0 +1,84 @@
+@model EmployeeSecurityActivityViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = $"{Model.Name} Security Activity";
+    ViewData["PageTitle"] = $"{Model.Name} - Security Activity";
+    ViewData["PageSubtitle"] = $"EMPLOYEES > {Model.Name.ToUpperInvariant()} > SECURITY ACTIVITY";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell users-reference-shell";
+    ViewData["SearchPlaceholder"] = "Search security activity...";
+}
+
+@section TopbarActions {
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
+    <a class="users-button" asp-controller="Owner" asp-action="Employees">Back to Employees</a>
+}
+
+<section class="users-account-page users-security-activity-page">
+    <div class="users-profile-layout">
+        <aside class="users-card">
+            <div class="users-profile-head">
+                <div class="users-photo">@Model.Initials</div>
+                <div>
+                    <h2>@Model.Name</h2>
+                    <p class="users-muted">@Model.Role</p>
+                    <span class="users-pill @(Model.Status.ToLowerInvariant())">@Model.Status</span>
+                </div>
+            </div>
+            <ul class="users-contact-list">
+                <li>@Model.Phone</li>
+                <li>@Model.Email</li>
+                <li>Hired: @Model.HireDate</li>
+                <li>Emp ID: #@Model.EmployeeNumber</li>
+            </ul>
+        </aside>
+
+        <section class="users-tab-card">
+            <nav class="users-tabs">
+                <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a>
+                <a asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
+                <a class="active" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a>
+            </nav>
+
+            <div class="users-tab-content">
+                <div class="users-security-summary">
+                    <article><span class="users-label">Last Activity</span><strong>@Model.LastActivity</strong></article>
+                    <article><span class="users-label">Security Events</span><strong>@Model.SecurityEvents</strong></article>
+                    <article><span class="users-label">Profile Changes</span><strong>@Model.ProfileChanges</strong></article>
+                    <article><span class="users-label">Access Changes</span><strong>@Model.AccessChanges</strong></article>
+                </div>
+
+                <section class="users-security-log-card">
+                    <header>
+                        <h2 class="users-panel-title">Security Activity Log</h2>
+                        <span class="users-muted">Audit events tied to this employee profile and account.</span>
+                    </header>
+
+                    <table class="users-table users-security-table">
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Details</th>
+                                <th>Actor</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Activity)
+                            {
+                                <tr>
+                                    <td><strong>@row.Event</strong></td>
+                                    <td>@row.Detail</td>
+                                    <td>@row.Actor</td>
+                                    <td>@row.Timestamp</td>
+                                    <td><span class="users-pill @row.Tone">Recorded</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+    </div>
+</section>

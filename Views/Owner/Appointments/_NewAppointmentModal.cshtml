@@ -1,0 +1,101 @@
+@{
+    var bayOptions = ViewData["BayOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+    var employeeOptions = ViewData["EmployeeOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+}
+<div class="appointment-modal" data-appointment-modal-panel="new-appointment" aria-hidden="true">
+    <div class="appointment-modal-backdrop" data-appointment-modal-close></div>
+    <section class="appointment-modal-card" role="dialog" aria-modal="true" aria-labelledby="new-appointment-title">
+        <form class="appointment-modal-form">
+            <header class="appointment-modal-header">
+                <div>
+                    <h2 id="new-appointment-title">New Appointment</h2>
+                    <p>Schedule a customer visit, assign a bay, and reserve service time.</p>
+                </div>
+                <button class="appointment-modal-close" type="button" data-appointment-modal-close aria-label="Close">x</button>
+            </header>
+
+            <section class="appointment-modal-section">
+                <h3>Customer and Vehicle</h3>
+                <div class="appointment-modal-grid">
+                    <label>
+                        <span>Customer Name *</span>
+                        <input placeholder="Enter customer name" />
+                    </label>
+                    <label>
+                        <span>Contact Number *</span>
+                        <input type="tel" placeholder="Enter contact number" />
+                    </label>
+                    <label>
+                        <span>Email Address</span>
+                        <input type="email" placeholder="Enter email address" />
+                    </label>
+                    <label>
+                        <span>Vehicle *</span>
+                        <input placeholder="Enter vehicle details" />
+                    </label>
+                    <label class="appointment-modal-wide">
+                        <span>Plate / VIN</span>
+                        <input placeholder="Enter plate number or VIN" />
+                    </label>
+                </div>
+            </section>
+
+            <section class="appointment-modal-section">
+                <h3>Schedule</h3>
+                <div class="appointment-modal-grid">
+                    <label>
+                        <span>Date *</span>
+                        <input type="date" placeholder="Select date" />
+                    </label>
+                    <label>
+                        <span>Start Time *</span>
+                        <input type="time" placeholder="Select start time" />
+                    </label>
+                    <label>
+                        <span>End Time *</span>
+                        <input type="time" placeholder="Select end time" />
+                    </label>
+                    <label>
+                        <span>Service Bay</span>
+                        <select>
+                            <option value="" selected disabled>Select service bay</option>
+                            @foreach (var bay in bayOptions)
+                            {
+                                <option value="@bay.Id">@bay.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span>Advisor</span>
+                        <select>
+                            <option value="" selected disabled>Select advisor</option>
+                            @foreach (var employee in employeeOptions)
+                            {
+                                <option value="@employee.Id">@employee.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span>Status</span>
+                        <select>
+                            <option value="" selected disabled>Select status</option>
+                            <option>Scheduled</option>
+                            <option>Arrived</option>
+                            <option>In Bay</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </label>
+                    <label class="appointment-modal-wide">
+                        <span>Service Notes</span>
+                        <textarea placeholder="Add service request, reminders, or customer notes."></textarea>
+                    </label>
+                </div>
+            </section>
+
+            <footer class="appointment-modal-actions">
+                <button class="appointment-modal-secondary" type="button" data-appointment-modal-close>Cancel</button>
+                <button class="appointment-modal-primary" type="button" data-appointment-modal-close>Save Appointment</button>
+            </footer>
+        </form>
+    </section>
+</div>

@@ -1,0 +1,94 @@
+@model EmployeeProfile
+@{
+    Layout = "_AppLayout";
+    var fullName = $"{Model.FirstName} {Model.LastName}".Trim();
+    ViewData["Title"] = $"{fullName} Account";
+    ViewData["PageTitle"] = $"{fullName} - Account Details";
+    ViewData["PageSubtitle"] = $"EMPLOYEES > {fullName.ToUpperInvariant()}";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell";
+    ViewData["SearchPlaceholder"] = "Search system log, accounts...";
+}
+
+@section TopbarActions {
+    <a class="users-button" asp-controller="Owner" asp-action="Employees">Back to Employees</a>
+    <button class="users-button-blue" type="submit" form="employeeEditForm">Save Settings</button>
+}
+
+<section class="users-account-page">
+    <div class="users-profile-layout">
+        <aside class="users-card">
+            <div class="users-profile-head">
+                <div class="users-photo"></div>
+                <div>
+                    <h2>@fullName</h2>
+                    <p class="users-muted">@Model.JobTitle</p>
+                    <span class="users-pill @(Model.IsActive ? "active" : "inactive")">@(Model.IsActive ? "Active" : "Inactive")</span>
+                </div>
+            </div>
+            <ul class="users-contact-list">
+                <li>@Model.Phone</li>
+                <li>@Model.Email</li>
+                <li>Hired: @(Model.HireDate?.ToString("MMM dd, yyyy") ?? "Not set")</li>
+                <li>Emp ID: #@Model.EmployeeNumber</li>
+            </ul>
+        </aside>
+
+        <section class="users-tab-card">
+            <nav class="users-tabs">
+                <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a>
+                <a class="active" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
+                <a asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a>
+            </nav>
+            <div class="users-tab-content">
+                <form id="employeeEditForm" asp-controller="Owner" asp-action="EditEmployee" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="EmployeeProfileId" value="@Model.EmployeeProfileId" />
+
+                    <h2 class="users-panel-title">Profile</h2>
+                    <div class="users-form-grid">
+                        <label><span class="users-label">First Name *</span><input class="users-input" name="FirstName" value="@Model.FirstName" required /></label>
+                        <label><span class="users-label">Last Name *</span><input class="users-input" name="LastName" value="@Model.LastName" required /></label>
+                        <label><span class="users-label">Middle Initial</span><input class="users-input" name="MiddleInitial" value="@Model.MiddleName" maxlength="1" /></label>
+                        <label><span class="users-label">Job Title *</span><input class="users-input" name="JobTitle" value="@Model.JobTitle" required /></label>
+                        <label><span class="users-label">Contact Number *</span><input class="users-input" name="Phone" type="tel" value="@Model.Phone" required /></label>
+                        <label><span class="users-label">Login Email *</span><input class="users-input" name="Email" type="email" value="@Model.Email" required /></label>
+                        <label><span class="users-label">Address *</span><input class="users-input" name="StreetAddress" value="@Model.StreetAddress" required /></label>
+                        <label><span class="users-label">City *</span><input class="users-input" name="City" value="@Model.City" required /></label>
+                        <label><span class="users-label">Province/Territory</span><input class="users-input" name="Province" value="@Model.Province" /></label>
+                        <label><span class="users-label">Postal Code *</span><input class="users-input" name="PostalCode" value="@Model.PostalCode" required /></label>
+                        <label><span class="users-label">Hourly Rate *</span><input class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate" required /></label>
+                        <div>
+                            <span class="users-label">Account Status</span>
+                            <p><span class="users-pill @(Model.IsActive ? "active" : "inactive")">@(Model.IsActive ? "Active" : "Inactive")</span></p>
+                        </div>
+                    </div>
+                </form>
+
+                <h2 class="users-panel-title">Assigned Shop Roles</h2>
+                <div class="users-checkbox-list">
+                    <label><input type="checkbox" /> Garage Owner</label>
+                    <label><input type="checkbox" /> Administrator</label>
+                    <label><input type="checkbox" /> Service Advisor</label>
+                    <label><input type="checkbox" checked /> Mechanic/Technician</label>
+                    <label><input type="checkbox" /> Parts Clerk</label>
+                    <label><input type="checkbox" /> Supervisor/QC Inspector</label>
+                    <label><input type="checkbox" /> Accounting/Cashier</label>
+                </div>
+
+                <h2 class="users-panel-title">Security Metrics</h2>
+                <div class="users-security-metrics">
+                    <div><span class="users-label">Last Login</span><strong>No login record found</strong></div>
+                    <div><span class="users-label">Failed Login Attempts</span><strong>0 attempts</strong></div>
+                    <div><span class="users-label">Lock Status</span><strong class="users-link">Unlocked</strong></div>
+                </div>
+
+                <div class="users-form-actions">
+                    <button class="users-button-red" type="button">Deactivate Account</button>
+                    <button class="users-button-orange" type="button">Lock Account</button>
+                    <button class="users-button" type="button">Reset Password</button>
+                </div>
+            </div>
+        </section>
+    </div>
+</section>
