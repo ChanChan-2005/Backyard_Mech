@@ -60,6 +60,12 @@
   white-space: nowrap;
 }
 
+.reports-export-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .reports-button-blue {
   color: #fff;
   background: #2f80ed;
@@ -85,6 +91,34 @@
   background: #fff;
   border: 1px solid #dfe5ec;
   border-radius: 3px;
+}
+
+.reports-date-filter {
+  flex-wrap: wrap;
+}
+
+.reports-date-field {
+  display: grid;
+  gap: 4px;
+}
+
+.reports-date-field span {
+  color: #65707f;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.reports-date-filter .reports-filter-spacer {
+  flex: 1 1 20px;
+}
+
+.reports-filter-card select {
+  min-width: 150px;
+}
+
+.reports-table tr[hidden] {
+  display: none;
 }
 
 .reports-stat {
@@ -348,5 +382,9 @@
   .reports-grid.compact,
   .reports-two-column {
     grid-template-columns: 1fr;
+  }
+
+  .reports-export-actions {
+    flex-wrap: wrap;
   }
 }

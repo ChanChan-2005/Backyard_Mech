@@ -9,12 +9,21 @@
 }
 
 @section TopbarActions {
-    <button class="reports-button" type="button">Export PDF</button>
-    <button class="reports-button" type="button">CSV</button>
+    <div class="reports-export-actions">
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="inventory" asp-route-format="pdf" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">PDF</a>
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="inventory" asp-route-format="csv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">CSV</a>
+        <a class="reports-button-blue" asp-action="ExportReport" asp-route-reportType="inventory" asp-route-format="xlsx" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">Excel</a>
+    </div>
 }
 
 <section class="reports-page">
-    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Category: All</option></select><select><option>Supplier: All</option></select><select><option>Location: All</option></select></div>
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="InventoryValueReport">
+        <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
+        <button class="reports-button-blue" type="submit">Apply Dates</button><span class="reports-filter-spacer"></span>
+        <select data-report-filter data-report-column="2"><option value="">Category: All</option>@foreach (var value in Model.Rows.Select(x => x.Category).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="3"><option value="">Supplier: All</option>@foreach (var value in Model.Rows.Select(x => x.Supplier).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+    </form>
     <div class="reports-stats">
         @foreach (var metric in Model.Metrics)
         {
@@ -24,12 +33,12 @@
     <div class="reports-two-column">
         <section class="reports-card reports-chart-card"><h2>Value by Category</h2><div class="reports-donut-wrap"><canvas id="inventoryValueChart" height="190"></canvas></div></section>
         <section class="reports-panel">
-            <table class="reports-table">
+            <table class="reports-table" data-report-table>
                 <thead><tr><th>Part #</th><th>Part Name</th><th>Category</th><th>Supplier</th><th>Qty in Stock</th><th>Unit Cost</th><th>Total Value</th><th>Reorder Status</th></tr></thead>
                 <tbody>
                     @foreach (var row in Model.Rows)
                     {
-                        <tr><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td>@row.Supplier</td><td>@row.QuantityInStock</td><td>@row.UnitCost</td><td><strong>@row.TotalValue</strong></td><td>@row.ReorderLevel<br /><span class="reports-money @row.StatusTone">@row.Status</span></td></tr>
+                        <tr data-report-row><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td>@row.Supplier</td><td>@row.QuantityInStock</td><td>@row.UnitCost</td><td><strong>@row.TotalValue</strong></td><td>@row.ReorderLevel<br /><span class="reports-money @row.StatusTone">@row.Status</span></td></tr>
                     }
                     @if (!Model.Rows.Any())
                     {

@@ -1,0 +1,37 @@
+<div class="parts-modal" data-parts-modal-panel="product-listing-action" aria-hidden="true">
+    <div class="parts-modal-backdrop" data-parts-modal-close></div>
+    <section class="parts-modal-card parts-confirm-card" role="dialog" aria-modal="true" aria-labelledby="product-listing-action-title">
+        <div class="parts-form-panel">
+            <header class="parts-modal-header">
+                <div>
+                    <h2 id="product-listing-action-title" data-listing-action-title>Archive Product Listing?</h2>
+                    <p data-listing-action-copy>The listing will be hidden and can be restored from Archive.</p>
+                </div>
+                <button class="parts-modal-close" type="button" data-parts-modal-close aria-label="Close">x</button>
+            </header>
+            <p class="parts-confirm-message">Selected listing: <strong data-listing-action-name></strong></p>
+
+            <form asp-controller="Owner" asp-action="ArchiveProductListing" method="post" data-listing-action-form="archive">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="RecordType" value="Product Listing" />
+                <input type="hidden" name="RecordId" data-listing-action-id />
+                <input type="hidden" name="Reason" value="Archived from Product Listing" />
+                <footer class="parts-modal-actions">
+                    <button class="parts-button" type="button" data-parts-modal-close>Cancel</button>
+                    <button class="parts-button-dark" type="submit">Archive Listing</button>
+                </footer>
+            </form>
+
+            <form asp-controller="Owner" asp-action="SoftDeleteProductListing" method="post" data-listing-action-form="delete" hidden>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="RecordType" value="Product Listing" />
+                <input type="hidden" name="RecordId" data-listing-action-id />
+                <input type="hidden" name="Reason" value="Deleted from Product Listing" />
+                <footer class="parts-modal-actions">
+                    <button class="parts-button" type="button" data-parts-modal-close>Cancel</button>
+                    <button class="parts-button-danger" type="submit">Move to Records Disposition</button>
+                </footer>
+            </form>
+        </div>
+    </section>
+</div>

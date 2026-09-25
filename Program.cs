@@ -1,5 +1,7 @@
 using Backyard_Mech.Data;
+using Backyard_Mech.Services;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +42,13 @@ builder.Services.AddControllersWithViews()
     });
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession();
+builder.Services.AddScoped<RecordsDispositionService>();
+builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<OwnerPermissionFilter>();
+builder.Services.AddSingleton<ReportExportService>();
+builder.Services.AddHostedService<RecordsDispositionCleanupService>();
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var app = builder.Build();
 

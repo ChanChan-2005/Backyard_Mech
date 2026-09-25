@@ -9,12 +9,22 @@
 }
 
 @section TopbarActions {
-    <button class="reports-button" type="button">Export PDF</button>
-    <button class="reports-button" type="button">CSV</button>
+    <div class="reports-export-actions">
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="tools" asp-route-format="pdf" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">PDF</a>
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="tools" asp-route-format="csv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">CSV</a>
+        <a class="reports-button-blue" asp-action="ExportReport" asp-route-reportType="tools" asp-route-format="xlsx" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">Excel</a>
+    </div>
 }
 
 <section class="reports-page">
-    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Tool Type: All</option></select><select><option>Employee: All</option></select><select><option>Status: All</option></select></div>
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="ToolLossesReport">
+        <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
+        <button class="reports-button-blue" type="submit">Apply Dates</button><span class="reports-filter-spacer"></span>
+        <select data-report-filter data-report-column="2"><option value="">Tool Type: All</option>@foreach (var value in Model.Rows.Select(x => x.Type).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="3"><option value="">Employee: All</option>@foreach (var value in Model.Rows.Select(x => x.LastAssignedTo).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="5"><option value="">Status: All</option>@foreach (var value in Model.Rows.Select(x => x.Status).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+    </form>
     <div class="reports-stats">
         @foreach (var metric in Model.Metrics)
         {
@@ -22,12 +32,12 @@
         }
     </div>
     <section class="reports-panel">
-        <table class="reports-table">
+        <table class="reports-table" data-report-table>
             <thead><tr><th>Tool ID</th><th>Tool Name</th><th>Type</th><th>Last Assigned To</th><th>Checkout Date</th><th>Status</th><th>Replacement Cost</th><th>Notes</th></tr></thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr><td><a class="reports-link" href="/Owner/ToolProfile/@row.ToolId">@row.ToolCode</a></td><td><strong>@row.ToolName</strong></td><td>@row.Type</td><td>@row.LastAssignedTo</td><td>@row.CheckoutDate</td><td><span class="reports-pill @row.StatusTone">@row.Status</span></td><td><strong>@row.ReplacementCost</strong></td><td>@row.Notes</td></tr>
+                    <tr data-report-row><td><a class="reports-link" href="/Owner/ToolProfile/@row.ToolId">@row.ToolCode</a></td><td><strong>@row.ToolName</strong></td><td>@row.Type</td><td>@row.LastAssignedTo</td><td>@row.CheckoutDate</td><td><span class="reports-pill @row.StatusTone">@row.Status</span></td><td><strong>@row.ReplacementCost</strong></td><td>@row.Notes</td></tr>
                 }
                 @if (!Model.Rows.Any())
                 {
@@ -35,6 +45,10 @@
                 }
             </tbody>
         </table>
-        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count tools</span></footer>
+        <footer class="reports-panel-footer"><span>Showing <strong data-report-visible-count>@Model.Rows.Count</strong> of @Model.Rows.Count tools</span></footer>
     </section>
 </section>
+
+@section Scripts {
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

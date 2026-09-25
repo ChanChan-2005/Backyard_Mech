@@ -1,7 +1,32 @@
 (() => {
-  if (!window.Chart) {
-    return;
-  }
+  const normalize = (value) => (value || "").trim().toLocaleLowerCase();
+
+  document.querySelectorAll("[data-report-filter]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const table = document.querySelector("[data-report-table]");
+      if (!table) return;
+
+      const filters = Array.from(document.querySelectorAll("[data-report-filter]"));
+      let visible = 0;
+      table.querySelectorAll("tbody tr[data-report-row]").forEach((row) => {
+        const matches = filters.every((filter) => {
+          if (!filter.value) return true;
+          const cell = row.cells[Number(filter.dataset.reportColumn)];
+          return cell && normalize(cell.textContent) === normalize(filter.value);
+        });
+        row.hidden = !matches;
+        if (matches) visible += 1;
+      });
+
+      document.querySelectorAll("[data-report-visible-count]").forEach((element) => {
+        element.textContent = String(visible);
+      });
+      const emptyRow = table.querySelector("[data-report-filter-empty]");
+      if (emptyRow) emptyRow.hidden = visible !== 0;
+    });
+  });
+
+  if (!window.Chart) return;
 
   const charts = window.ownerReportCharts || {};
   const palette = ["#2f80ed", "#0fb981", "#f5a623", "#9b51e0", "#ff6b6b", "#627d98"];

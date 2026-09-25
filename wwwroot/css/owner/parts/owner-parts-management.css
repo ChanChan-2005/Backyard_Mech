@@ -111,6 +111,32 @@
   border-color: #ffd1d1;
 }
 
+.parts-button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+  color: #fff;
+  background: #dc3545;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.parts-confirm-card {
+  width: min(520px, 100%);
+}
+
+.parts-confirm-message {
+  margin: 18px 0 4px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .parts-alert {
   padding: 12px 14px;
   border: 1px solid #b9d3ff;

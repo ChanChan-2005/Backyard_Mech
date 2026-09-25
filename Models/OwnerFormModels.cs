@@ -51,7 +51,10 @@ namespace Backyard_Mech.Models
 
     public class ProductListingFormModel
     {
+        public int ProductListingId { get; set; }
+
         [Required]
+        [StringLength(40)]
         public string ListingType { get; set; } = "Part";
 
         public int? PartId { get; set; }
@@ -59,14 +62,19 @@ namespace Backyard_Mech.Models
         public int? ServiceId { get; set; }
 
         [Required]
+        [StringLength(200)]
         public string ListingTitle { get; set; } = string.Empty;
 
         public string? ListingDescription { get; set; }
 
+        [StringLength(1000)]
+        [Url]
         public string? ImageUrl { get; set; }
 
+        [Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? DisplayPrice { get; set; }
 
+        [Range(0, int.MaxValue)]
         public int DisplayOrder { get; set; }
 
         public bool IsFeatured { get; set; }
@@ -169,6 +177,8 @@ namespace Backyard_Mech.Models
 
         [Required]
         public decimal? HourlyRate { get; set; }
+
+        public string? RoleId { get; set; }
     }
 
     public class EmployeeStateFormModel
@@ -267,6 +277,7 @@ namespace Backyard_Mech.Models
         public string ActiveTab { get; set; } = "all";
         public int AllCount { get; set; }
         public int PartsCount { get; set; }
+        public int ProductListingsCount { get; set; }
         public int ToolsCount { get; set; }
     }
 
@@ -455,8 +466,11 @@ namespace Backyard_Mech.Models
 
     public class SettingsRoleOption
     {
+        public int AppRoleId { get; set; }
         public string RoleId { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int UserCount { get; set; }
         public bool IsSelected { get; set; }
         public bool IsProtected { get; set; }
     }
@@ -483,6 +497,9 @@ namespace Backyard_Mech.Models
         public IReadOnlyList<SettingsRoleOption> Roles { get; set; } = Array.Empty<SettingsRoleOption>();
         public IReadOnlyList<SettingsPermissionRow> PermissionRows { get; set; } = Array.Empty<SettingsPermissionRow>();
         public int TotalPermissionCount { get; set; }
+        public bool CanCreateRole { get; set; }
+        public bool CanEditRole { get; set; }
+        public bool CanDeleteRole { get; set; }
     }
 
     public class SettingsRolePermissionFormModel
@@ -493,9 +510,31 @@ namespace Backyard_Mech.Models
         public List<int> PermissionIds { get; set; } = new();
     }
 
+    public class SettingsRoleFormModel
+    {
+        public int AppRoleId { get; set; }
+
+        [Required]
+        [StringLength(120, MinimumLength = 2)]
+        public string RoleName { get; set; } = string.Empty;
+
+        [StringLength(500)]
+        public string? Description { get; set; }
+    }
+
+    public class DeleteSettingsRoleFormModel
+    {
+        [Required]
+        public string RoleId { get; set; } = string.Empty;
+    }
+
     public class AppointmentListItem
     {
         public int AppointmentId { get; set; }
+        public int? CustomerId { get; set; }
+        public int? VehicleId { get; set; }
+        public int? BayId { get; set; }
+        public int? AssignedEmployeeProfileId { get; set; }
         public string Id { get; set; } = string.Empty;
         public string Customer { get; set; } = string.Empty;
         public string Vehicle { get; set; } = string.Empty;
@@ -514,6 +553,69 @@ namespace Backyard_Mech.Models
         public string Duration { get; set; } = string.Empty;
         public string Priority { get; set; } = "Normal";
         public string PriorityTone { get; set; } = "blue";
+        public string DateInput { get; set; } = string.Empty;
+        public string StartInput { get; set; } = string.Empty;
+        public string EndInput { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    public class AppointmentCustomerOption
+    {
+        public int CustomerId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Contact { get; set; } = string.Empty;
+    }
+
+    public class AppointmentVehicleOption
+    {
+        public int VehicleId { get; set; }
+        public int CustomerId { get; set; }
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public class AppointmentFormModel
+    {
+        public int AppointmentId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a customer.")]
+        public int CustomerId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a vehicle.")]
+        public int VehicleId { get; set; }
+
+        public int? BayId { get; set; }
+        public int? AssignedEmployeeProfileId { get; set; }
+
+        public DateTime ScheduledDate { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string AppointmentType { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(50)]
+        public string AppointmentStatus { get; set; } = "Scheduled";
+
+        [StringLength(50)]
+        public string Priority { get; set; } = "Normal";
+
+        [StringLength(2000)]
+        public string? Notes { get; set; }
+
+        public bool IsWalkIn { get; set; }
+        public string ViewMode { get; set; } = "calendar";
+    }
+
+    public class CancelAppointmentFormModel
+    {
+        [Range(1, int.MaxValue)]
+        public int AppointmentId { get; set; }
+
+        [StringLength(500)]
+        public string? Reason { get; set; }
+        public string ViewMode { get; set; } = "calendar";
     }
 
     public class ServiceQueueColumnItem
@@ -751,6 +853,10 @@ namespace Backyard_Mech.Models
         public string LinkedItem { get; set; } = string.Empty;
         public string ListingTitle { get; set; } = string.Empty;
         public string ListingDescription { get; set; } = string.Empty;
+        public int? PartId { get; set; }
+        public int? ServiceId { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public decimal? DisplayPriceValue { get; set; }
         public string DisplayPrice { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsFeatured { get; set; }

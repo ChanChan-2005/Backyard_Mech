@@ -19,6 +19,7 @@ namespace Backyard_Mech.Data
         public DbSet<Permission> Permissions => Set<Permission>();
         public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
         public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+        public DbSet<RecordsDispositionPolicy> RecordsDispositionPolicies => Set<RecordsDispositionPolicy>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<Vehicle> Vehicles => Set<Vehicle>();
         public DbSet<VehicleOwnership> VehicleOwnerships => Set<VehicleOwnership>();
@@ -96,6 +97,11 @@ namespace Backyard_Mech.Data
             modelBuilder.Entity<Permission>().ToTable("Permission");
             modelBuilder.Entity<RolePermission>().ToTable("RolePermission");
             modelBuilder.Entity<AuditLogEntry>().ToTable("AuditLogEntry");
+            modelBuilder.Entity<RecordsDispositionPolicy>(entity =>
+            {
+                entity.ToTable("RecordsDispositionPolicy");
+                entity.Property(policy => policy.RetentionUnit).HasMaxLength(20).IsRequired();
+            });
             modelBuilder.Entity<Customer>().ToTable("Customer");
             modelBuilder.Entity<Vehicle>().ToTable("Vehicle");
             modelBuilder.Entity<VehicleOwnership>().ToTable("VehicleOwnership");

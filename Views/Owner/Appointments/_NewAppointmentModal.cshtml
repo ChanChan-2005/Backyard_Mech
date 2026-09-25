@@ -1,101 +1,43 @@
 @{
+    var customerOptions = ViewData["AppointmentCustomerOptions"] as IReadOnlyList<AppointmentCustomerOption> ?? Array.Empty<AppointmentCustomerOption>();
+    var vehicleOptions = ViewData["AppointmentVehicleOptions"] as IReadOnlyList<AppointmentVehicleOption> ?? Array.Empty<AppointmentVehicleOption>();
     var bayOptions = ViewData["BayOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
     var employeeOptions = ViewData["EmployeeOptions"] as IReadOnlyList<ProductListingOption> ?? Array.Empty<ProductListingOption>();
+    var viewMode = ViewData["AppointmentViewMode"]?.ToString() ?? "calendar";
 }
 <div class="appointment-modal" data-appointment-modal-panel="new-appointment" aria-hidden="true">
     <div class="appointment-modal-backdrop" data-appointment-modal-close></div>
     <section class="appointment-modal-card" role="dialog" aria-modal="true" aria-labelledby="new-appointment-title">
-        <form class="appointment-modal-form">
+        <form class="appointment-modal-form" asp-controller="Owner" asp-action="CreateAppointment" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ViewMode" value="@viewMode" />
             <header class="appointment-modal-header">
-                <div>
-                    <h2 id="new-appointment-title">New Appointment</h2>
-                    <p>Schedule a customer visit, assign a bay, and reserve service time.</p>
-                </div>
+                <div><h2 id="new-appointment-title">New Appointment</h2><p>Schedule a customer vehicle, service time, bay, and assigned staff.</p></div>
                 <button class="appointment-modal-close" type="button" data-appointment-modal-close aria-label="Close">x</button>
             </header>
-
             <section class="appointment-modal-section">
                 <h3>Customer and Vehicle</h3>
                 <div class="appointment-modal-grid">
-                    <label>
-                        <span>Customer Name *</span>
-                        <input placeholder="Enter customer name" />
-                    </label>
-                    <label>
-                        <span>Contact Number *</span>
-                        <input type="tel" placeholder="Enter contact number" />
-                    </label>
-                    <label>
-                        <span>Email Address</span>
-                        <input type="email" placeholder="Enter email address" />
-                    </label>
-                    <label>
-                        <span>Vehicle *</span>
-                        <input placeholder="Enter vehicle details" />
-                    </label>
-                    <label class="appointment-modal-wide">
-                        <span>Plate / VIN</span>
-                        <input placeholder="Enter plate number or VIN" />
-                    </label>
+                    <label><span>Customer *</span><select name="CustomerId" data-appointment-customer required><option value="">Select customer</option>@foreach (var customer in customerOptions) { <option value="@customer.CustomerId" data-contact="@customer.Contact">@customer.Name</option> }</select></label>
+                    <label><span>Contact</span><input data-appointment-contact readonly placeholder="Shown after selecting a customer" /></label>
+                    <label class="appointment-modal-wide"><span>Vehicle *</span><select name="VehicleId" data-appointment-vehicle required><option value="">Select customer first</option>@foreach (var vehicle in vehicleOptions) { <option value="@vehicle.VehicleId" data-customer-id="@vehicle.CustomerId">@vehicle.Label</option> }</select></label>
                 </div>
             </section>
-
             <section class="appointment-modal-section">
-                <h3>Schedule</h3>
+                <h3>Schedule and Service</h3>
                 <div class="appointment-modal-grid">
-                    <label>
-                        <span>Date *</span>
-                        <input type="date" placeholder="Select date" />
-                    </label>
-                    <label>
-                        <span>Start Time *</span>
-                        <input type="time" placeholder="Select start time" />
-                    </label>
-                    <label>
-                        <span>End Time *</span>
-                        <input type="time" placeholder="Select end time" />
-                    </label>
-                    <label>
-                        <span>Service Bay</span>
-                        <select>
-                            <option value="" selected disabled>Select service bay</option>
-                            @foreach (var bay in bayOptions)
-                            {
-                                <option value="@bay.Id">@bay.Label</option>
-                            }
-                        </select>
-                    </label>
-                    <label>
-                        <span>Advisor</span>
-                        <select>
-                            <option value="" selected disabled>Select advisor</option>
-                            @foreach (var employee in employeeOptions)
-                            {
-                                <option value="@employee.Id">@employee.Label</option>
-                            }
-                        </select>
-                    </label>
-                    <label>
-                        <span>Status</span>
-                        <select>
-                            <option value="" selected disabled>Select status</option>
-                            <option>Scheduled</option>
-                            <option>Arrived</option>
-                            <option>In Bay</option>
-                            <option>Cancelled</option>
-                        </select>
-                    </label>
-                    <label class="appointment-modal-wide">
-                        <span>Service Notes</span>
-                        <textarea placeholder="Add service request, reminders, or customer notes."></textarea>
-                    </label>
+                    <label><span>Date *</span><input name="ScheduledDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" required /></label>
+                    <label><span>Service Type *</span><input name="AppointmentType" list="appointment-service-types" placeholder="e.g. Brake inspection" required /></label>
+                    <label><span>Start Time *</span><input name="StartTime" type="time" required /></label>
+                    <label><span>End Time *</span><input name="EndTime" type="time" required /></label>
+                    <label><span>Service Bay</span><select name="BayId"><option value="">Unassigned</option>@foreach (var bay in bayOptions) { <option value="@bay.Id">@bay.Label</option> }</select></label>
+                    <label><span>Technician / Advisor</span><select name="AssignedEmployeeProfileId"><option value="">Unassigned</option>@foreach (var employee in employeeOptions) { <option value="@employee.Id">@employee.Label</option> }</select></label>
+                    <label><span>Status</span><select name="AppointmentStatus"><option value="Scheduled">Scheduled</option><option value="Arrived">Arrived</option></select></label>
+                    <label class="appointment-modal-wide"><span>Service Notes</span><textarea name="Notes" maxlength="2000" placeholder="Customer concern, requested work, or reminders"></textarea></label>
                 </div>
             </section>
-
-            <footer class="appointment-modal-actions">
-                <button class="appointment-modal-secondary" type="button" data-appointment-modal-close>Cancel</button>
-                <button class="appointment-modal-primary" type="button" data-appointment-modal-close>Save Appointment</button>
-            </footer>
+            <footer class="appointment-modal-actions"><button class="appointment-modal-secondary" type="button" data-appointment-modal-close>Close</button><button class="appointment-modal-primary" type="submit">Save Appointment</button></footer>
         </form>
     </section>
 </div>
+<datalist id="appointment-service-types"><option value="Diagnostics"></option><option value="Oil Change"></option><option value="Brake Service"></option><option value="Tire Service"></option><option value="Preventive Maintenance"></option></datalist>

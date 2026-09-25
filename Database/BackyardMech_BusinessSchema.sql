@@ -162,6 +162,25 @@ CREATE TABLE dbo.AuditLogEntry (
 );
 GO
 
+IF OBJECT_ID(N'dbo.RecordsDispositionPolicy', N'U') IS NULL
+CREATE TABLE dbo.RecordsDispositionPolicy (
+    RecordsDispositionPolicyId INT NOT NULL CONSTRAINT PK_RecordsDispositionPolicy PRIMARY KEY,
+    RetentionValue INT NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_RetentionValue DEFAULT (30),
+    RetentionUnit NVARCHAR(20) NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_RetentionUnit DEFAULT (N'Days'),
+    UpdatedUtc DATETIME2 NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_UpdatedUtc DEFAULT (SYSUTCDATETIME()),
+    UpdatedByName NVARCHAR(256) NULL,
+    CONSTRAINT CK_RecordsDispositionPolicy_RetentionValue CHECK (RetentionValue > 0),
+    CONSTRAINT CK_RecordsDispositionPolicy_RetentionUnit CHECK (RetentionUnit IN (N'Days', N'Weeks', N'Months', N'Years'))
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.RecordsDispositionPolicy WHERE RecordsDispositionPolicyId = 1)
+INSERT INTO dbo.RecordsDispositionPolicy
+    (RecordsDispositionPolicyId, RetentionValue, RetentionUnit, UpdatedUtc, UpdatedByName)
+VALUES
+    (1, 30, N'Days', SYSUTCDATETIME(), N'System Default');
+GO
+
 IF OBJECT_ID(N'dbo.Customer', N'U') IS NULL
 CREATE TABLE dbo.Customer (
     CustomerId INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Customer PRIMARY KEY,
@@ -195,6 +214,7 @@ CREATE TABLE dbo.Vehicle (
     Year INT NULL,
     LicensePlate NVARCHAR(40) NULL,
     Color NVARCHAR(80) NULL,
+    OwnerFullName NVARCHAR(260) NULL,
     Odometer INT NULL,
     CreatedUtc DATETIME2 NOT NULL CONSTRAINT DF_Vehicle_CreatedUtc DEFAULT (SYSUTCDATETIME()),
     IsArchived BIT NOT NULL CONSTRAINT DF_Vehicle_IsArchived DEFAULT (0),
@@ -209,6 +229,7 @@ GO
 
 IF OBJECT_ID(N'dbo.Vehicle', N'U') IS NOT NULL
 BEGIN
+    IF COL_LENGTH(N'dbo.Vehicle', N'OwnerFullName') IS NULL ALTER TABLE dbo.Vehicle ADD OwnerFullName NVARCHAR(260) NULL;
     IF COL_LENGTH(N'dbo.Vehicle', N'ArchivedUtc') IS NULL ALTER TABLE dbo.Vehicle ADD ArchivedUtc DATETIME2 NULL;
     IF COL_LENGTH(N'dbo.Vehicle', N'DeletedUtc') IS NULL ALTER TABLE dbo.Vehicle ADD DeletedUtc DATETIME2 NULL;
     IF COL_LENGTH(N'dbo.Vehicle', N'ArchiveReason') IS NULL ALTER TABLE dbo.Vehicle ADD ArchiveReason NVARCHAR(500) NULL;
@@ -227,6 +248,22 @@ CREATE TABLE dbo.VehicleOwnership (
     OwnershipStartUtc DATETIME2 NULL,
     OwnershipEndUtc DATETIME2 NULL
 );
+GO
+
+UPDATE vehicle
+SET OwnerFullName = NULLIF(LTRIM(RTRIM(CONCAT(
+    COALESCE(ownership.OwnerFirstName, N''), N' ',
+    COALESCE(ownership.OwnerMiddleName + N' ', N''),
+    COALESCE(ownership.OwnerLastName, N'')
+))), N'')
+FROM dbo.Vehicle vehicle
+OUTER APPLY (
+    SELECT TOP (1) history.OwnerFirstName, history.OwnerMiddleName, history.OwnerLastName
+    FROM dbo.VehicleOwnership history
+    WHERE history.VehicleId = vehicle.VehicleId
+    ORDER BY history.OwnershipStartUtc DESC, history.VehicleOwnershipId DESC
+) ownership
+WHERE vehicle.OwnerFullName IS NULL;
 GO
 
 IF OBJECT_ID(N'dbo.EmployeeProfile', N'U') IS NOT NULL
@@ -281,9 +318,9 @@ IF OBJECT_ID(N'dbo.Bay', N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.Bay', N'BayNumber') IS NULL ALTER TABLE dbo.Bay ADD BayNumber NVARCHAR(50) NULL;
 
-    UPDATE dbo.Bay
-    SET BayNumber = CONCAT(N'Bay ', BayId)
-    WHERE BayNumber IS NULL OR LTRIM(RTRIM(BayNumber)) = N'';
+    EXEC(N'UPDATE dbo.Bay
+        SET BayNumber = CONCAT(N''Bay '', BayId)
+        WHERE BayNumber IS NULL OR LTRIM(RTRIM(BayNumber)) = N'''';');
 END
 GO
 
@@ -791,6 +828,12 @@ CREATE TABLE dbo.ProductListing (
     IsFeatured BIT NOT NULL CONSTRAINT DF_ProductListing_IsFeatured DEFAULT (0),
     IsPublished BIT NOT NULL CONSTRAINT DF_ProductListing_IsPublished DEFAULT (0),
     CreatedUtc DATETIME2 NOT NULL CONSTRAINT DF_ProductListing_CreatedUtc DEFAULT (SYSUTCDATETIME()),
+    IsArchived BIT NOT NULL CONSTRAINT DF_ProductListing_IsArchived DEFAULT (0),
+    IsDeleted BIT NOT NULL CONSTRAINT DF_ProductListing_IsDeleted DEFAULT (0),
+    ArchivedUtc DATETIME2 NULL,
+    DeletedUtc DATETIME2 NULL,
+    ArchiveReason NVARCHAR(500) NULL,
+    DeleteReason NVARCHAR(500) NULL,
     CONSTRAINT CK_ProductListing_DisplayPrice CHECK (DisplayPrice IS NULL OR DisplayPrice >= 0),
     CONSTRAINT CK_ProductListing_DisplayOrder CHECK (DisplayOrder >= 0),
     CONSTRAINT CK_ProductListing_PartOrService CHECK (

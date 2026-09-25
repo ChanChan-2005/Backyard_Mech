@@ -19,11 +19,13 @@
     };
 }
 
-@section TopbarActions {
-    <button class="reports-button" type="button">@Model.PeriodLabel V</button>
-}
-
 <section class="reports-page">
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="Reports">
+        <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
+        <button class="reports-button-blue" type="submit">Apply Dates</button>
+        <span class="reports-status-note">Report period: @Model.PeriodLabel</span>
+    </form>
     <div class="reports-stats">
         @foreach (var metric in Model.Metrics)
         {
@@ -36,7 +38,7 @@
         <div class="reports-grid">
             @foreach (var report in reports.Take(4))
             {
-                <a class="reports-card" href="@report.Link">
+                <a class="reports-card" href="@report.Link?startDate=@Model.StartDate.ToString("yyyy-MM-dd")&amp;endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
                     <span class="reports-card-icon">@report.Icon</span>
                     <span>
                         <h2>@report.Title</h2>
@@ -49,7 +51,7 @@
         <div class="reports-grid compact">
             @foreach (var report in reports.Skip(4))
             {
-                <a class="reports-card" href="@report.Link">
+                <a class="reports-card" href="@report.Link?startDate=@Model.StartDate.ToString("yyyy-MM-dd")&amp;endDate=@Model.EndDate.ToString("yyyy-MM-dd")">
                     <span class="reports-card-icon">@report.Icon</span>
                     <span>
                         <h2>@report.Title</h2>

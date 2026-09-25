@@ -28,6 +28,7 @@
     <nav class="records-subtabs" aria-label="Archived record filters">
         <a class="@(activeTab == "all" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="all">All (@pageModel.AllCount)</a>
         <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="parts">Parts (@pageModel.PartsCount)</a>
+        <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="product-listings">Product Listings (@pageModel.ProductListingsCount)</a>
         <a class="@(activeTab == "tools" ? "active" : "")" asp-controller="Owner" asp-action="ArchiveRecords" asp-route-tab="tools">Tools (@pageModel.ToolsCount)</a>
     </nav>
 

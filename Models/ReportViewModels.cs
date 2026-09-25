@@ -1,5 +1,12 @@
 namespace Backyard_Mech.Models
 {
+    public abstract class ReportViewModelBase
+    {
+        public string PeriodLabel { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+    }
+
     public class ReportMetricCard
     {
         public string Title { get; set; } = string.Empty;
@@ -20,16 +27,14 @@ namespace Backyard_Mech.Models
         public IReadOnlyList<decimal> Idle { get; set; } = Array.Empty<decimal>();
     }
 
-    public class ReportsOverviewViewModel
+    public class ReportsOverviewViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public string PageDateLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
     }
 
-    public class SalesRevenueReportViewModel
+    public class SalesRevenueReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<SalesRevenueReportRow> Rows { get; set; } = Array.Empty<SalesRevenueReportRow>();
         public ReportChartData RevenueChart { get; set; } = new();
@@ -49,9 +54,8 @@ namespace Backyard_Mech.Models
         public string Tone { get; set; } = "gray";
     }
 
-    public class LabourProductivityReportViewModel
+    public class LabourProductivityReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<LabourProductivityReportRow> Rows { get; set; } = Array.Empty<LabourProductivityReportRow>();
         public ReportChartData LabourChart { get; set; } = new();
@@ -69,9 +73,8 @@ namespace Backyard_Mech.Models
         public string AverageTimePerJob { get; set; } = string.Empty;
     }
 
-    public class BayUtilizationReportViewModel
+    public class BayUtilizationReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<BayUtilizationReportRow> Rows { get; set; } = Array.Empty<BayUtilizationReportRow>();
         public ReportChartData BayChart { get; set; } = new();
@@ -87,9 +90,8 @@ namespace Backyard_Mech.Models
         public string AverageJobDuration { get; set; } = string.Empty;
     }
 
-    public class InventoryValueReportViewModel
+    public class InventoryValueReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<InventoryValueReportRow> Rows { get; set; } = Array.Empty<InventoryValueReportRow>();
         public ReportChartData InventoryChart { get; set; } = new();
@@ -110,9 +112,8 @@ namespace Backyard_Mech.Models
         public string StatusTone { get; set; } = "profit";
     }
 
-    public class LowStockPartsReportViewModel
+    public class LowStockPartsReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<LowStockPartsReportRow> Rows { get; set; } = Array.Empty<LowStockPartsReportRow>();
     }
@@ -132,9 +133,8 @@ namespace Backyard_Mech.Models
         public string UrgencyTone { get; set; } = "yellow";
     }
 
-    public class ProfitabilityReportViewModel
+    public class ProfitabilityReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<ProfitabilityReportRow> Rows { get; set; } = Array.Empty<ProfitabilityReportRow>();
         public ReportChartData ProfitChart { get; set; } = new();
@@ -153,9 +153,8 @@ namespace Backyard_Mech.Models
         public string MarginTone { get; set; } = "green";
     }
 
-    public class ToolLossesReportViewModel
+    public class ToolLossesReportViewModel : ReportViewModelBase
     {
-        public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<ToolLossReportRow> Rows { get; set; } = Array.Empty<ToolLossReportRow>();
     }

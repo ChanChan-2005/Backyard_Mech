@@ -98,6 +98,15 @@ namespace Backyard_Mech.Models
         public string? Details { get; set; }
     }
 
+    public class RecordsDispositionPolicy
+    {
+        public int RecordsDispositionPolicyId { get; set; }
+        public int RetentionValue { get; set; } = 30;
+        public string RetentionUnit { get; set; } = "Days";
+        public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+        public string? UpdatedByName { get; set; }
+    }
+
     public class Customer
     {
         public int CustomerId { get; set; }
@@ -130,6 +139,7 @@ namespace Backyard_Mech.Models
         public int? Year { get; set; }
         public string? LicensePlate { get; set; }
         public string? Color { get; set; }
+        public string? OwnerFullName { get; set; }
         public int? Odometer { get; set; }
         public DateTime CreatedUtc { get; set; }
         public bool IsArchived { get; set; }
@@ -576,5 +586,11 @@ namespace Backyard_Mech.Models
         public bool IsFeatured { get; set; }
         public bool IsPublished { get; set; }
         public DateTime CreatedUtc { get; set; }
+        public bool IsArchived { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? ArchivedUtc { get; set; }
+        public DateTime? DeletedUtc { get; set; }
+        public string? ArchiveReason { get; set; }
+        public string? DeleteReason { get; set; }
     }
 }

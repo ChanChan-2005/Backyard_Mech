@@ -10,7 +10,6 @@
     var pageModel = Model ?? new RecordGovernanceViewModel();
     var records = pageModel.Records;
     var activeTab = pageModel.ActiveTab;
-    var readyCount = records.Count(record => record.Status == "Soft Deleted" && record.Tone == "ready");
 }
 
 <section class="records-page">
@@ -22,20 +21,21 @@
     <div class="records-stats">
         <article class="records-stat"><span>Disposition Records</span><strong>@records.Count</strong><p>Soft-deleted retained records</p></article>
         <article class="records-stat"><span>Retention Window</span><strong>@pageModel.RetentionValue @pageModel.RetentionUnit</strong><p>@pageModel.RetentionDays calendar days</p></article>
-        <article class="records-stat"><span>Ready for Review</span><strong>@readyCount</strong><p>Retention date reached</p></article>
+        <article class="records-stat"><span>Automatic Cleanup</span><strong>On</strong><p>Expired records are permanently deleted</p></article>
         <article class="records-stat"><span>Restorable</span><strong>@records.Count</strong><p>Can be returned to active records</p></article>
     </div>
 
     <nav class="records-subtabs" aria-label="Disposition record filters">
         <a class="@(activeTab == "all" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="all">All (@pageModel.AllCount)</a>
         <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="parts">Parts (@pageModel.PartsCount)</a>
+        <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="product-listings">Product Listings (@pageModel.ProductListingsCount)</a>
         <a class="@(activeTab == "tools" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="tools">Tools (@pageModel.ToolsCount)</a>
     </nav>
 
     <section class="records-policy-card">
         <div>
             <h2>Disposition Retention Setting</h2>
-            <p>Set how long soft-deleted records stay in disposition. The countdown starts on the date the record was moved here.</p>
+            <p>Set how long soft-deleted records stay here. The countdown starts when a record is moved to disposition, then deletion runs automatically.</p>
         </div>
         <form asp-controller="Owner" asp-action="SaveRecordsDispositionPolicy" method="post" class="records-policy-form">
             @Html.AntiForgeryToken()
@@ -107,6 +107,12 @@
                                     <input type="hidden" name="tab" value="@activeTab" />
                                     <button class="records-small-button" type="submit">Restore</button>
                                 </form>
+                                <button class="records-small-button danger permanent"
+                                        type="button"
+                                        data-permanent-delete-open
+                                        data-record-type="@record.RecordType"
+                                        data-record-id="@record.RecordId"
+                                        data-record-name="@record.RecordName">Delete Permanently</button>
                             </td>
                         </tr>
                     }
@@ -120,3 +126,31 @@
         </footer>
     </section>
 </section>
+
+<div class="records-confirm-modal" data-permanent-delete-modal aria-hidden="true">
+    <button class="records-confirm-backdrop" type="button" data-permanent-delete-close aria-label="Close confirmation"></button>
+    <section class="records-confirm-card" role="dialog" aria-modal="true" aria-labelledby="permanent-delete-title">
+        <header>
+            <span class="records-confirm-icon" aria-hidden="true">!</span>
+            <div>
+                <h2 id="permanent-delete-title">Delete Record Permanently?</h2>
+                <p>This action cannot be undone.</p>
+            </div>
+        </header>
+        <p class="records-confirm-copy">You are about to permanently delete <strong data-permanent-delete-name></strong>. Linked history will keep its text details, but this record cannot be restored afterward.</p>
+        <form asp-controller="Owner" asp-action="DeleteDispositionRecordPermanently" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="RecordType" data-permanent-delete-type />
+            <input type="hidden" name="RecordId" data-permanent-delete-id />
+            <input type="hidden" name="tab" value="@activeTab" />
+            <footer>
+                <button class="records-button" type="button" data-permanent-delete-close>Cancel</button>
+                <button class="records-button-danger" type="submit">Delete Permanently</button>
+            </footer>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/owner-records.js" asp-append-version="true"></script>
+}

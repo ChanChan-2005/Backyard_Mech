@@ -9,12 +9,22 @@
 }
 
 @section TopbarActions {
-    <button class="reports-button" type="button">Export PDF</button>
-    <button class="reports-button" type="button">CSV</button>
+    <div class="reports-export-actions">
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="low-stock" asp-route-format="pdf" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">PDF</a>
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="low-stock" asp-route-format="csv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">CSV</a>
+        <a class="reports-button-blue" asp-action="ExportReport" asp-route-reportType="low-stock" asp-route-format="xlsx" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">Excel</a>
+    </div>
 }
 
 <section class="reports-page">
-    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Category: All</option></select><select><option>Supplier: All</option></select><select><option>Urgency: All</option></select></div>
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="LowStockPartsReport">
+        <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
+        <button class="reports-button-blue" type="submit">Apply Dates</button><span class="reports-filter-spacer"></span>
+        <select data-report-filter data-report-column="2"><option value="">Category: All</option>@foreach (var value in Model.Rows.Select(x => x.Category).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="6"><option value="">Supplier: All</option>@foreach (var value in Model.Rows.Select(x => x.Supplier).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="8"><option value="">Urgency: All</option>@foreach (var value in Model.Rows.Select(x => x.UrgencyStatus).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+    </form>
     <div class="reports-stats">
         @foreach (var metric in Model.Metrics)
         {
@@ -22,12 +32,12 @@
         }
     </div>
     <section class="reports-panel">
-        <table class="reports-table">
+        <table class="reports-table" data-report-table>
             <thead><tr><th>Part #</th><th>Part Name</th><th>Category</th><th>Current Stock</th><th>Reorder Level</th><th>Shortage Qty</th><th>Supplier</th><th>Last Ordered</th><th>Urgency Status</th></tr></thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td class="reports-money @(row.UrgencyTone == "red" ? "red" : "")">@row.CurrentStock</td><td>@row.ReorderLevel</td><td class="reports-money red">@row.ShortageQuantity</td><td>@row.Supplier</td><td>@row.LastOrdered</td><td><span class="reports-pill @row.UrgencyTone">@row.UrgencyStatus</span></td></tr>
+                    <tr data-report-row><td><a class="reports-link" href="/Owner/PartDetails/@row.PartId">@row.PartNumber</a></td><td><strong>@row.PartName</strong></td><td>@row.Category</td><td class="reports-money @(row.UrgencyTone == "red" ? "red" : "")">@row.CurrentStock</td><td>@row.ReorderLevel</td><td class="reports-money red">@row.ShortageQuantity</td><td>@row.Supplier</td><td>@row.LastOrdered</td><td><span class="reports-pill @row.UrgencyTone">@row.UrgencyStatus</span></td></tr>
                 }
                 @if (!Model.Rows.Any())
                 {
@@ -35,6 +45,10 @@
                 }
             </tbody>
         </table>
-        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count low-stock parts</span></footer>
+        <footer class="reports-panel-footer"><span>Showing <strong data-report-visible-count>@Model.Rows.Count</strong> of @Model.Rows.Count low-stock parts</span></footer>
     </section>
 </section>
+
+@section Scripts {
+    <script src="~/js/owner-reports.js" asp-append-version="true"></script>
+}

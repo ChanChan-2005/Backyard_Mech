@@ -51,6 +51,66 @@ namespace Backyard_Mech.Data
                     );
                 END;
 
+                IF OBJECT_ID(N'dbo.RecordsDispositionPolicy', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE dbo.RecordsDispositionPolicy (
+                        RecordsDispositionPolicyId INT NOT NULL CONSTRAINT PK_RecordsDispositionPolicy PRIMARY KEY,
+                        RetentionValue INT NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_RetentionValue DEFAULT (30),
+                        RetentionUnit NVARCHAR(20) NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_RetentionUnit DEFAULT (N'Days'),
+                        UpdatedUtc DATETIME2 NOT NULL CONSTRAINT DF_RecordsDispositionPolicy_UpdatedUtc DEFAULT (SYSUTCDATETIME()),
+                        UpdatedByName NVARCHAR(256) NULL,
+                        CONSTRAINT CK_RecordsDispositionPolicy_RetentionValue CHECK (RetentionValue > 0),
+                        CONSTRAINT CK_RecordsDispositionPolicy_RetentionUnit CHECK (RetentionUnit IN (N'Days', N'Weeks', N'Months', N'Years'))
+                    );
+                END;
+
+                IF OBJECT_ID(N'dbo.Vehicle', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH(N'dbo.Vehicle', N'OwnerFullName') IS NULL
+                    BEGIN
+                        ALTER TABLE dbo.Vehicle ADD OwnerFullName NVARCHAR(260) NULL;
+                    END;
+
+                    UPDATE vehicle
+                    SET OwnerFullName = NULLIF(LTRIM(RTRIM(CONCAT(
+                        COALESCE(ownership.OwnerFirstName, N''), N' ',
+                        COALESCE(ownership.OwnerMiddleName + N' ', N''),
+                        COALESCE(ownership.OwnerLastName, N'')
+                    ))), N'')
+                    FROM dbo.Vehicle vehicle
+                    OUTER APPLY (
+                        SELECT TOP (1) history.OwnerFirstName, history.OwnerMiddleName, history.OwnerLastName
+                        FROM dbo.VehicleOwnership history
+                        WHERE history.VehicleId = vehicle.VehicleId
+                        ORDER BY history.OwnershipStartUtc DESC, history.VehicleOwnershipId DESC
+                    ) ownership
+                    WHERE vehicle.OwnerFullName IS NULL;
+                END;
+
+                IF OBJECT_ID(N'dbo.ProductListing', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH(N'dbo.ProductListing', N'IsArchived') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD IsArchived BIT NOT NULL CONSTRAINT DF_ProductListing_IsArchived DEFAULT (0);
+                    IF COL_LENGTH(N'dbo.ProductListing', N'IsDeleted') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD IsDeleted BIT NOT NULL CONSTRAINT DF_ProductListing_IsDeleted DEFAULT (0);
+                    IF COL_LENGTH(N'dbo.ProductListing', N'ArchivedUtc') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD ArchivedUtc DATETIME2 NULL;
+                    IF COL_LENGTH(N'dbo.ProductListing', N'DeletedUtc') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD DeletedUtc DATETIME2 NULL;
+                    IF COL_LENGTH(N'dbo.ProductListing', N'ArchiveReason') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD ArchiveReason NVARCHAR(500) NULL;
+                    IF COL_LENGTH(N'dbo.ProductListing', N'DeleteReason') IS NULL
+                        ALTER TABLE dbo.ProductListing ADD DeleteReason NVARCHAR(500) NULL;
+                END;
+
+                IF NOT EXISTS (SELECT 1 FROM dbo.RecordsDispositionPolicy WHERE RecordsDispositionPolicyId = 1)
+                BEGIN
+                    INSERT INTO dbo.RecordsDispositionPolicy
+                        (RecordsDispositionPolicyId, RetentionValue, RetentionUnit, UpdatedUtc, UpdatedByName)
+                    VALUES
+                        (1, 30, N'Days', SYSUTCDATETIME(), N'System Default');
+                END;
+
                 IF NOT EXISTS (
                     SELECT 1 FROM sys.indexes
                     WHERE name = N'UX_AppRole_RoleKey'
@@ -76,8 +136,7 @@ namespace Backyard_Mech.Data
                         RoleName = source.RoleName,
                         Description = source.Description,
                         DisplayOrder = source.DisplayOrder,
-                        IsSystemProtected = source.IsSystemProtected,
-                        IsActive = source.IsActive
+                        IsSystemProtected = source.IsSystemProtected
                 WHEN NOT MATCHED THEN
                     INSERT (RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                     VALUES (source.RoleKey, source.RoleName, source.Description, source.DisplayOrder, source.IsSystemProtected, source.IsActive);
@@ -135,16 +194,36 @@ namespace Backyard_Mech.Data
                     (N'Work Orders', N'Edit', N'workorders.edit', N'Edit work orders.'),
                     (N'Work Orders', N'Delete', N'workorders.delete', N'Delete work orders.'),
                     (N'Work Orders', N'Approve', N'workorders.approve', N'Approve work orders.'),
+                    (N'Bays', N'View', N'bays.view', N'View service bays.'),
+                    (N'Bays', N'Create', N'bays.create', N'Create service bays.'),
+                    (N'Bays', N'Edit', N'bays.edit', N'Edit service bays and maintenance.'),
+                    (N'Bays', N'Delete', N'bays.delete', N'Delete service bays.'),
+                    (N'Bays', N'Approve', N'bays.approve', N'Approve bay workflow items.'),
                     (N'Inventory', N'View', N'inventory.view', N'View inventory.'),
                     (N'Inventory', N'Create', N'inventory.create', N'Create inventory records.'),
                     (N'Inventory', N'Edit', N'inventory.edit', N'Edit inventory records.'),
                     (N'Inventory', N'Delete', N'inventory.delete', N'Delete inventory records.'),
                     (N'Inventory', N'Approve', N'inventory.approve', N'Approve inventory workflow items.'),
+                    (N'Labour', N'View', N'labour.view', N'View labour and time tracking.'),
+                    (N'Labour', N'Create', N'labour.create', N'Create labour entries.'),
+                    (N'Labour', N'Edit', N'labour.edit', N'Edit labour entries.'),
+                    (N'Labour', N'Delete', N'labour.delete', N'Delete labour entries.'),
+                    (N'Labour', N'Approve', N'labour.approve', N'Approve labour workflow items.'),
+                    (N'Tools', N'View', N'tools.view', N'View tools and equipment.'),
+                    (N'Tools', N'Create', N'tools.create', N'Create tools and checkouts.'),
+                    (N'Tools', N'Edit', N'tools.edit', N'Edit tools and returns.'),
+                    (N'Tools', N'Delete', N'tools.delete', N'Delete tools.'),
+                    (N'Tools', N'Approve', N'tools.approve', N'Approve tool workflow items.'),
                     (N'Invoices', N'View', N'invoices.view', N'View invoices.'),
                     (N'Invoices', N'Create', N'invoices.create', N'Create invoices.'),
                     (N'Invoices', N'Edit', N'invoices.edit', N'Edit invoices.'),
                     (N'Invoices', N'Delete', N'invoices.delete', N'Delete invoices.'),
                     (N'Invoices', N'Approve', N'invoices.approve', N'Approve invoice workflow items.'),
+                    (N'Records', N'View', N'records.view', N'View archive and records disposition.'),
+                    (N'Records', N'Create', N'records.create', N'Create records governance entries.'),
+                    (N'Records', N'Edit', N'records.edit', N'Restore records and edit retention settings.'),
+                    (N'Records', N'Delete', N'records.delete', N'Permanently delete eligible records.'),
+                    (N'Records', N'Approve', N'records.approve', N'Approve records governance actions.'),
                     (N'Reports', N'View', N'reports.view', N'View reports.'),
                     (N'Reports', N'Create', N'reports.create', N'Create reports.'),
                     (N'Reports', N'Edit', N'reports.edit', N'Edit reports.'),
@@ -179,9 +258,9 @@ namespace Backyard_Mech.Data
                         ALTER TABLE dbo.Bay ADD BayNumber NVARCHAR(50) NULL;
                     END;
 
-                    UPDATE dbo.Bay
-                    SET BayNumber = CONCAT(N'Bay ', BayId)
-                    WHERE BayNumber IS NULL OR LTRIM(RTRIM(BayNumber)) = N'';
+                    EXEC(N'UPDATE dbo.Bay
+                        SET BayNumber = CONCAT(N''Bay '', BayId)
+                        WHERE BayNumber IS NULL OR LTRIM(RTRIM(BayNumber)) = N'''';');
                 END;
                 """);
         }

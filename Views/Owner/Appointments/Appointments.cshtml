@@ -96,9 +96,15 @@
                             <td>@row.Advisor</td>
                             <td>
                                 <div class="appointment-row-actions">
-                                    <button type="button">E</button>
-                                    <button type="button">C</button>
-                                    <button type="button">⋮</button>
+                                    <button type="button" title="Edit appointment" data-appointment-edit
+                                            data-id="@row.AppointmentId" data-reference="@row.Id" data-customer-id="@row.CustomerId"
+                                            data-vehicle-id="@row.VehicleId" data-bay-id="@row.BayId" data-employee-id="@row.AssignedEmployeeProfileId"
+                                            data-date="@row.DateInput" data-start="@row.StartInput" data-end="@row.EndInput"
+                                            data-type="@row.Type" data-status="@row.Status" data-notes="@row.Notes">Edit</button>
+                                    @if (!string.Equals(row.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button class="cancel" type="button" title="Cancel appointment" data-appointment-cancel data-id="@row.AppointmentId" data-reference="@row.Id - @row.Customer">Cancel</button>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -142,7 +148,16 @@
                                         <span class="appointment-status @appointment.Tone">@appointment.Status</span>
                                     </div>
                                     <p>@appointment.Vehicle</p>
-                                        <time>@appointment.Start - @appointment.End</time>
+                                    <time>@appointment.Start - @appointment.End</time>
+                                    <button class="calendar-card-edit" type="button" data-appointment-edit
+                                            data-id="@appointment.AppointmentId" data-reference="@appointment.Id" data-customer-id="@appointment.CustomerId"
+                                            data-vehicle-id="@appointment.VehicleId" data-bay-id="@appointment.BayId" data-employee-id="@appointment.AssignedEmployeeProfileId"
+                                            data-date="@appointment.DateInput" data-start="@appointment.StartInput" data-end="@appointment.EndInput"
+                                            data-type="@appointment.Type" data-status="@appointment.Status" data-notes="@appointment.Notes">Edit</button>
+                                    @if (!string.Equals(appointment.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button class="calendar-card-edit cancel" type="button" data-appointment-cancel data-id="@appointment.AppointmentId" data-reference="@appointment.Id - @appointment.Customer">Cancel</button>
+                                    }
                                 </article>
                             }
                             else
@@ -169,6 +184,15 @@
                                 <div><strong>@row.Customer</strong><span class="appointment-status @row.Tone">@row.Status</span></div>
                                 <p>@row.Vehicle &bull; @row.Bay</p>
                                 <time>@row.Start - @row.End</time>
+                                <button class="calendar-card-edit" type="button" data-appointment-edit
+                                        data-id="@row.AppointmentId" data-reference="@row.Id" data-customer-id="@row.CustomerId"
+                                        data-vehicle-id="@row.VehicleId" data-bay-id="@row.BayId" data-employee-id="@row.AssignedEmployeeProfileId"
+                                        data-date="@row.DateInput" data-start="@row.StartInput" data-end="@row.EndInput"
+                                        data-type="@row.Type" data-status="@row.Status" data-notes="@row.Notes">Edit</button>
+                                @if (!string.Equals(row.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <button class="calendar-card-edit cancel" type="button" data-appointment-cancel data-id="@row.AppointmentId" data-reference="@row.Id - @row.Customer">Cancel</button>
+                                }
                             </article>
                         }
                         <button class="week-add-slot" type="button" data-appointment-modal="new-appointment">+ Add</button>
@@ -212,8 +236,8 @@
 
 @await Html.PartialAsync("_WalkInModal")
 @await Html.PartialAsync("_NewAppointmentModal")
+@await Html.PartialAsync("_EditAppointmentModal")
 
 @section Scripts {
     <script src="~/js/owner-appointments.js" asp-append-version="true"></script>
-    @await Html.PartialAsync("_AppointmentModalScripts")
 }

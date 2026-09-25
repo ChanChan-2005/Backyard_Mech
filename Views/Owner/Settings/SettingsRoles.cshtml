@@ -11,19 +11,49 @@
 
 @await Html.PartialAsync("_SettingsTabs")
 
-<section class="settings-reference-roles">
-    <aside class="settings-reference-card settings-role-rail">
-        <h2>App User Roles</h2>
-        <nav>
+<section class="settings-role-management">
+    <section class="settings-reference-card settings-role-directory">
+        <header class="settings-role-directory-header">
+            <div>
+                <h2>App User Roles</h2>
+                <p>Create a role, select it, then assign only the modules and actions it can use.</p>
+            </div>
+            @if (Model.CanCreateRole)
+            {
+                <button class="settings-button-blue" type="button" data-settings-role-modal="add-role">+ Add Role</button>
+            }
+        </header>
+
+        <div class="settings-role-list-grid">
             @foreach (var role in Model.Roles)
             {
-                <a class="@(role.IsSelected ? "active" : "")"
-                   asp-controller="Owner"
-                   asp-action="SettingsRoles"
-                   asp-route-role="@role.RoleId">@role.Label</a>
+                <article class="settings-role-item @(role.IsSelected ? "active" : "")">
+                    <a asp-controller="Owner" asp-action="SettingsRoles" asp-route-role="@role.RoleId">
+                        <strong>@role.Label</strong>
+                        <span>@role.Description</span>
+                        <small>@role.UserCount user@(role.UserCount == 1 ? "" : "s")</small>
+                    </a>
+                    <div class="settings-role-item-actions">
+                        @if (role.IsProtected)
+                        {
+                            <span class="settings-role-protected">System Protected</span>
+                        }
+                        else
+                        {
+                            @if (Model.CanEditRole)
+                            {
+                                <button type="button" data-settings-role-edit data-id="@role.AppRoleId" data-name="@role.Label" data-description="@role.Description">Edit</button>
+                            }
+                            @if (Model.CanDeleteRole)
+                            {
+                                <button class="danger" type="button" data-settings-role-delete data-role-id="@role.RoleId" data-name="@role.Label" data-users="@role.UserCount">Delete</button>
+                            }
+                        }
+                    </div>
+                </article>
             }
-        </nav>
-    </aside>
+        </div>
+    </section>
 
     <section class="settings-reference-card settings-permission-matrix">
         <form asp-controller="Owner" asp-action="SaveRolePermissions" method="post">
@@ -32,74 +62,114 @@
 
             <header>
                 <div>
-                    <h2>Role Permissions: @Model.SelectedRoleLabel</h2>
-                    <p>@(Model.IsSystemProtected ? "Standard owner system-protected profile. Full access read-only indicator." : "Editable role profile. Select the permissions this role can use.")</p>
+                    <h2>Permissions: @Model.SelectedRoleLabel</h2>
+                    <p>@(Model.IsSystemProtected ? "This role has full system access and cannot be changed." : "View controls sidebar visibility. Other permissions protect the matching server actions.")</p>
                 </div>
                 @if (Model.IsSystemProtected)
                 {
                     <span>System Protected</span>
                 }
-                else
+                else if (Model.CanEditRole)
                 {
                     <button class="settings-button-blue" type="submit">Save Permissions</button>
                 }
             </header>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Module / Feature</th>
-                        @foreach (var action in Model.ActionColumns)
-                        {
-                            <th>@action</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in Model.PermissionRows)
-                    {
+            <div class="settings-permission-table-wrap">
+                <table>
+                    <thead>
                         <tr>
-                            <td><strong>@row.ModuleName</strong></td>
+                            <th>Module / Feature</th>
                             @foreach (var action in Model.ActionColumns)
                             {
-                                var cell = row.Actions[action];
-                                <td>
-                                    @if (cell.Exists && cell.PermissionId.HasValue)
-                                    {
-                                        <label class="settings-permission-check">
-                                            <input type="checkbox"
-                                                   name="PermissionIds"
-                                                   value="@cell.PermissionId"
-                                                   checked="@cell.IsChecked"
-                                                   disabled="@Model.IsSystemProtected" />
-                                            <span aria-hidden="true"></span>
-                                        </label>
-                                    }
-                                    else
-                                    {
-                                        <span class="settings-permission-empty">-</span>
-                                    }
-                                </td>
+                                <th>@(action == "Approve" ? "Approve / Dispatch" : action)</th>
                             }
                         </tr>
-                    }
-                    @if (!Model.PermissionRows.Any())
-                    {
-                        <tr><td colspan="6">No permissions configured.</td></tr>
-                    }
-                </tbody>
-            </table>
-
-            <footer class="settings-panel-footer">
-                <span>Showing @Model.PermissionRows.Count of @Model.TotalPermissionCount permissions</span>
-                <nav class="settings-pagination">
-                    <button type="button">Previous</button>
-                    <button class="active" type="button">1</button>
-                    <button type="button">2</button>
-                    <button type="button">3</button>
-                    <button type="button">Next</button>
-                </nav>
-            </footer>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.PermissionRows)
+                        {
+                            <tr>
+                                <td><strong>@row.ModuleName</strong></td>
+                                @foreach (var action in Model.ActionColumns)
+                                {
+                                    var cell = row.Actions[action];
+                                    <td>
+                                        @if (cell.Exists && cell.PermissionId.HasValue)
+                                        {
+                                            <label class="settings-permission-check" title="@row.ModuleName @action">
+                                                <input type="checkbox" name="PermissionIds" value="@cell.PermissionId" checked="@cell.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" />
+                                                <span aria-hidden="true"></span>
+                                            </label>
+                                        }
+                                        else
+                                        {
+                                            <span class="settings-permission-empty">-</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <footer class="settings-panel-footer"><span>@Model.PermissionRows.Count modules, @Model.TotalPermissionCount available permissions</span></footer>
         </form>
     </section>
 </section>
+
+@if (Model.CanCreateRole)
+{
+    <div class="settings-role-modal" data-settings-role-panel="add-role" aria-hidden="true">
+        <div class="settings-role-modal-backdrop" data-settings-role-close></div>
+        <section class="settings-role-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-role-title">
+            <form asp-controller="Owner" asp-action="CreateRole" method="post">
+                @Html.AntiForgeryToken()
+                <header><div><h2 id="add-role-title">Add New Role</h2><p>Create the role first, then configure its permissions.</p></div><button type="button" data-settings-role-close aria-label="Close">x</button></header>
+                <div class="settings-role-modal-body">
+                    <label><span>Role Name *</span><input name="RoleName" maxlength="120" placeholder="e.g. Front Desk Coordinator" required /></label>
+                    <label><span>Description</span><textarea name="Description" maxlength="500" placeholder="Briefly describe what this role is responsible for"></textarea></label>
+                </div>
+                <footer><button type="button" data-settings-role-close>Cancel</button><button class="primary" type="submit">Create Role</button></footer>
+            </form>
+        </section>
+    </div>
+}
+
+@if (Model.CanEditRole && Model.Roles.Any(role => !role.IsProtected))
+{
+    <div class="settings-role-modal" data-settings-role-panel="edit-role" aria-hidden="true">
+        <div class="settings-role-modal-backdrop" data-settings-role-close></div>
+        <section class="settings-role-modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-role-title">
+            <form asp-controller="Owner" asp-action="EditRole" method="post" data-settings-edit-role-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="AppRoleId" />
+                <header><div><h2 id="edit-role-title">Edit Role</h2><p>Update the role name and description.</p></div><button type="button" data-settings-role-close aria-label="Close">x</button></header>
+                <div class="settings-role-modal-body">
+                    <label><span>Role Name *</span><input name="RoleName" maxlength="120" required /></label>
+                    <label><span>Description</span><textarea name="Description" maxlength="500"></textarea></label>
+                </div>
+                <footer><button type="button" data-settings-role-close>Cancel</button><button class="primary" type="submit">Save Changes</button></footer>
+            </form>
+        </section>
+    </div>
+}
+
+@if (Model.CanDeleteRole && Model.Roles.Any(role => !role.IsProtected))
+{
+    <div class="settings-role-modal" data-settings-role-panel="delete-role" aria-hidden="true">
+        <div class="settings-role-modal-backdrop" data-settings-role-close></div>
+        <section class="settings-role-modal-card settings-role-delete-card" role="dialog" aria-modal="true" aria-labelledby="delete-role-title">
+            <form asp-controller="Owner" asp-action="DeleteRole" method="post" data-settings-delete-role-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="RoleId" />
+                <header><div><h2 id="delete-role-title">Delete Role?</h2><p data-settings-delete-role-message>This role will no longer be available.</p></div><button type="button" data-settings-role-close aria-label="Close">x</button></header>
+                <footer><button type="button" data-settings-role-close>Keep Role</button><button class="danger" type="submit">Delete Role</button></footer>
+            </form>
+        </section>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/owner-settings-roles.js" asp-append-version="true"></script>
+}

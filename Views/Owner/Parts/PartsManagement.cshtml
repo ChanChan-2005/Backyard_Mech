@@ -1,4 +1,5 @@
 @model PartsManagementViewModel
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Parts & Materials Registry";
@@ -10,14 +11,19 @@
     var parts = Model?.Parts ?? Array.Empty<PartListItem>();
     var productListings = Model?.ProductListings ?? Array.Empty<ProductListingListItem>();
     var activeTab = Model?.ActiveTab ?? "parts";
+    var userRole = Context.Session.GetString("UserRole") ?? string.Empty;
+    var canCreateInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Create");
+    var canEditInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Edit");
+    var canDeleteInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Delete");
+    var canManageProductListings = canEditInventory || canDeleteInventory;
 }
 
 @section TopbarActions {
-    @if (activeTab == "product-listings")
+    @if (canCreateInventory && activeTab == "product-listings")
     {
         <button class="parts-button-blue" type="button" data-parts-modal="add-product-listing">+ Add Product Listing</button>
     }
-    else
+    else if (canCreateInventory)
     {
         <button class="parts-button-blue" type="button" data-parts-modal="add-part">+ Add Part</button>
     }
@@ -87,16 +93,20 @@
                         <th>Linked Item</th>
                         <th>Listing Title</th>
                         <th>Description</th>
-                        <th>Display Price</th>
+                        <th>Price</th>
                         <th>Order</th>
                         <th>Created</th>
+                        @if (canManageProductListings)
+                        {
+                            <th>Actions</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
                     @if (productListings.Count == 0)
                     {
                         <tr>
-                            <td colspan="7" class="parts-empty-row">No product listings yet. Add one from the button above.</td>
+                            <td colspan="@(canManageProductListings ? 8 : 7)" class="parts-empty-row">No product listings yet. Add one from the button above.</td>
                         </tr>
                     }
                     else
@@ -111,6 +121,37 @@
                                 <td><strong>@listing.DisplayPrice</strong></td>
                                 <td>@listing.DisplayOrder</td>
                                 <td>@listing.Created</td>
+                                @if (canManageProductListings)
+                                {
+                                    <td class="parts-row-actions">
+                                    @if (canEditInventory)
+                                    {
+                                        <button class="parts-small-button" type="button"
+                                            data-parts-modal="edit-product-listing"
+                                            data-listing-edit
+                                            data-listing-id="@listing.ProductListingId"
+                                            data-listing-type="@listing.ListingType"
+                                            data-listing-part="@listing.PartId"
+                                            data-listing-service="@listing.ServiceId"
+                                            data-listing-title="@listing.ListingTitle"
+                                            data-listing-description="@listing.ListingDescription"
+                                            data-listing-image="@listing.ImageUrl"
+                                            data-listing-price="@(listing.DisplayPriceValue?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                                            data-listing-order="@listing.DisplayOrder">Edit</button>
+                                    }
+                                    @if (canDeleteInventory)
+                                    {
+                                        <button class="parts-small-button" type="button"
+                                            data-listing-action="archive"
+                                            data-listing-id="@listing.ProductListingId"
+                                            data-listing-name="@listing.ListingTitle">Archive</button>
+                                    <button class="parts-small-button danger" type="button"
+                                            data-listing-action="delete"
+                                            data-listing-id="@listing.ProductListingId"
+                                            data-listing-name="@listing.ListingTitle">Delete</button>
+                                    }
+                                    </td>
+                                }
                             </tr>
                         }
                     }
@@ -175,7 +216,9 @@
                             <td>@part.Threshold</td>
                             <td><span class="parts-pill @part.Tone">@part.Status</span></td>
                             <td class="parts-row-actions">
-                                <button class="parts-small-button" type="button"
+                                @if (canEditInventory)
+                                {
+                                    <button class="parts-small-button" type="button"
                                         data-parts-modal="edit-part"
                                         data-part-id="@part.PartId"
                                         data-part-sku="@part.Sku"
@@ -187,8 +230,11 @@
                                         data-part-price="@(part.UnitPrice?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
                                         data-part-quantity="@part.QuantityOnHand"
                                         data-part-threshold="@part.ReorderThreshold">Edit</button>
+                                }
                                 <a class="parts-small-button" href="/Owner/PartAuditLog/@skuSlug">Log</a>
-                                <form asp-controller="Owner" asp-action="ArchivePart" method="post">
+                                @if (canDeleteInventory)
+                                {
+                                    <form asp-controller="Owner" asp-action="ArchivePart" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="PartId" value="@part.PartId" />
                                     <input type="hidden" name="Reason" value="Archived from Parts Management" />
@@ -200,6 +246,7 @@
                                     <input type="hidden" name="Reason" value="Deleted from Parts Management" />
                                     <button class="parts-small-button danger" type="submit">Delete</button>
                                 </form>
+                                }
                             </td>
                         </tr>
                     }
@@ -220,10 +267,22 @@
     }
 </section>
 
-@await Html.PartialAsync("_AddPartModal", Model)
-@await Html.PartialAsync("_EditPartModal", Model)
-@await Html.PartialAsync("_AddProductListingModal", Model)
+@if (canCreateInventory)
+{
+    @await Html.PartialAsync("_AddPartModal", Model)
+    @await Html.PartialAsync("_AddProductListingModal", Model)
+}
+@if (canEditInventory)
+{
+    @await Html.PartialAsync("_EditPartModal", Model)
+    @await Html.PartialAsync("_EditProductListingModal", Model)
+}
+@if (canDeleteInventory)
+{
+    @await Html.PartialAsync("_ProductListingActionModal")
+}
 
 @section Scripts {
     @await Html.PartialAsync("_PartModalScripts")
+    <script src="~/js/owner-product-listings.js" asp-append-version="true"></script>
 }

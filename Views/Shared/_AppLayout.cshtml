@@ -1,11 +1,14 @@
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     var pageTitle = ViewData["PageTitle"]?.ToString() ?? ViewData["Title"]?.ToString() ?? "Dashboard";
     var pageSubtitle = ViewData["PageSubtitle"]?.ToString() ?? DateTime.Now.ToString("dddd, MMMM dd, yyyy");
     var activeNav = ViewData["ActiveNav"]?.ToString() ?? "Dashboard";
     var sessionUserName = Context.Session.GetString("UserName") ?? "Owner";
     var sessionUserRole = Context.Session.GetString("UserRole") ?? "Owner";
+    var permissionCodes = await PermissionService.GetPermissionCodesAsync(sessionUserRole);
+    bool CanViewModule(string module) => permissionCodes.Contains("*") || permissionCodes.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, "View"));
     var userName = ViewData["ShellUserName"]?.ToString() ?? sessionUserName;
-    var userRole = ViewData["ShellUserRole"]?.ToString() ?? sessionUserRole;
+    var userRole = ViewData["ShellUserRole"]?.ToString() ?? await PermissionService.GetRoleNameAsync(sessionUserRole);
     var initials = ViewData["ShellUserInitials"]?.ToString() ?? string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
     if (string.IsNullOrWhiteSpace(initials))
     {
@@ -31,24 +34,24 @@
 
     var navItems = new[]
     {
-        new { Icon = "dashboard", Label = "Dashboard", Href = "/Owner/Dashboard" },
-        new { Icon = "queue", Label = "Service Queue", Href = "/Owner/ServiceQueue" },
-        new { Icon = "vehicle", Label = "Customer and Vehicle", Href = "/Owner/CustomerVehicle" },
-        new { Icon = "calendar", Label = "Appointments and Check-In", Href = "/Owner/Appointments" },
-        new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals" },
-        new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders" },
-        new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement" },
-        new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement" },
-        new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking" },
-        new { Icon = "quality", Label = "Quality Control", Href = "/Owner/QualityControl" },
-        new { Icon = "tools", Label = "Tools Tracking", Href = "/Owner/ToolTracking" },
-        new { Icon = "invoice", Label = "Invoicing and Payments", Href = "/Owner/InvoiceRegistry" },
-        new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords" },
-        new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition" },
-        new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports" },
-        new { Icon = "users", Label = "User Management", Href = "/Owner/Employees" },
-        new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings" },
-        new { Icon = "logout", Label = "Logout", Href = "/Account/Logout" }
+        new { Icon = "dashboard", Label = "Dashboard", Href = "/Owner/Dashboard", Module = "Dashboard", AlternateModule = "" },
+        new { Icon = "queue", Label = "Service Queue", Href = "/Owner/ServiceQueue", Module = "Service Queue", AlternateModule = "" },
+        new { Icon = "vehicle", Label = "Customer and Vehicle", Href = "/Owner/CustomerVehicle", Module = "Customers", AlternateModule = "" },
+        new { Icon = "calendar", Label = "Appointments and Check-In", Href = "/Owner/Appointments", Module = "Appointments", AlternateModule = "" },
+        new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals", Module = "Estimates", AlternateModule = "" },
+        new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders", Module = "Work Orders", AlternateModule = "" },
+        new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement", Module = "Bays", AlternateModule = "" },
+        new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement", Module = "Inventory", AlternateModule = "" },
+        new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking", Module = "Labour", AlternateModule = "" },
+        new { Icon = "quality", Label = "Quality Control", Href = "/Owner/QualityControl", Module = "Inspections", AlternateModule = "" },
+        new { Icon = "tools", Label = "Tools Tracking", Href = "/Owner/ToolTracking", Module = "Tools", AlternateModule = "" },
+        new { Icon = "invoice", Label = "Invoicing and Payments", Href = "/Owner/InvoiceRegistry", Module = "Invoices", AlternateModule = "" },
+        new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords", Module = "Records", AlternateModule = "" },
+        new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition", Module = "Records", AlternateModule = "" },
+        new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports", Module = "Reports", AlternateModule = "" },
+        new { Icon = "users", Label = "User Management", Href = "/Owner/Employees", Module = "Employees", AlternateModule = "" },
+        new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings", Module = "Settings", AlternateModule = "" },
+        new { Icon = "logout", Label = "Logout", Href = "/Account/Logout", Module = "", AlternateModule = "" }
     };
 
     string NavIconSvg(string icon) => icon switch
@@ -119,6 +122,11 @@
             <nav class="app-nav">
                 @foreach (var item in navItems)
                 {
+                    var canViewItem = string.IsNullOrWhiteSpace(item.Module) || CanViewModule(item.Module) || (!string.IsNullOrWhiteSpace(item.AlternateModule) && CanViewModule(item.AlternateModule));
+                    if (!canViewItem)
+                    {
+                        continue;
+                    }
                     var isActive = string.Equals(activeNav, item.Label, StringComparison.OrdinalIgnoreCase);
                     <a class="@(isActive ? "active" : "")" href="@item.Href">
                         <span class="nav-icon" aria-hidden="true">@Html.Raw(NavIconSvg(item.Icon))</span>

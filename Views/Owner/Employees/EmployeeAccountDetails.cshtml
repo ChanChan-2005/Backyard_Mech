@@ -8,6 +8,9 @@
     ViewData["ActiveNav"] = "User Management";
     ViewData["ShellClass"] = "users-shell";
     ViewData["SearchPlaceholder"] = "Search system log, accounts...";
+    var roleOptions = ViewData["EmployeeRoleOptions"] as IReadOnlyList<SettingsRoleOption> ?? Array.Empty<SettingsRoleOption>();
+    var assignedRole = ViewData["EmployeeAccountRole"]?.ToString() ?? "";
+    var hasLoginAccount = ViewData["EmployeeHasLoginAccount"] as bool? == true;
 }
 
 @section TopbarActions {
@@ -66,14 +69,25 @@
                 </form>
 
                 <h2 class="users-panel-title">Assigned Shop Roles</h2>
-                <div class="users-checkbox-list">
-                    <label><input type="checkbox" /> Garage Owner</label>
-                    <label><input type="checkbox" /> Administrator</label>
-                    <label><input type="checkbox" /> Service Advisor</label>
-                    <label><input type="checkbox" checked /> Mechanic/Technician</label>
-                    <label><input type="checkbox" /> Parts Clerk</label>
-                    <label><input type="checkbox" /> Supervisor/QC Inspector</label>
-                    <label><input type="checkbox" /> Accounting/Cashier</label>
+                <div class="users-form-grid">
+                    <label>
+                        <span class="users-label">System Role</span>
+                        <select class="users-input" name="RoleId" form="employeeEditForm" disabled="@(!hasLoginAccount || roleOptions.Count == 0)">
+                            @if (!hasLoginAccount)
+                            {
+                                <option value="">No login account linked to this employee</option>
+                            }
+                            else if (roleOptions.Count == 0)
+                            {
+                                <option value="">No active roles available</option>
+                            }
+                            @foreach (var role in roleOptions)
+                            {
+                                <option value="@role.RoleId" selected="@(role.RoleId == assignedRole)">@role.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <p class="users-muted">The selected role controls which sidebar modules and actions this account can access.</p>
                 </div>
 
                 <h2 class="users-panel-title">Security Metrics</h2>

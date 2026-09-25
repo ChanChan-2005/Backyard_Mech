@@ -9,12 +9,20 @@
 }
 
 @section TopbarActions {
-    <button class="reports-button" type="button">Export PDF</button>
-    <button class="reports-button" type="button">CSV</button>
+    <div class="reports-export-actions">
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="labour" asp-route-format="pdf" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">PDF</a>
+        <a class="reports-button" asp-action="ExportReport" asp-route-reportType="labour" asp-route-format="csv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">CSV</a>
+        <a class="reports-button-blue" asp-action="ExportReport" asp-route-reportType="labour" asp-route-format="xlsx" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")" asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")">Excel</a>
+    </div>
 }
 
 <section class="reports-page">
-    <div class="reports-filter-card"><select><option>@Model.PeriodLabel</option></select><select><option>Role: All</option></select></div>
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="LabourProductivityReport">
+        <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
+        <button class="reports-button-blue" type="submit">Apply Dates</button><span class="reports-filter-spacer"></span>
+        <select data-report-filter data-report-column="1"><option value="">Role: All</option>@foreach (var value in Model.Rows.Select(x => x.Role).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+    </form>
     <div class="reports-stats">
         @foreach (var metric in Model.Metrics)
         {
@@ -23,12 +31,12 @@
     </div>
     <section class="reports-card reports-chart-card"><h2>Billable Hours Comparison (MTD)</h2><canvas id="labourProductivityChart" height="170"></canvas></section>
     <section class="reports-panel">
-        <table class="reports-table">
+        <table class="reports-table" data-report-table>
             <thead><tr><th>Employee Name</th><th>Role</th><th>Total Hours</th><th>Billable</th><th>Non-Billable</th><th>Utilization %</th><th>Completed Jobs</th><th>Avg Time/Job</th></tr></thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr><td><strong>@row.EmployeeName</strong></td><td>@row.Role</td><td>@row.TotalHours</td><td class="reports-money profit">@row.BillableHours</td><td>@row.NonBillableHours</td><td><strong>@row.Utilization</strong></td><td>@row.CompletedJobs</td><td>@row.AverageTimePerJob</td></tr>
+                    <tr data-report-row><td><strong>@row.EmployeeName</strong></td><td>@row.Role</td><td>@row.TotalHours</td><td class="reports-money profit">@row.BillableHours</td><td>@row.NonBillableHours</td><td><strong>@row.Utilization</strong></td><td>@row.CompletedJobs</td><td>@row.AverageTimePerJob</td></tr>
                 }
                 @if (!Model.Rows.Any())
                 {
@@ -36,7 +44,7 @@
                 }
             </tbody>
         </table>
-        <footer class="reports-panel-footer"><span>Showing @Model.Rows.Count of @Model.Rows.Count employees</span></footer>
+        <footer class="reports-panel-footer"><span>Showing <strong data-report-visible-count>@Model.Rows.Count</strong> of @Model.Rows.Count employees</span></footer>
     </section>
 </section>
 
