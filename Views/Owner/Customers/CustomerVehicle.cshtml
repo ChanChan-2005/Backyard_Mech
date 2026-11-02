@@ -1,4 +1,5 @@
 @model IReadOnlyList<CustomerListItem>
+@inject Backyard_Mech.Services.PermissionService IntakePermissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Customers and Vehicles";
@@ -7,6 +8,7 @@
     ViewData["ActiveNav"] = "Customer and Vehicle";
 
     var customers = Model ?? Array.Empty<CustomerListItem>();
+    var canViewVehicles = await IntakePermissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Vehicles", "View");
     var activeCustomers = customers.Count(customer => string.Equals(customer.Status, "Active", StringComparison.OrdinalIgnoreCase));
     var newThisMonth = customers.Count(customer => string.Equals(customer.LastVisit, "No visits", StringComparison.OrdinalIgnoreCase));
     var totalSpend = customers.Sum(customer => decimal.TryParse(customer.TotalSpent.Replace("$", "").Replace(",", ""), out var value) ? value : 0);
@@ -74,7 +76,7 @@
                             </td>
                             <td>@customer.Phone</td>
                             <td>@customer.Email</td>
-                            <td><span class="vehicle-pill">@customer.Vehicles</span></td>
+                            <td>@if(canViewVehicles){<a asp-action="VehicleHistory" asp-route-customerId="@customer.CustomerId">@customer.Vehicles vehicles</a>}else{<span class="vehicle-pill">@customer.Vehicles</span>}</td>
                             <td>@customer.LastVisit</td>
                             <td class="spent-cell">@customer.TotalSpent</td>
                             <td><span class="status-pill @(isActive ? "active" : "inactive")">@customer.Status</span></td>

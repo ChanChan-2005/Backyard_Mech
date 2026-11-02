@@ -1,11 +1,18 @@
-﻿@{
-    Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+@model QualityCheck
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = $"Inspection Result - WO-{Model.WorkOrderId}"; ViewData["ActiveNav"] = "Quality Control";
+    QcRecord? record = null;
+    try { record = System.Text.Json.JsonSerializer.Deserialize<QcRecord>(Model.Notes ?? ""); } catch (System.Text.Json.JsonException) { }
+    var checklist = Backyard_Mech.Controllers.OwnerController.QcChecklist;
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page"><nav class="repair-toolbar"><a href="/Owner/QualityControl">Back to QC Queue</a><div class="repair-actions">
+    @if(await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Work Orders", "View")) { <a class="repair-button" href="/Owner/WorkOrderDetails/@Model.WorkOrderId">Work Order</a> }
+    @if(Model.Passed == true && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Create")) { <a class="repair-button primary" href="/Owner/GenerateInvoice">Generate Invoice</a> }
+    @if(Model.Passed.HasValue && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inspections", "Delete")) { <button type="button" data-dialog-open="void-qc">Void Inspection</button> }
+</div></nav>
+<section class="repair-section"><h2>@(Model.Passed == true ? "Passed" : Model.Passed == false ? "Failed - Return to Repair" : "Inspection Voided")</h2><p>Inspector: @Model.InspectorName | @Model.PerformedUtc.ToString("g") UTC</p><p>@(record?.Notes ?? Model.Notes)</p>
+<div class="repair-table-wrap"><table><thead><tr><th>Check</th><th>Result</th><th>Findings</th></tr></thead><tbody>
+@if(record is not null) { for(var i = 0; i < record.Answers.Count; i++) { <tr><td>@(i < checklist.Length ? checklist[i] : "Check")</td><td>@record.Answers[i].Result</td><td>@record.Answers[i].Notes</td></tr> } }
+</tbody></table></div></section></div>
+@if(Model.Passed.HasValue && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inspections", "Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("void-qc", "Void Inspection and Request Reinspection", "VoidQualityInspection", Model.QualityCheckId)) }

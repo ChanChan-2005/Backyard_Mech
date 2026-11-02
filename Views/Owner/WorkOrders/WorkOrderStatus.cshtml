@@ -1,4 +1,5 @@
 @model WorkOrderDetailsViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = $"{Model.Id} Status";
@@ -6,6 +7,10 @@
     ViewData["PageSubtitle"] = $"WORK ORDERS > {Model.Id} > STATUS";
     ViewData["ActiveNav"] = "Work Order and Assignment";
     ViewData["ShellClass"] = "work-orders-shell";
+    var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string module, string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, action));
+    var repairComplete = Model.Status is "Pending QC" or "Ready for Pickup" or "Picked Up" or "Completed";
+    var qcComplete = Model.Status is "Ready for Pickup" or "Picked Up" or "Completed";
 }
 
 @section TopbarActions {
@@ -20,13 +25,46 @@
         </div>
         <div class="wo-stepper">
             <span class="wo-step done"><b>1</b>Pending Setup</span>
-            <span class="wo-step @(Model.Status.Contains("Progress", StringComparison.OrdinalIgnoreCase) || Model.Status.Contains("Paused", StringComparison.OrdinalIgnoreCase) ? "active" : "done")"><b>2</b>In Progress</span>
-            <span class="wo-step @(Model.Status.Contains("Complete", StringComparison.OrdinalIgnoreCase) ? "done" : "")"><b>3</b>Repair Complete</span>
-            <span class="wo-step @(Model.Status.Contains("QC", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><b>4</b>Quality Control</span>
-            <span class="wo-step @(Model.Status.Contains("Pickup", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><b>5</b>Ready for Pickup</span>
+            <span class="wo-step @(Model.Status is "In Progress" or "Paused" ? "active" : repairComplete ? "done" : "")"><b>2</b>In Progress</span>
+            <span class="wo-step @(repairComplete ? "done" : "")"><b>3</b>Repair Complete</span>
+            <span class="wo-step @(Model.Status == "Pending QC" ? "active" : qcComplete ? "done" : "")"><b>4</b>Quality Control</span>
+            <span class="wo-step @(Model.Status == "Ready for Pickup" ? "active" : Model.Status == "Picked Up" ? "done" : "")"><b>5</b>Ready for Pickup</span>
+            <span class="wo-step @(Model.Status == "Picked Up" ? "active" : "")"><b>6</b>Picked Up</span>
         </div>
     </section>
 
+    @if (Model.Status == "Ready for Pickup")
+    {
+        <section class="wo-stepper-card">
+            <h2>Customer Vehicle Release</h2>
+            <p>Invoice: <strong>@(string.IsNullOrWhiteSpace(Model.InvoiceStatus) ? "Not issued" : Model.InvoiceStatus)</strong>
+                @if (!string.IsNullOrWhiteSpace(Model.InvoiceStatus)) { <span> | Balance: <strong>@Model.InvoiceBalance.ToString("C")</strong></span> }
+            </p>
+            @if (Model.InvoiceStatus == "Paid" && Model.InvoiceBalance == 0 && Can("Work Orders", "Approve"))
+            {
+                <form asp-controller="Owner" asp-action="ReleaseWorkOrder" method="post" class="wo-action-row">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
+                    <label><input type="checkbox" name="ConfirmHandover" value="true" required /> I confirm the vehicle was handed back to the customer.</label>
+                    <button class="wo-button-green" type="submit">Record Vehicle Pickup</button>
+                </form>
+            }
+            else if (Model.InvoiceStatus != "Paid" || Model.InvoiceBalance > 0)
+            {
+                <p>Settle the invoice in full before releasing the vehicle.</p>
+            }
+        </section>
+    }
+    @if (Model.Status == "Picked Up")
+    {
+        <section class="wo-stepper-card">
+            <h2>Vehicle Released</h2>
+            <p>Picked up @Model.ReleasedUtc?.ToLocalTime().ToString("MMM dd, yyyy h:mm tt") by @Model.ReleasedByName.</p>
+        </section>
+    }
+
+    @if (Model.Status is not ("Ready for Pickup" or "Picked Up" or "Completed" or "Cancelled"))
+    {
     <div class="wo-transition-grid">
         <main class="wo-stepper-card">
             <form class="wo-action-area" asp-controller="Owner" asp-action="TransitionWorkOrderStatus" method="post">
@@ -56,4 +94,5 @@
             </div>
         </aside>
     </div>
+    }
 </section>

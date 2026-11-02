@@ -1,243 +1,89 @@
-@model IReadOnlyList<AppointmentListItem>
+@model IntakeAppointmentsPage
+@using System.Text.Json
 @{
     Layout = "_AppLayout";
-    var mode = ViewData["AppointmentViewMode"]?.ToString() ?? "calendar";
-    var isList = string.Equals(mode, "list", StringComparison.OrdinalIgnoreCase);
-
-    ViewData["Title"] = isList ? "Appointments > List View" : "Appointments";
-    ViewData["PageTitle"] = isList ? "Appointments > List View" : "Appointments";
-    ViewData["PageSubtitle"] = "";
+    ViewData["Title"] = ViewData["PageTitle"] = "Appointments and Check-in";
     ViewData["ActiveNav"] = "Appointments and Check-In";
-    ViewData["ShellClass"] = "appointments-shell";
-
-    var listRows = Model ?? Array.Empty<AppointmentListItem>();
-    var calendarAppointments = listRows;
-    var times = listRows.Select(row => row.Time).Where(time => !string.IsNullOrWhiteSpace(time)).Distinct().DefaultIfEmpty("08:00 AM").ToArray();
-    var baySlots = listRows
-        .Where(row => row.BayNumber > 0)
-        .Select(row => (Number: row.BayNumber, Name: row.Bay))
-        .Distinct()
-        .DefaultIfEmpty((Number: 1, Name: "Bay 1"))
-        .ToArray();
-    var weekdays = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-    var monthAppointments = listRows.Select(row => new { Day = DateTime.Parse(row.Date).Day, row.Customer, row.Status, row.Tone }).ToArray();
-    var weekStart = listRows.Select(row => DateTime.Parse(row.Date)).DefaultIfEmpty(DateTime.Today).Min().Date;
 }
-
-<section class="appointments-page">
-    @if (!isList)
-    {
-        <div class="appointment-calendar-toolbar">
-            <div class="appointment-view-buttons">
-                <button type="button" data-appointment-view="day">Day</button>
-                <button class="active" type="button" data-appointment-view="week">Week</button>
-                <button type="button" data-appointment-view="month">Month</button>
-                <button type="button" data-appointment-view="today">Today</button>
-                <button class="icon-button" type="button">&lt;</button>
-                <strong data-appointment-range>Oct 14 - Oct 20, 2024</strong>
-                <button class="icon-button" type="button">&gt;</button>
-            </div>
-            <div class="appointment-actions">
-                <button class="walkin-button" type="button" data-appointment-modal="walk-in">+ Walk-In</button>
-                <button class="new-appointment-button" type="button" data-appointment-modal="new-appointment">+ New Appointment</button>
-            </div>
-        </div>
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
+<section class="master-data intake-page" data-appointments data-today="@Model.Today.ToString("yyyy-MM-dd")" data-view="@Model.View">
+    <header class="master-toolbar"><h2>Appointments</h2><div class="master-actions">
+        @if(Model.CanCreate){<button type="button" data-intake-open="walkin-new">+ Walk-in</button><button type="button" class="master-primary" data-intake-open="appointment-new">+ New Appointment</button>}
+    </div></header>
+    <div class="master-toolbar"><input type="search" data-appointment-search placeholder="Search customer, vehicle or service" aria-label="Search appointments" />
+        <select data-appointment-status aria-label="Status"><option value="">All statuses</option>@foreach(var status in Model.Rows.Select(x => x.Row.AppointmentStatus).Distinct().Order()){<option>@status</option>}</select>
+        <div class="intake-view-toggle" aria-label="Appointment view"><button type="button" data-appointment-view="calendar">Calendar</button><button type="button" data-appointment-view="list">List</button></div>
+    </div>
+    <div data-calendar-panel>
+        <div class="master-toolbar"><div class="master-actions"><button type="button" data-calendar-step="-1" aria-label="Previous period">&#8592;</button><span class="intake-range" data-calendar-range aria-live="polite"></span><button type="button" data-calendar-step="1" aria-label="Next period">&#8594;</button><button type="button" data-calendar-today>Today</button></div>
+            <div class="master-actions"><input type="date" data-calendar-date value="@Model.Today.ToString("yyyy-MM-dd")" aria-label="Calendar date" /><select data-calendar-mode aria-label="Calendar period"><option value="day">Day</option><option value="week" selected>Week</option><option value="month">Month</option></select></div>
+        </div><div class="intake-calendar-wrap"><div class="intake-calendar" data-calendar-grid></div></div>
+    </div>
+    <div class="master-table-wrap" data-appointment-list><table><thead><tr><th>Date / time</th><th>Customer / vehicle</th><th>Requested services</th><th>Preferred mechanic</th><th>Assigned mechanic</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    @foreach(var item in Model.Rows){var a = item.Row;
+        <tr data-appointment-row data-date="@a.ScheduledStart?.ToString("yyyy-MM-dd")" data-time="@a.ScheduledStart?.ToString("HH:mm")" data-customer="@a.CustomerName" data-status="@a.AppointmentStatus" data-dialog="visit-@a.AppointmentId">
+            <td>@a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")<br />@a.AppointmentType</td><td>@a.CustomerName<br />@item.Vehicle</td><td>@item.Services</td><td>@(a.PreferredMechanicName ?? "No preference")</td><td>@(a.AssignedMechanicName ?? "Not assigned")</td><td>@a.AppointmentStatus</td>
+            <td><button type="button" data-intake-open="visit-@a.AppointmentId">View</button></td>
+        </tr>
     }
-
-    <nav class="appointment-tabs" aria-label="Appointment views">
-        <a class="@(isList ? "" : "active")" href="/Owner/Appointments">Calendar Grid</a>
-        <a class="@(isList ? "active" : "")" href="/Owner/Appointments?view=list">List View</a>
-    </nav>
-
-    @if (isList)
-    {
-        <div class="appointment-list-toolbar">
-            <label class="appointment-list-search">
-                <span>Q</span>
-                <input type="search" placeholder="Search by customer, vehicle, VIN, plate, or ID..." />
-            </label>
-            <button type="button">All Dates</button>
-            <button type="button">Type: All</button>
-            <button type="button">Status: All</button>
-            <button type="button">Bay: All</button>
-        </div>
-
-        <section class="appointment-list-panel">
-            <table class="appointment-list-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Customer</th>
-                        <th>Vehicle / VIN / Plate</th>
-                        <th>Date</th>
-                        <th>Start</th>
-                        <th>End</th>
-                        <th>Bay</th>
-                        <th>Status</th>
-                        <th>Advisor</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var row in listRows)
-                    {
-                        <tr>
-                            <td><a href="#">@row.Id</a></td>
-                            <td><strong>@row.Customer</strong></td>
-                            <td>
-                                <strong>@row.Vehicle</strong>
-                                <span>@row.Vin &nbsp; @row.Plate</span>
-                            </td>
-                            <td>@row.Date</td>
-                            <td>@row.Start</td>
-                            <td>@row.End</td>
-                            <td>@row.Bay</td>
-                            <td><span class="appointment-status @row.Tone">@row.Status</span></td>
-                            <td>@row.Advisor</td>
-                            <td>
-                                <div class="appointment-row-actions">
-                                    <button type="button" title="Edit appointment" data-appointment-edit
-                                            data-id="@row.AppointmentId" data-reference="@row.Id" data-customer-id="@row.CustomerId"
-                                            data-vehicle-id="@row.VehicleId" data-bay-id="@row.BayId" data-employee-id="@row.AssignedEmployeeProfileId"
-                                            data-date="@row.DateInput" data-start="@row.StartInput" data-end="@row.EndInput"
-                                            data-type="@row.Type" data-status="@row.Status" data-notes="@row.Notes">Edit</button>
-                                    @if (!string.Equals(row.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <button class="cancel" type="button" title="Cancel appointment" data-appointment-cancel data-id="@row.AppointmentId" data-reference="@row.Id - @row.Customer">Cancel</button>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <footer class="appointment-table-footer">
-                <span>Showing @listRows.Count appointment@(listRows.Count == 1 ? "" : "s")</span>
-                <nav class="appointment-pagination" aria-label="Appointment pagination">
-                    <button type="button">Previous</button>
-                    <button class="active" type="button">1</button>
-                    <button type="button">2</button>
-                    <button type="button">3</button>
-                    <button type="button">Next</button>
-                </nav>
-            </footer>
-        </section>
-    }
-    else
-    {
-        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="day" hidden>
-            <div class="calendar-grid">
-                <div class="calendar-head time-head">Time</div>
-                @foreach (var bay in baySlots)
-                {
-                    <div class="calendar-head">@bay.Name</div>
-                }
-
-                @foreach (var time in times)
-                {
-                    <div class="calendar-time">@time</div>
-                    @foreach (var bay in baySlots)
-                    {
-                        var appointment = calendarAppointments.FirstOrDefault(item => item.Time == time && item.BayNumber == bay.Number);
-                        <div class="calendar-cell">
-                            @if (appointment is not null)
-                            {
-                                <article class="calendar-appointment-card">
-                                    <div>
-                                        <strong>@appointment.Customer</strong>
-                                        <span class="appointment-status @appointment.Tone">@appointment.Status</span>
-                                    </div>
-                                    <p>@appointment.Vehicle</p>
-                                    <time>@appointment.Start - @appointment.End</time>
-                                    <button class="calendar-card-edit" type="button" data-appointment-edit
-                                            data-id="@appointment.AppointmentId" data-reference="@appointment.Id" data-customer-id="@appointment.CustomerId"
-                                            data-vehicle-id="@appointment.VehicleId" data-bay-id="@appointment.BayId" data-employee-id="@appointment.AssignedEmployeeProfileId"
-                                            data-date="@appointment.DateInput" data-start="@appointment.StartInput" data-end="@appointment.EndInput"
-                                            data-type="@appointment.Type" data-status="@appointment.Status" data-notes="@appointment.Notes">Edit</button>
-                                    @if (!string.Equals(appointment.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <button class="calendar-card-edit cancel" type="button" data-appointment-cancel data-id="@appointment.AppointmentId" data-reference="@appointment.Id - @appointment.Customer">Cancel</button>
-                                    }
-                                </article>
-                            }
-                            else
-                            {
-                                <button type="button" data-appointment-modal="new-appointment">+ Add</button>
-                            }
-                        </div>
-                    }
-                }
-            </div>
-        </section>
-
-        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="week">
-            <div class="appointment-week-grid">
-                @for (var offset = 0; offset < 7; offset++)
-                {
-                    var day = weekStart.AddDays(offset);
-                    var dayRows = listRows.Where(row => DateTime.Parse(row.Date).Date == day).ToArray();
-                    <section class="week-day-column">
-                        <header><strong>@day.ToString("ddd")</strong><span>@day.ToString("MMM dd")</span></header>
-                        @foreach (var row in dayRows)
-                        {
-                            <article class="week-appointment-card">
-                                <div><strong>@row.Customer</strong><span class="appointment-status @row.Tone">@row.Status</span></div>
-                                <p>@row.Vehicle &bull; @row.Bay</p>
-                                <time>@row.Start - @row.End</time>
-                                <button class="calendar-card-edit" type="button" data-appointment-edit
-                                        data-id="@row.AppointmentId" data-reference="@row.Id" data-customer-id="@row.CustomerId"
-                                        data-vehicle-id="@row.VehicleId" data-bay-id="@row.BayId" data-employee-id="@row.AssignedEmployeeProfileId"
-                                        data-date="@row.DateInput" data-start="@row.StartInput" data-end="@row.EndInput"
-                                        data-type="@row.Type" data-status="@row.Status" data-notes="@row.Notes">Edit</button>
-                                @if (!string.Equals(row.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    <button class="calendar-card-edit cancel" type="button" data-appointment-cancel data-id="@row.AppointmentId" data-reference="@row.Id - @row.Customer">Cancel</button>
-                                }
-                            </article>
-                        }
-                        <button class="week-add-slot" type="button" data-appointment-modal="new-appointment">+ Add</button>
-                    </section>
-                }
-            </div>
-        </section>
-
-        <section class="calendar-grid-panel appointment-calendar-panel" data-appointment-panel="month" hidden>
-            <div class="appointment-month-grid">
-                @foreach (var weekday in weekdays)
-                {
-                    <div class="month-weekday">@weekday</div>
-                }
-                @for (var emptyDay = 0; emptyDay < 2; emptyDay++)
-                {
-                    <div class="month-day muted"></div>
-                }
-                @for (var day = 1; day <= 31; day++)
-                {
-                    var dayAppointments = monthAppointments.Where(item => item.Day == day).ToArray();
-                    <div class="month-day @(day == 14 ? "today" : "")">
-                        <strong>@day</strong>
-                        @foreach (var appointment in dayAppointments)
-                        {
-                            <article>
-                                <span>@appointment.Customer</span>
-                                <em class="@appointment.Tone">@appointment.Status</em>
-                            </article>
-                        }
-                    </div>
-                }
-                @for (var emptyDay = 0; emptyDay < 2; emptyDay++)
-                {
-                    <div class="month-day muted"></div>
-                }
-            </div>
-        </section>
-    }
+    </tbody></table></div><p data-appointment-count class="intake-count" aria-live="polite"></p>
 </section>
-
-@await Html.PartialAsync("_WalkInModal")
-@await Html.PartialAsync("_NewAppointmentModal")
-@await Html.PartialAsync("_EditAppointmentModal")
-
-@section Scripts {
-    <script src="~/js/owner-appointments.js" asp-append-version="true"></script>
+@if(Model.CanCreate){
+    @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, new AppointmentFormModel { ScheduledDate=Model.Today, StartTime=TimeSpan.FromHours(9), EndTime=TimeSpan.FromHours(10) }, "appointment-new", "New Appointment"))
+    @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, new AppointmentFormModel { IsWalkIn=true }, "walkin-new", "Check In Walk-in"))
 }
+@foreach(var item in Model.Rows){var a = item.Row;
+<dialog id="visit-@a.AppointmentId" class="master-dialog" aria-labelledby="visit-title-@a.AppointmentId">
+    <header class="master-toolbar"><h2 id="visit-title-@a.AppointmentId">Appointment: @a.CustomerName</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <dl class="intake-detail"><dt>Vehicle</dt><dd>@item.Vehicle</dd><dt>Schedule</dt><dd>@a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm") - @a.ScheduledEnd?.ToString("HH:mm")</dd><dt>Requested services</dt><dd>@item.Services</dd><dt>Status</dt><dd>@a.AppointmentStatus</dd><dt>Customer concerns</dt><dd>@a.Notes</dd>
+    @if(a.CheckedInUtc.HasValue){<dt>Checked in (UTC)</dt><dd>@a.CheckedInUtc?.ToString("yyyy-MM-dd HH:mm") by @a.CheckedInByName</dd>}
+    </dl><div class="master-actions">
+    @if(item.CanChange && Model.CanEdit){<button type="button" data-intake-open="appointment-edit-@a.AppointmentId">Edit Appointment</button>
+        @if(a.ScheduledStart?.Date == Model.Today){<button type="button" class="master-primary" data-intake-open="checkin-@a.AppointmentId">Check In</button>}
+    }
+    @if(item.CanChange && Model.CanDelete){<button type="button" data-intake-open="cancel-@a.AppointmentId">Cancel Appointment</button>}
+    @if(item.Row.CheckedInUtc.HasValue && Model.CanInspect && (a.AppointmentStatus is "Arrived" or "Inspection" or "Waiting Approval")) { <button type="button" data-intake-open="initial-inspection-@a.AppointmentId">Record Initial Inspection</button> }
+    </div>
+    @if(item.Inspections.Any()) { <h3>Initial inspection history</h3><ul>@foreach(var inspection in item.Inspections){
+        var findings = inspection.Notes;
+        string? recommended = null;
+        try { using var inspectionData = JsonDocument.Parse(inspection.Notes ?? "{}"); var root = inspectionData.RootElement;
+            if (root.TryGetProperty("Findings", out var findingsValue)) findings = findingsValue.GetString();
+            if (root.TryGetProperty("RecommendedWork", out var recommendedValue)) recommended = recommendedValue.GetString();
+        } catch (JsonException) { }
+        <li><strong>@inspection.CompletedUtc?.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</strong> by @inspection.MechanicName<br />@findings @if(!string.IsNullOrWhiteSpace(recommended)){<span> Recommended work: @recommended</span>}</li>
+    }}</ul> @foreach(var media in item.Media){<a href="/Owner/InspectionPhoto/@media.InspectionMediaId" target="_blank" rel="noopener">View inspection photo</a>} }
+</dialog>
+@if(item.CanChange && Model.CanEdit){
+    @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, item.Form, $"appointment-edit-{a.AppointmentId}", "Edit Appointment"))
+    <dialog id="checkin-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="checkin-title-@a.AppointmentId"><form asp-action="CheckInAppointment" method="post">
+        <header class="master-toolbar"><h2 id="checkin-title-@a.AppointmentId">Check In</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+        <p>@a.CustomerName - @item.Vehicle</p><input type="hidden" name="AppointmentId" value="@a.AppointmentId" /><input type="hidden" name="Expected" value="@item.Form.Expected" />
+        <div class="master-fields"><label class="master-wide">Odometer reading<input name="Odometer" type="number" min="@(item.Form.Odometer ?? 0)" max="2147483647" required /></label><label class="master-wide intake-check"><input name="IdentityVerified" type="checkbox" value="true" required /> Customer identity and vehicle verified</label></div>
+        <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Confirm Check-in</button></footer>
+    </form></dialog>
+}
+@if(item.CanChange && Model.CanDelete){
+    <dialog id="cancel-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="cancel-title-@a.AppointmentId"><form asp-action="CancelAppointment" method="post">
+        <header class="master-toolbar"><h2 id="cancel-title-@a.AppointmentId">Cancel Appointment</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+        <p>@a.CustomerName - @a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")</p>
+        <input type="hidden" name="AppointmentId" value="@a.AppointmentId" /><input type="hidden" name="Expected" value="@item.Form.Expected" /><input type="hidden" name="ViewMode" value="@Model.View" />
+        <label>Reason<textarea name="Reason" required maxlength="500"></textarea></label><footer><button type="button" data-intake-close>Keep Appointment</button><button class="master-primary">Cancel Appointment</button></footer>
+    </form></dialog>
+}
+@if(item.Row.CheckedInUtc.HasValue && Model.CanInspect && (item.Row.AppointmentStatus is "Arrived" or "Inspection" or "Waiting Approval")) {
+    <dialog id="initial-inspection-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="initial-inspection-title-@a.AppointmentId">
+        <form asp-action="SaveInitialInspection" method="post" enctype="multipart/form-data">
+            <header class="master-toolbar"><h2 id="initial-inspection-title-@a.AppointmentId">Initial vehicle inspection</h2><button type="button" data-intake-close aria-label="Close">X</button></header>
+            <p>@a.CustomerName - @item.Vehicle</p><input type="hidden" name="AppointmentId" value="@a.AppointmentId" />
+            <label>Inspection findings *<textarea name="Findings" required minlength="10" maxlength="3000" rows="5" placeholder="Example: Front brake pads are worn; no visible fluid leaks; right headlamp is out."></textarea></label>
+            <label>Recommended work<textarea name="RecommendedWork" maxlength="2000" rows="3" placeholder="Example: Replace front brake pads and inspect rotors."></textarea></label>
+            <label>Inspection photos<input type="file" name="Photos" accept="image/jpeg,image/png,image/webp" multiple /></label>
+            <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Save Inspection</button></footer>
+        </form>
+    </dialog>
+}
+}
+<script src="~/js/owner-vehicle-intake.js" asp-append-version="true"></script>
+<script src="~/js/owner-appointments.js" asp-append-version="true"></script>

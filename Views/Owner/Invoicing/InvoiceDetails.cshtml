@@ -1,11 +1,49 @@
-﻿@{
-    Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+@model InvoiceWorkflowViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = Model.Invoice.InvoiceNumber; ViewData["ActiveNav"] = "Invoicing and Payments";
+    var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode("Invoices", action));
+    var open = Model.Invoice.InvoiceStatus != "Voided";
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page" data-auto-dialog="@Model.OpenModal">
+<nav class="repair-toolbar"><a href="/Owner/InvoiceRegistry">Invoice Registry</a><div class="repair-actions">
+    <button type="button" data-print-invoice>Print</button>
+    @if(open && Can("Create") && Model.Balance > 0) { <button type="button" class="primary" data-dialog-open="payment-new">Record Payment</button> }
+    @if(open && Can("Edit")) { <button type="button" data-dialog-open="adjustment-new">Adjust Invoice</button> }
+    @if(open && Can("Delete")) { <button type="button" data-dialog-open="void-invoice">Void Invoice</button> }
+</div></nav>
+<section class="repair-section"><header><div><h2>@Model.Invoice.InvoiceNumber</h2><p>@Model.Invoice.CustomerFirstName @Model.Invoice.CustomerMiddleName @Model.Invoice.CustomerLastName</p></div><div><span class="repair-status">@Model.Invoice.InvoiceStatus</span><p>Issued: @Model.Invoice.IssuedUtc.ToString("MMM dd, yyyy") | WO-@Model.Invoice.WorkOrderId</p></div></header>
+<div class="repair-table-wrap"><table><thead><tr><th>Description</th><th>Type</th><th>Qty / hours</th><th>Price / rate</th><th>Total</th></tr></thead><tbody>
+@foreach(var line in Model.Lines) { <tr><td>@line.Description</td><td>@line.SourceType</td><td>@line.Quantity</td><td>@line.UnitPrice?.ToString("N2")</td><td>@line.LineTotal?.ToString("N2")</td></tr> }
+</tbody></table></div>
+<p>Subtotal: @Model.Invoice.Subtotal?.ToString("N2") | Tax: @Model.Invoice.TaxAmount?.ToString("N2")</p><p>Adjusted total: @Model.Invoice.Total?.ToString("N2") | Paid: @Model.Payments.Sum(x => x.Amount ?? 0).ToString("N2")</p>
+<p class="repair-total">@(open ? "Balance due" : "Voided balance"): @(open ? Model.Balance.ToString("N2") : "0.00")</p></section>
+<section class="repair-section"><h2>Payments</h2><div class="repair-table-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
+@foreach(var row in Model.Payments) { <tr><td>@row.PaidUtc?.ToString("d")</td><td>@row.PaymentMethod</td><td>@row.ReferenceNumber</td><td>@row.Amount?.ToString("N2")</td><td>@row.Notes</td><td><div class="repair-actions">
+@if(open && row.Amount > 0 && Can("Edit")) { <button type="button" data-dialog-open="payment-@row.PaymentId">Edit</button> }
+@if(open && row.Amount > 0 && Can("Delete")) { <button type="button" data-dialog-open="void-payment-@row.PaymentId">Void</button> }
+</div></td></tr> }
+@if(Model.Payments.Count == 0) { <tr><td colspan="6">No payments recorded.</td></tr> }
+</tbody></table></div></section>
+<section class="repair-section"><h2>Adjustments</h2><div class="repair-table-wrap"><table><thead><tr><th>Date (UTC)</th><th>Type</th><th>Amount</th><th>Reason</th><th>Actions</th></tr></thead><tbody>
+@foreach(var row in Model.Adjustments) { <tr><td>@row.PerformedUtc.ToString("g")</td><td>@row.AdjustmentType</td><td>@row.Amount?.ToString("N2")</td><td>@row.Reason</td><td><div class="repair-actions">
+@if(open && row.AdjustmentType != "Voided" && Can("Edit")) { <button type="button" data-dialog-open="adjustment-@row.InvoiceAdjustmentId">Edit</button> }
+@if(open && row.AdjustmentType != "Voided" && Can("Delete")) { <button type="button" data-dialog-open="void-adjustment-@row.InvoiceAdjustmentId">Void</button> }
+</div></td></tr> }
+@if(Model.Adjustments.Count == 0) { <tr><td colspan="5">No adjustments recorded.</td></tr> }
+</tbody></table></div></section>
+</div>
+@if(open) {
+    if(Can("Create") && Model.Balance > 0) { @await Html.PartialAsync("_PaymentEditor", new PaymentSaveForm { InvoiceId = Model.Invoice.InvoiceId, Amount = Model.Balance, PaidUtc = DateTime.UtcNow.Date }) }
+    if(Can("Edit")) { @await Html.PartialAsync("_AdjustmentEditor", new AdjustmentSaveForm { InvoiceId = Model.Invoice.InvoiceId }) }
+    if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("void-invoice", "Void Invoice", "VoidInvoice", Model.Invoice.InvoiceId)) }
+    foreach(var row in Model.Payments.Where(x => x.Amount > 0)) {
+        if(Can("Edit")) { @await Html.PartialAsync("_PaymentEditor", new PaymentSaveForm { InvoiceId = Model.Invoice.InvoiceId, PaymentId = row.PaymentId, Amount = row.Amount ?? 0, PaymentMethod = row.PaymentMethod ?? "Cash", ReferenceNumber = row.ReferenceNumber, PaidUtc = row.PaidUtc, Notes = row.Notes ?? "" }) }
+        if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"void-payment-{row.PaymentId}", "Void Payment", "VoidInvoicePayment", row.PaymentId)) }
+    }
+    foreach(var row in Model.Adjustments.Where(x => x.AdjustmentType != "Voided")) {
+        if(Can("Edit")) { @await Html.PartialAsync("_AdjustmentEditor", new AdjustmentSaveForm { InvoiceId = Model.Invoice.InvoiceId, InvoiceAdjustmentId = row.InvoiceAdjustmentId, AdjustmentType = row.AdjustmentType ?? "Credit", Amount = row.Amount ?? 0, Reason = row.Reason ?? "" }) }
+        if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"void-adjustment-{row.InvoiceAdjustmentId}", "Void Adjustment", "VoidInvoiceAdjustment", row.InvoiceAdjustmentId)) }
+    }
+}

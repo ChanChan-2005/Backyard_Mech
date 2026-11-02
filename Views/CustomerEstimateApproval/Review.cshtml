@@ -1,0 +1,31 @@
+@model Backyard_Mech.Models.CustomerApprovalViewModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = ViewData["PageTitle"] = "Review Repair Estimate";
+    ViewData["ActiveNav"] = "";
+}
+<link rel="stylesheet" href="~/css/owner/repair-workflow.css" asp-append-version="true" />
+<main class="repair-page customer-estimate-review">
+    <section class="repair-section">
+        <header><div><h2>Backyard Mech</h2><p>Estimate EST-@Model.EstimateNumber.ToString("0000") · Revision @Model.RevisionNumber</p></div></header>
+        <h2>Hi @Model.Customer, please review your estimate</h2>
+        <p>@Model.Vehicle</p>
+        @if (ViewBag.Error is string error) { <p class="repair-alert error" role="alert">@error</p> }
+        <form asp-action="Submit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Token" value="@Model.Token" />
+            <div class="repair-table-wrap"><table><thead><tr><th>Approve</th><th>Work / part</th><th>Type</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
+            @foreach (var line in Model.Lines) {
+                <tr><td><input type="checkbox" name="ApprovedLineIds" value="@line.EstimateRevisionLineItemId" aria-label="Approve @line.Description" /></td><td>@line.Description</td><td>@line.LineType</td><td>@line.Quantity</td><td>@line.UnitPrice?.ToString("C")</td><td>@line.LineTotal?.ToString("C")</td></tr>
+            }
+            </tbody></table></div>
+            <p class="repair-total">Estimate total: @Model.Total.ToString("C")</p>
+            <div class="repair-fields">
+                <label>Response<select name="Decision" required><option value="">Choose your response</option><option value="Approved">Approve all work</option><option value="Partially Approved">Approve selected items only</option><option value="Declined">Decline the estimate</option><option value="Changes Requested">Ask the shop to revise it</option></select></label>
+                <label>Note to the shop<textarea name="CustomerNote" maxlength="1000" placeholder="Required when asking for changes"></textarea></label>
+            </div>
+            <p>This link expires @Model.ExpiresUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt").</p>
+            <button class="primary" type="submit">Send response</button>
+        </form>
+    </section>
+</main>

@@ -576,6 +576,11 @@ namespace Backyard_Mech.Models
     public class AppointmentFormModel
     {
         public int AppointmentId { get; set; }
+        public string? Expected { get; set; }
+        public List<int> ServiceIds { get; set; } = new();
+        public int? PreferredEmployeeProfileId { get; set; }
+        [Range(0, int.MaxValue)] public int? Odometer { get; set; }
+        public bool IdentityVerified { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Please select a customer.")]
         public int CustomerId { get; set; }
@@ -592,7 +597,7 @@ namespace Backyard_Mech.Models
 
         [Required]
         [StringLength(100)]
-        public string AppointmentType { get; set; } = string.Empty;
+        public string AppointmentType { get; set; } = "Scheduled";
 
         [Required]
         [StringLength(50)]
@@ -610,10 +615,11 @@ namespace Backyard_Mech.Models
 
     public class CancelAppointmentFormModel
     {
+        [Required] public string Expected { get; set; } = "";
         [Range(1, int.MaxValue)]
         public int AppointmentId { get; set; }
 
-        [StringLength(500)]
+        [Required, StringLength(500)]
         public string? Reason { get; set; }
         public string ViewMode { get; set; } = "calendar";
     }
@@ -680,6 +686,10 @@ namespace Backyard_Mech.Models
         public string Mechanic { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string StatusTone { get; set; } = "pending";
+        public string InvoiceStatus { get; set; } = string.Empty;
+        public decimal InvoiceBalance { get; set; }
+        public DateTime? ReleasedUtc { get; set; }
+        public string? ReleasedByName { get; set; }
         public string Priority { get; set; } = "Normal";
         public string PriorityTone { get; set; } = "blue";
         public string ScheduledStart { get; set; } = string.Empty;
@@ -779,8 +789,15 @@ namespace Backyard_Mech.Models
         public string? Notes { get; set; }
     }
 
+    public class ReleaseWorkOrderFormModel
+    {
+        [Range(1, int.MaxValue)] public int WorkOrderId { get; set; }
+        public bool ConfirmHandover { get; set; }
+    }
+
     public class WorkOrderLaborEntryFormModel
     {
+        public int? ApprovedEstimateLineId { get; set; }
         public int WorkOrderId { get; set; }
 
         [Required]
@@ -895,6 +912,8 @@ namespace Backyard_Mech.Models
     public class ToolListItem
     {
         public int ToolId { get; set; }
+        public int? ActiveCheckoutId { get; set; }
+        public bool HasOpenMaintenance { get; set; }
         public int? ToolCategoryId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Serial { get; set; } = string.Empty;
@@ -917,6 +936,8 @@ namespace Backyard_Mech.Models
     {
         public IReadOnlyList<ToolListItem> Tools { get; set; } = Array.Empty<ToolListItem>();
         public IReadOnlyList<ProductListingOption> ToolCategoryOptions { get; set; } = Array.Empty<ProductListingOption>();
+        public IReadOnlyList<EmployeeProfile> Mechanics { get; set; } = Array.Empty<EmployeeProfile>();
+        public IReadOnlyList<WorkOrder> OpenWorkOrders { get; set; } = Array.Empty<WorkOrder>();
     }
 
     public class InvoiceListItem

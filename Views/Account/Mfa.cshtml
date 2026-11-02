@@ -1,0 +1,7 @@
+@model MfaForm
+@{ Layout = null; }
+<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Verify Sign-in</title><link rel="stylesheet" href="~/css/account/mfa.css" asp-append-version="true" /></head><body>
+<main><h1>@(Model.SetupKey is null ? "Verify Sign-in" : "Set Up Authenticator")</h1>
+@if(Model.SetupKey is not null) { <p>Add a time-based account in your authenticator app using this setup key.</p><code>@Model.SetupKey</code> }
+<form method="post" asp-action="Mfa"><div asp-validation-summary="All" role="alert"></div><label asp-for="Code">Authenticator or recovery code</label><input asp-for="Code" autocomplete="one-time-code" maxlength="64" required autofocus /><button type="submit">Verify</button></form>
+<a asp-action="Login">Back to sign in</a></main></body></html>

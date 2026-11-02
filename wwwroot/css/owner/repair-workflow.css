@@ -1,0 +1,39 @@
+.repair-page { display: grid; gap: 20px; color: #202b38; font: 14px/1.5 Arial, sans-serif; }
+.repair-page *, .repair-dialog * { box-sizing: border-box; letter-spacing: 0; }
+.repair-page [hidden], .repair-dialog [hidden] { display: none !important; }
+.repair-page h2, .repair-dialog h2 { margin: 0; font: 700 19px/1.35 Arial, sans-serif; }
+.repair-page h3, .repair-dialog h3 { font: 700 16px/1.4 Arial, sans-serif; margin: 16px 0 10px; }
+.repair-section { background: #fff; padding: 22px; border-bottom: 1px solid #dbe1e8; min-width: 0; }
+.repair-toolbar, .repair-section > header, .repair-dialog header, .repair-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.repair-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.repair-page button, .repair-page .repair-button, .repair-dialog button { border: 1px solid #c8d3df; border-radius: 4px; background: #fff; color: #243447; min-height: 38px; padding: 8px 14px; font: 600 14px/1.4 Arial, sans-serif; cursor: pointer; text-decoration: none; }
+.repair-page button.primary, .repair-page .repair-button.primary, .repair-dialog button.primary { background: #246ddd; color: white; border-color: #246ddd; }
+.repair-page button.danger, .repair-dialog button.danger { background: #b82935; color: white; border-color: #b82935; }
+.repair-page button:disabled, .repair-dialog button:disabled { opacity: .6; cursor: wait; }
+.repair-page label, .repair-dialog label { display: grid; gap: 6px; font-weight: 600; min-width: 0; }
+.repair-page input, .repair-page select, .repair-page textarea, .repair-dialog input, .repair-dialog select, .repair-dialog textarea { width: 100%; min-width: 0; padding: 9px 11px; min-height: 40px; border: 1px solid #bccbdc; border-radius: 4px; background: white; color: #202b38; font: 14px/1.4 Arial, sans-serif; }
+.repair-page :focus-visible, .repair-dialog :focus-visible { outline: 2px solid #246ddd; outline-offset: 2px; }
+.repair-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+.repair-wide { grid-column: 1 / -1; }
+.repair-table-wrap { overflow-x: auto; margin-top: 16px; }
+.repair-page table, .repair-dialog table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.repair-page th, .repair-page td, .repair-dialog th, .repair-dialog td { text-align: left; border-bottom: 1px solid #e2e8ef; padding: 12px 10px; vertical-align: top; }
+.repair-page th, .repair-dialog th { font-size: 12px; color: #53647a; background: #f5f7fa; }
+.repair-page a { color: #205cb9; }
+.repair-muted { color: #637184; font-size: 13px; }
+.repair-total { font-size: 22px; font-weight: 700; }
+.repair-status { display: inline-block; padding: 4px 9px; border-radius: 4px; background: #edf3fc; color: #225bac; font-size: 13px; font-weight: 600; }
+.repair-dialog { border: 1px solid #c8d3df; border-radius: 6px; padding: 24px; width: min(940px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; color: #202b38; font: 14px/1.5 Arial, sans-serif; }
+.repair-dialog-small { width: min(520px, calc(100vw - 32px)); }
+.repair-dialog::backdrop { background: rgba(15, 23, 35, .5); }
+.repair-dialog header { margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #e2e8ef; }
+.repair-dialog header button { padding: 2px; width: 36px; font-size: 23px; flex: 0 0 36px; }
+.repair-dialog footer { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e2e8ef; justify-content: flex-end; }
+.estimate-edit-row { display: grid; grid-template-columns: 100px 1fr 110px 110px 38px; gap: 10px; align-items: end; padding: 14px 0; border-bottom: 1px solid #e2e8ef; }
+.estimate-edit-row .line-description { grid-column: 1 / -1; }
+.repair-check { display: grid; grid-template-columns: 1fr 130px; gap: 12px; padding: 16px 0; border-bottom: 1px solid #e2e8ef; }
+.repair-check textarea { grid-column: 1 / -1; }
+.repair-message { padding: 12px 18px; background: #effaf4; border: 1px solid #acd2b9; color: #245d3b; margin-bottom: 16px; }
+.repair-message.error { background: #fff1f1; border-color: #e9b2b2; color: #9a2330; }
+@media (max-width: 650px) { .repair-fields { grid-template-columns: 1fr; } .estimate-edit-row { grid-template-columns: 1fr 1fr; } .estimate-edit-row .line-description { grid-column: 1 / -1; } .repair-section { padding: 14px; } .repair-dialog { padding: 16px; } }
+@media print { .app-sidebar, .app-topbar, .repair-actions, .repair-toolbar, dialog, .repair-message { display: none !important; } .app-main { margin: 0 !important; } .repair-section { break-inside: avoid; } }

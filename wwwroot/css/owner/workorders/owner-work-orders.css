@@ -673,7 +673,7 @@
 
 .wo-stepper {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   gap: 16px;
   margin-top: 22px;
@@ -873,6 +873,11 @@
 
   .wo-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wo-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   .wo-modal {

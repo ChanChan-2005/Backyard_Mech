@@ -1,0 +1,62 @@
+@model VehicleHistoryPage
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = ViewData["PageTitle"] = "Vehicle Records";
+    ViewData["ActiveNav"] = "Vehicle Records";
+    var v = Model.Selected;
+}
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
+<section class="master-data intake-page">
+    <header class="master-toolbar"><h2>Vehicles</h2>
+        @if(Model.CanCreate){<button class="master-primary" type="button" data-intake-open="register-vehicle">+ Add Vehicle</button>}
+    </header>
+    <label>Find a vehicle <input type="search" data-intake-search placeholder="Plate, VIN, owner or model" /></label>
+    <div class="master-table-wrap"><table><thead><tr><th>Vehicle</th><th>Plate / VIN</th><th>Current owner</th><th>Odometer</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    @foreach(var row in Model.Vehicles){<tr data-intake-row><td>@row.Year @row.Make @row.Model</td><td>@row.LicensePlate<br />@row.VIN</td><td>@row.OwnerFullName</td><td>@row.Odometer?.ToString("N0")</td><td>@(row.IsArchived ? "Archived" : "Active")</td><td><a asp-action="VehicleHistory" asp-route-id="@row.VehicleId">View history</a></td></tr>}
+    </tbody></table></div>
+    @if(Model.Vehicles.Count == 0){<p>No vehicles found.</p>}
+    @if(v is not null){
+        <header class="master-toolbar"><h2>@v.LicensePlate: @v.Year @v.Make @v.Model</h2>
+        @if(Model.CanEdit && !v.IsArchived){<div class="master-actions"><button type="button" data-intake-open="transfer-owner">Transfer Ownership</button><button type="button" data-intake-open="record-mileage">Record Odometer</button></div>}
+        </header>
+        <h3>Ownership History</h3>
+        <div class="master-table-wrap"><table><thead><tr><th>Owner</th><th>From (UTC)</th><th>Until (UTC)</th></tr></thead><tbody>
+        @foreach(var o in Model.Owners){<tr><td>@o.OwnerFirstName @o.OwnerMiddleName @o.OwnerLastName</td><td>@o.OwnershipStartUtc?.ToString("yyyy-MM-dd HH:mm")</td><td>@(o.OwnershipEndUtc?.ToString("yyyy-MM-dd HH:mm") ?? "Current owner")</td></tr>}
+        </tbody></table></div>
+        <h3>Odometer History</h3>
+        <div class="master-table-wrap"><table><thead><tr><th>Recorded (UTC)</th><th>Odometer</th><th>Recorded by</th><th>Visit</th></tr></thead><tbody>
+        @foreach(var r in Model.Readings){<tr><td>@r.RecordedUtc.ToString("yyyy-MM-dd HH:mm")</td><td>@r.Odometer?.ToString("N0")</td><td>@r.RecordedByName</td><td>@(r.AppointmentId.HasValue ? $"APT-{r.AppointmentId}" : "Vehicle record")</td></tr>}
+        </tbody></table></div>
+        @if(Model.Readings.Count == 0){<p>No recorded odometer history.</p>}
+    }
+</section>
+@if(Model.CanCreate){
+<dialog id="register-vehicle" class="master-dialog" aria-labelledby="register-title"><form asp-action="AddVehicle" method="post">
+    <header class="master-toolbar"><h2 id="register-title">Add Vehicle</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <div class="master-fields">
+        <label class="master-wide">Owner<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select></label>
+        <label>Make<input name="Make" required maxlength="100" /></label><label>Model<input name="Model" required maxlength="100" /></label>
+        <label>Model year<input type="number" name="Year" required min="1886" max="@(DateTime.UtcNow.Year+1)" /></label><label>Color<input name="Color" maxlength="50" /></label>
+        <label>License plate<input name="LicensePlate" required maxlength="50" /></label><label>VIN<input name="VIN" required maxlength="50" /></label>
+        <label>Odometer<input type="number" name="Odometer" min="0" max="2147483647" /></label>
+    </div><footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Save Vehicle</button></footer>
+</form></dialog>
+}
+@if(v is not null && Model.CanEdit && !v.IsArchived){
+<dialog id="transfer-owner" class="master-dialog" aria-labelledby="transfer-title"><form asp-action="TransferVehicleOwnership" method="post">
+    <header class="master-toolbar"><h2 id="transfer-title">Transfer Ownership</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
+    <div class="master-fields"><label class="master-wide">New owner<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select></label>
+    <label class="master-wide">Reason / verification reference<textarea name="Reason" required maxlength="500"></textarea></label>
+    <label class="intake-check master-wide"><input type="checkbox" name="AuthorityVerified" value="true" required /> Ownership documents and authority to transfer verified</label></div>
+    <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Transfer Ownership</button></footer>
+</form></dialog>
+<dialog id="record-mileage" class="master-dialog master-confirm" aria-labelledby="mileage-title"><form asp-action="RecordVehicleOdometer" method="post">
+    <header class="master-toolbar"><h2 id="mileage-title">Record Odometer</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
+    <label>Odometer reading<input type="number" name="Odometer" min="@(v.Odometer ?? 0)" max="2147483647" required /></label>
+    <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Save Reading</button></footer>
+</form></dialog>
+}
+<script src="~/js/owner-vehicle-intake.js" asp-append-version="true"></script>

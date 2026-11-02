@@ -82,15 +82,23 @@
                                     data-tool-next-calibration="@tool.NextCalibrationDueDate">Edit</button>
                             @if (tool.Action == "Checkout")
                             {
-                                <a class="tools-small-button" href="/Owner/CheckoutTool/@toolSlug">Checkout</a>
+                                <button class="tools-small-button" type="button" data-tools-modal="checkout-tool" data-tool-id="@tool.ToolId">Checkout</button>
                             }
                             else if (tool.Action == "Return")
                             {
-                                <a class="tools-small-button" href="/Owner/ReturnEquipment/@toolSlug">Return</a>
+                                <button class="tools-small-button" type="button" data-tools-modal="return-tool" data-tool-id="@tool.ToolId" data-checkout-id="@tool.ActiveCheckoutId">Return</button>
+                            }
+                            else if (tool.Action == "Complete Maintenance")
+                            {
+                                <button class="tools-small-button" type="button" data-tools-modal="complete-maintenance" data-tool-id="@tool.ToolId">Complete Maintenance</button>
                             }
                             else
                             {
                                 <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">@tool.Action</a>
+                            }
+                            @if (tool.Status is "Available" or "Calibration Overdue")
+                            {
+                                <button class="tools-small-button" type="button" data-tools-modal="start-maintenance" data-tool-id="@tool.ToolId">Maintenance</button>
                             }
                             <form asp-controller="Owner" asp-action="ArchiveTool" method="post">
                                 @Html.AntiForgeryToken()
@@ -125,7 +133,9 @@
 
 @await Html.PartialAsync("_AddToolModal", pageModel)
 @await Html.PartialAsync("_EditToolModal", pageModel)
+@await Html.PartialAsync("_ToolTransactionsModals", pageModel)
 
 @section Scripts {
     @await Html.PartialAsync("_ToolModalScripts")
+    <script src="~/js/owner-tool-transactions.js" asp-append-version="true"></script>
 }

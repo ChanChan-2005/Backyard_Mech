@@ -10,21 +10,17 @@ namespace Backyard_Mech.Services
 
         public static string Hash(string password)
         {
-            var salt = RandomNumberGenerator.GetBytes(SaltSize);
-            var key = Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                salt,
-                Iterations,
-                HashAlgorithmName.SHA256,
-                KeySize);
-
-            return $"{Iterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(key)}";
+            return new Microsoft.AspNetCore.Identity.PasswordHasher<object>().HashPassword(new object(), password);
         }
 
         public static bool Verify(string password, string passwordHash)
         {
+            try
+            {
+            if (!passwordHash.Contains('.')) return new Microsoft.AspNetCore.Identity.PasswordHasher<object>()
+                .VerifyHashedPassword(new object(), passwordHash, password) != Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed;
             var parts = passwordHash.Split('.', 3);
-            if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations))
+            if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations) || iterations is < 10000 or > 2000000)
             {
                 return false;
             }
@@ -39,6 +35,8 @@ namespace Backyard_Mech.Services
                 expectedKey.Length);
 
             return CryptographicOperations.FixedTimeEquals(actualKey, expectedKey);
+            }
+            catch (Exception e) when (e is FormatException or ArgumentException or CryptographicException) { return false; }
         }
     }
 }

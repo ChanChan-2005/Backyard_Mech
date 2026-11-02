@@ -1,4 +1,5 @@
 @model WorkOrderDetailsViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = $"{Model.Id} Details";
@@ -6,9 +7,14 @@
     ViewData["PageSubtitle"] = "WORK ORDERS > MANAGE";
     ViewData["ActiveNav"] = "Work Order and Assignment";
     ViewData["ShellClass"] = "work-orders-shell";
+    var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string module, string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, action));
+    var order = (WorkOrder)ViewData["WorkOrderEntity"]!;
+    var editable = order.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC");
 }
 
 @section TopbarActions {
+    @if(editable && Can("Work Orders", "Edit")) {
     <form asp-controller="Owner" asp-action="TransitionWorkOrderStatus" method="post">
         @Html.AntiForgeryToken()
         <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
@@ -21,14 +27,21 @@
         <input type="hidden" name="Transition" value="qc" />
         <button class="wo-button-green" type="submit">Send to QC</button>
     </form>
+    }
 }
 
 <section class="wo-page">
+    <div class="repair-page"><nav class="repair-toolbar"><a href="/Owner/WorkOrders">Back to Work Orders</a><div class="repair-actions">
+        @if(editable && Can("Work Orders", "Edit")) { <button type="button" data-dialog-open="edit-workorder">Edit Schedule &amp; Assignment</button> }
+        @if(editable && Can("Work Orders", "Delete")) { <button type="button" data-dialog-open="cancel-workorder">Cancel Work Order</button> }
+        @if((order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Pending QC") && Can("Work Orders", "Edit")) { <button type="button" data-dialog-open="reopen-workorder">Reopen Repair</button> }
+        @if(Can("Inspections", "View")) { <a class="repair-button" href="/Owner/QualityControl">Quality Control</a> }
+    </div></nav></div>
     <section class="wo-detail-hero">
         <span class="avatar">@Model.Initials</span>
         <div>
             <h2>@Model.Customer - @Model.Vehicle</h2>
-            <p>Linked Estimate: <a class="wo-link" href="#">@Model.EstimateId</a> | Expected Completion: @Model.ScheduledEnd</p>
+            <p>Linked Estimate: <a class="wo-link" href="/Owner/EstimateDetails/@order.EstimateId">@Model.EstimateId</a> | Expected Completion: @Model.ScheduledEnd</p>
         </div>
         <div class="wo-panel-actions">
             <span class="wo-pill @Model.StatusTone">@Model.Status</span>
@@ -41,7 +54,7 @@
             <section class="wo-panel">
                 <header class="wo-panel-header">
                     <h2>Labor &amp; Tasks Logged</h2>
-                    <a class="wo-link" asp-controller="Owner" asp-action="WorkOrderLaborTracking" asp-route-id="@Model.Id">+ Add Labor</a>
+                    @if(Can("Labour", "View")) { <a class="wo-link" asp-controller="Owner" asp-action="LabourTimeTracking" asp-route-workOrderId="@Model.WorkOrderId">Manage Labour</a> }
                 </header>
                 <table class="wo-table">
                     <thead>
@@ -76,7 +89,7 @@
             <section class="wo-panel">
                 <header class="wo-panel-header">
                     <h2>Parts Consumption</h2>
-                    <a class="wo-link" asp-controller="Owner" asp-action="PartsManagement">+ Requisition Part</a>
+                    @if(Can("Inventory", "View")) { <a class="wo-link" asp-controller="Owner" asp-action="SparesAllocation" asp-route-workOrderId="@Model.WorkOrderId">Manage Parts</a> }
                 </header>
                 <table class="wo-table">
                     <thead>
@@ -147,3 +160,17 @@
         </aside>
     </div>
 </section>
+@if(editable && Can("Work Orders", "Edit")) {
+<dialog class="repair-dialog" id="edit-workorder" aria-labelledby="edit-workorder-title"><form method="post" asp-action="EditWorkOrder">
+<header><h2 id="edit-workorder-title">Edit Work Order</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+<input type="hidden" name="WorkOrderId" value="@order.WorkOrderId" /><input type="hidden" name="EstimateId" value="@order.EstimateId" />
+<div class="repair-fields">
+<label>Bay<select name="BayId" required>@foreach(var bay in (IReadOnlyList<ProductListingOption>)ViewData["BayOptions"]!) { <option value="@bay.Id" selected="@(bay.Id == order.BayId)">@bay.Label</option> }</select></label>
+<label>Lead mechanic<select name="EmployeeProfileId" required><option value="">Select mechanic</option>@foreach(var employee in (IReadOnlyList<ProductListingOption>)ViewData["EmployeeOptions"]!) { <option value="@employee.Id" selected="@(employee.Label == Model.Mechanic)">@employee.Label</option> }</select></label>
+<label>Start<input name="ScheduledStart" type="datetime-local" required value="@order.ScheduledStart?.ToString("yyyy-MM-ddTHH:mm")" /></label>
+<label>Completion<input name="ScheduledEnd" type="datetime-local" required value="@order.ScheduledEnd?.ToString("yyyy-MM-ddTHH:mm")" /></label>
+<label class="repair-wide">Notes<textarea name="Notes" maxlength="2000"></textarea></label></div>
+<footer><button type="button" data-dialog-close>Cancel</button><button type="submit" class="primary">Save Changes</button></footer></form></dialog>
+}
+@if(editable && Can("Work Orders", "Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("cancel-workorder", "Cancel Work Order", "CancelWorkOrder", order.WorkOrderId)) }
+@if(Can("Work Orders", "Edit")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("reopen-workorder", "Reopen Work Order", "ReopenWorkOrder", order.WorkOrderId)) }

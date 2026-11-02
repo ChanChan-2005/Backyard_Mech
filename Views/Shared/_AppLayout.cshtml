@@ -37,11 +37,14 @@
         new { Icon = "dashboard", Label = "Dashboard", Href = "/Owner/Dashboard", Module = "Dashboard", AlternateModule = "" },
         new { Icon = "queue", Label = "Service Queue", Href = "/Owner/ServiceQueue", Module = "Service Queue", AlternateModule = "" },
         new { Icon = "vehicle", Label = "Customer and Vehicle", Href = "/Owner/CustomerVehicle", Module = "Customers", AlternateModule = "" },
+        new { Icon = "vehicle", Label = "Vehicle Records", Href = "/Owner/VehicleHistory", Module = "Vehicles", AlternateModule = "" },
         new { Icon = "calendar", Label = "Appointments and Check-In", Href = "/Owner/Appointments", Module = "Appointments", AlternateModule = "" },
         new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals", Module = "Estimates", AlternateModule = "" },
         new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders", Module = "Work Orders", AlternateModule = "" },
         new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement", Module = "Bays", AlternateModule = "" },
         new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement", Module = "Inventory", AlternateModule = "" },
+        new { Icon = "users", Label = "Suppliers", Href = "/Owner/Suppliers", Module = "Suppliers", AlternateModule = "" },
+        new { Icon = "estimate", Label = "Service Catalog", Href = "/Owner/ServiceCatalog", Module = "Services", AlternateModule = "" },
         new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking", Module = "Labour", AlternateModule = "" },
         new { Icon = "quality", Label = "Quality Control", Href = "/Owner/QualityControl", Module = "Inspections", AlternateModule = "" },
         new { Icon = "tools", Label = "Tools Tracking", Href = "/Owner/ToolTracking", Module = "Tools", AlternateModule = "" },
@@ -51,6 +54,7 @@
         new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports", Module = "Reports", AlternateModule = "" },
         new { Icon = "users", Label = "User Management", Href = "/Owner/Employees", Module = "Employees", AlternateModule = "" },
         new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings", Module = "Settings", AlternateModule = "" },
+        new { Icon = "users", Label = "Account Access", Href = "/Owner/StaffAccounts", Module = "User Access", AlternateModule = "" },
         new { Icon = "logout", Label = "Logout", Href = "/Account/Logout", Module = "", AlternateModule = "" }
     };
 
@@ -89,6 +93,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/repair-workflow.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-layout.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/dashboard/owner-dashboard.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/customers/owner-customer-vehicle.css" asp-append-version="true" />
@@ -171,6 +176,10 @@
             </header>
 
             <section class="dashboard-content">
+                @if (TempData["OwnerMessage"] is string workflowMessage)
+                {
+                    <div class="repair-message @TempData["OwnerMessageTone"]" role="status">@workflowMessage</div>
+                }
                 @RenderBody()
             </section>
         </main>
@@ -179,6 +188,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/owner-repair-workflow.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

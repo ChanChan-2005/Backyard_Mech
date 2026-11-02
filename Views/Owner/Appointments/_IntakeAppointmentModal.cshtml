@@ -1,0 +1,26 @@
+@model IntakeEditor
+@{ var f = Model.Form; var page = Model.Page; }
+<dialog id="@Model.DialogId" class="master-dialog" aria-labelledby="@Model.DialogId-title"><form asp-action="@(f.AppointmentId == 0 ? "CreateAppointment" : "EditAppointment")" method="post" data-appointment-form>
+    <header class="master-toolbar"><h2 id="@Model.DialogId-title">@Model.Title</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <input type="hidden" name="AppointmentId" value="@f.AppointmentId" /><input type="hidden" name="Expected" value="@f.Expected" />
+    <input type="hidden" name="ViewMode" value="@(page.View)" /><input type="hidden" name="IsWalkIn" value="@f.IsWalkIn.ToString().ToLowerInvariant()" />
+    <div class="master-fields">
+        <label>Customer<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in page.Customers){<option value="@c.CustomerId" selected="@(c.CustomerId == f.CustomerId)">@c.FirstName @c.LastName (@c.Phone)</option>}</select></label>
+        <label>Vehicle<select name="VehicleId" required><option value="">Select vehicle</option>@foreach(var v in page.Vehicles){<option value="@v.VehicleId" data-customer="@v.CustomerId" selected="@(v.VehicleId == f.VehicleId)">@v.Label</option>}</select></label>
+        @if(!f.IsWalkIn){
+            <label class="master-wide">Appointment date<input name="ScheduledDate" type="date" value="@f.ScheduledDate.ToString("yyyy-MM-dd")" required /></label>
+            <label>Start time<input name="StartTime" type="time" value="@f.StartTime.ToString(@"hh\:mm")" required /></label>
+            <label>End time<input name="EndTime" type="time" value="@f.EndTime.ToString(@"hh\:mm")" required /></label>
+        }
+        <fieldset class="master-wide intake-services"><legend>Requested Services</legend>
+        @foreach(var s in page.Services){<label class="intake-check"><input type="checkbox" name="ServiceIds" value="@s.ServiceId" checked="@f.ServiceIds.Contains(s.ServiceId)" />@s.ServiceName</label>}
+        @if(page.Services.Count == 0){<p>No active services in the catalog.</p>}
+        </fieldset>
+        <label>Preferred mechanic<select name="PreferredEmployeeProfileId"><option value="">No preference</option>@foreach(var e in page.Employees){<option value="@e.EmployeeProfileId" selected="@(e.EmployeeProfileId == f.PreferredEmployeeProfileId)">@e.FirstName @e.LastName</option>}</select></label>
+        <label>Assigned mechanic<select name="AssignedEmployeeProfileId"><option value="">Not assigned</option>@foreach(var e in page.Employees){<option value="@e.EmployeeProfileId" selected="@(e.EmployeeProfileId == f.AssignedEmployeeProfileId)">@e.FirstName @e.LastName</option>}</select></label>
+        <label>Service bay<select name="BayId"><option value="">Not assigned</option>@foreach(var b in page.Bays){<option value="@b.BayId" selected="@(b.BayId == f.BayId)">@b.BayNumber - @b.Name</option>}</select></label>
+        @if(f.IsWalkIn){<label>Odometer reading<input type="number" name="Odometer" required min="0" max="2147483647" /></label><label class="intake-check master-wide"><input type="checkbox" name="IdentityVerified" value="true" required /> Customer identity and vehicle verified</label>}
+        <label class="master-wide">Customer concerns / notes<textarea name="Notes" maxlength="2000">@f.Notes</textarea></label>
+    </div>
+    <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">@(f.IsWalkIn ? "Check In Walk-in" : "Save Appointment")</button></footer>
+</form></dialog>

@@ -1,0 +1,5 @@
+@model MfaForm
+@{ Layout = null; }
+<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Recovery Code</title><link rel="stylesheet" href="~/css/account/mfa.css" asp-append-version="true" /></head><body><main>
+<h1>Keep Your Recovery Code</h1><p>Store this code privately. It can be used once if your authenticator is unavailable. It is only displayed now.</p><code>@Model.RecoveryCode</code><a asp-action="Home">Continue to workshop</a>
+</main></body></html>

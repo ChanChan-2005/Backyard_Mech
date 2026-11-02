@@ -6,16 +6,19 @@ namespace Backyard_Mech.Services
     public sealed class OwnerPermissionFilter : IAsyncActionFilter
     {
         private readonly PermissionService _permissionService;
+        private readonly AccountSecurityService _security;
 
-        public OwnerPermissionFilter(PermissionService permissionService)
+        public OwnerPermissionFilter(PermissionService permissionService, AccountSecurityService security)
         {
             _permissionService = permissionService;
+            _security = security;
         }
 
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            var role = context.HttpContext.Session.GetString("UserRole");
-            if (string.IsNullOrWhiteSpace(role))
+            var user = await _security.ValidateSession(context.HttpContext);
+            var role = user?.Role;
+            if (user is null)
             {
                 context.Result = new RedirectToActionResult("Login", "Account", null);
                 return;
@@ -47,28 +50,50 @@ namespace Backyard_Mech.Services
             return actionName switch
             {
                 "Dashboard" => ("Dashboard", "View"),
+                "StaffAccounts" => ("User Access", "View"),
+                "CreateStaffAccount" => ("User Access", "Create"),
+                "SaveUserAccess" => ("User Access", "Edit"),
+                "StaffAvailability" => ("Employees", "View"),
+                "CreateAvailabilityException" or "UpdateAvailabilityException" or "DeleteAvailabilityException" => ("Employees", "Edit"),
+                "Suppliers" => ("Suppliers", "View"),
+                "CreateSupplier" => ("Suppliers", "Create"),
+                "UpdateSupplier" or "SetSupplierState" => ("Suppliers", "Edit"),
+                "ServiceCatalog" => ("Services", "View"),
+                "CreateService" => ("Services", "Create"),
+                "UpdateService" or "SetServiceState" => ("Services", "Edit"),
+                "SettingsCategories" => ("Settings", "View"),
+                "CreateCategory" or "CreateTax" => ("Settings", "Create"),
+                "UpdateCategory" or "SetCategoryState" or "UpdateTax" or "SetTaxState" => ("Settings", "Edit"),
 
                 "CustomerVehicle" or "CustomerDetails" or "CustomerVehicles" or "CustomerServiceHistory" => ("Customers", "View"),
                 "AddCustomer" => ("Customers", "Create"),
                 "EditCustomer" => ("Customers", "Edit"),
                 "AddVehicle" => ("Vehicles", "Create"),
+                "VehicleHistory" => ("Vehicles", "View"),
+                "TransferVehicleOwnership" or "RecordVehicleOdometer" => ("Vehicles", "Edit"),
 
                 "ServiceQueue" or "ServiceQueueDetails" => ("Service Queue", "View"),
                 "AssignQueueBay" => ("Service Queue", "Edit"),
 
                 "Appointments" => ("Appointments", "View"),
                 "CreateAppointment" => ("Appointments", "Create"),
-                "EditAppointment" => ("Appointments", "Edit"),
+                "EditAppointment" or "CheckInAppointment" => ("Appointments", "Edit"),
                 "CancelAppointment" => ("Appointments", "Delete"),
 
                 "EstimateApprovals" or "EstimateDetails" => ("Estimates", "View"),
-                "EditEstimate" => ("Estimates", "Edit"),
+                "EditEstimate" or "UpdateEstimate" or "CreateCustomerApprovalLink" => ("Estimates", "Edit"),
+                "CreateEstimate" => ("Estimates", "Create"),
+                "RecordEstimateDecision" => ("Estimates", "Approve"),
+                "CancelEstimate" => ("Estimates", "Delete"),
 
-                "WorkOrders" or "WorkOrderDetails" or "WorkOrderLaborTracking" or "WorkOrderStatus" or "BayDispatchMatrix" or "StaffDispatchMatrix" => ("Work Orders", "View"),
-                "CreateWorkOrder" => ("Work Orders", "Create"),
+                "WorkOrders" or "WorkOrderDetails" or "WorkOrderStatus" or "BayDispatchMatrix" or "StaffDispatchMatrix" => ("Work Orders", "View"),
+                "CreateWorkOrder" or "GenerateWorkOrder" => ("Work Orders", "Create"),
+                "EditWorkOrder" or "ReopenWorkOrder" => ("Work Orders", "Edit"),
+                "CancelWorkOrder" => ("Work Orders", "Delete"),
                 "DispatchWorkOrderBay" or "DispatchWorkOrderStaff" => ("Work Orders", "Approve"),
+                "ReleaseWorkOrder" => ("Work Orders", "Approve"),
                 "TransitionWorkOrderStatus" => ("Work Orders", "Edit"),
-                "AddWorkOrderLaborEntry" => ("Work Orders", "Create"),
+                "AddWorkOrderLaborEntry" => ("Labour", "Create"),
 
                 "BayManagement" or "BayDetails" => ("Bays", "View"),
                 "AddBay" => ("Bays", "Create"),
@@ -78,20 +103,32 @@ namespace Backyard_Mech.Services
                 "PartEntry" or "AddPart" or "AddProductListing" => ("Inventory", "Create"),
                 "EditPart" or "EditProductListing" => ("Inventory", "Edit"),
                 "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Inventory", "Delete"),
+                "AddStockMovement" => ("Inventory", "Create"),
+                "EditStockMovement" => ("Inventory", "Edit"),
+                "ReverseStockMovement" => ("Inventory", "Delete"),
 
-                "LabourTimeTracking" or "ServiceTimer" or "LabourHistory" => ("Labour", "View"),
+                "LabourTimeTracking" or "ServiceTimer" or "LabourHistory" or "WorkOrderLaborTracking" => ("Labour", "View"),
+                "AddLabour" or "StartLabourTimer" => ("Labour", "Create"),
+                "EditLabour" or "ChangeLabourTimer" => ("Labour", "Edit"),
+                "DeleteLabour" => ("Labour", "Delete"),
 
                 "QualityControl" or "InspectionResult" or "QCFailed" or "QCPassed" => ("Inspections", "View"),
-                "ExecuteInspection" => ("Inspections", "Create"),
+                "ExecuteInspection" or "SaveInitialInspection" => ("Inspections", "Create"),
+                "InspectionPhoto" => ("Inspections", "View"),
+                "SaveQualityInspection" => ("Inspections", "Approve"),
+                "VoidQualityInspection" => ("Inspections", "Delete"),
 
                 "ToolTracking" or "ToolProfile" or "ToolAuditRecords" => ("Tools", "View"),
                 "AddTool" or "CheckoutTool" => ("Tools", "Create"),
-                "EditTool" or "ReturnEquipment" => ("Tools", "Edit"),
+                "EditTool" or "ReturnEquipment" or "StartToolMaintenance" or "CompleteToolMaintenance" => ("Tools", "Edit"),
                 "ArchiveTool" or "SoftDeleteTool" => ("Tools", "Delete"),
 
                 "InvoiceRegistry" or "InvoiceDetails" => ("Invoices", "View"),
-                "GenerateInvoice" or "RecordPayment" or "IssueCreditAdjustment" => ("Invoices", "Create"),
-                "ApplyInvoiceAdjustment" => ("Invoices", "Edit"),
+                "GenerateInvoice" or "RecordPayment" => ("Invoices", "Create"),
+                "ApplyInvoiceAdjustment" or "IssueCreditAdjustment" => ("Invoices", "Edit"),
+                "IssueInvoice" or "AddInvoicePayment" => ("Invoices", "Create"),
+                "EditInvoicePayment" or "AddInvoiceAdjustment" or "EditInvoiceAdjustment" => ("Invoices", "Edit"),
+                "VoidInvoice" or "VoidInvoicePayment" or "VoidInvoiceAdjustment" => ("Invoices", "Delete"),
 
                 "ArchiveRecords" or "RecordsDisposition" or "ViewGovernanceRecord" => ("Records", "View"),
                 "SaveRecordsDispositionPolicy" or "RestoreArchivedRecord" or "RestoreDispositionRecord" => ("Records", "Edit"),
@@ -116,18 +153,21 @@ namespace Backyard_Mech.Services
         private static readonly HashSet<string> SupportedPermissionCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "dashboard.view",
+            "useraccess.view", "useraccess.create", "useraccess.edit",
+            "suppliers.view", "suppliers.create", "suppliers.edit",
+            "services.view", "services.create", "services.edit",
             "customers.view", "customers.create", "customers.edit",
-            "vehicles.create",
+            "vehicles.view", "vehicles.create", "vehicles.edit",
             "appointments.view", "appointments.create", "appointments.edit", "appointments.delete",
             "servicequeue.view", "servicequeue.edit",
-            "estimates.view", "estimates.edit",
-            "workorders.view", "workorders.create", "workorders.edit", "workorders.approve",
+            "estimates.view", "estimates.create", "estimates.edit", "estimates.delete", "estimates.approve",
+            "workorders.view", "workorders.create", "workorders.edit", "workorders.delete", "workorders.approve",
             "bays.view", "bays.create", "bays.edit",
             "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
-            "labour.view",
-            "inspections.view", "inspections.create",
+            "labour.view", "labour.create", "labour.edit", "labour.delete",
+            "inspections.view", "inspections.create", "inspections.approve", "inspections.delete",
             "tools.view", "tools.create", "tools.edit", "tools.delete",
-            "invoices.view", "invoices.create", "invoices.edit",
+            "invoices.view", "invoices.create", "invoices.edit", "invoices.delete",
             "records.view", "records.edit", "records.delete",
             "employees.view", "employees.create", "employees.edit", "employees.delete",
             "reports.view",

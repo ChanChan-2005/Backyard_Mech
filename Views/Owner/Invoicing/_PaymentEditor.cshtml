@@ -1,0 +1,12 @@
+@model PaymentSaveForm
+@{ var edit = Model.PaymentId > 0; var dialog = edit ? $"payment-{Model.PaymentId}" : "payment-new"; }
+<dialog class="repair-dialog repair-dialog-small" id="@dialog" aria-labelledby="@(dialog)-title"><form method="post" asp-action="@(edit ? "EditInvoicePayment" : "AddInvoicePayment")">
+<header><h2 id="@(dialog)-title">@(edit ? "Edit Payment" : "Record Payment")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+<input type="hidden" name="InvoiceId" value="@Model.InvoiceId" /><input type="hidden" name="PaymentId" value="@Model.PaymentId" /><input type="hidden" name="SubmissionToken" value="@Model.SubmissionToken" />
+<div class="repair-fields"><label>Amount<input type="number" name="Amount" min=".01" max="100000000" step=".01" value="@Model.Amount" required /></label>
+<label>Method<select name="PaymentMethod">@foreach(var method in new[] { "Cash", "Card", "Check", "Bank Transfer" }) { <option selected="@(method == Model.PaymentMethod)">@method</option> }</select></label>
+<label>Payment date<input type="date" name="PaidUtc" required value="@Model.PaidUtc?.ToString("yyyy-MM-dd")" /></label>
+<label>Reference number<input name="ReferenceNumber" maxlength="160" value="@Model.ReferenceNumber" /></label>
+<label class="repair-wide">Notes / reason<textarea name="Notes" maxlength="1000" required>@Model.Notes</textarea></label></div>
+<footer><button type="button" data-dialog-close>Cancel</button><button type="submit" class="primary">Save Payment</button></footer>
+</form></dialog>

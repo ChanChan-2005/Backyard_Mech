@@ -2,6 +2,8 @@ using Backyard_Mech.Data;
 using Backyard_Mech.Services;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,9 +43,24 @@ builder.Services.AddControllersWithViews()
         }
     });
 builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession();
+builder.Services.AddSession(options => {
+    options.IdleTimeout = TimeSpan.FromMinutes(20);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+});
+builder.Services.AddScoped<AccountSecurityService>();
+builder.Services.AddDataProtection();
+builder.Services.AddRateLimiter(options => {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions {
+            PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+        }));
+});
 builder.Services.AddScoped<RecordsDispositionService>();
 builder.Services.AddScoped<PermissionService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<OwnerPermissionFilter>();
 builder.Services.AddSingleton<ReportExportService>();
 builder.Services.AddHostedService<RecordsDispositionCleanupService>();
@@ -70,6 +87,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseSession();
 app.UseAuthorization();

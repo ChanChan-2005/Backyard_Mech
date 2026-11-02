@@ -69,6 +69,7 @@ namespace Backyard_Mech.Models
 
     public class ServiceQueueDetailsViewModel
     {
+        public string CheckedIn { get; set; } = "Not checked in";
         public int AppointmentId { get; set; }
         public string Id { get; set; } = string.Empty;
         public string Customer { get; set; } = string.Empty;

@@ -1,4 +1,5 @@
 @model IReadOnlyList<EstimateListItem>
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "All Estimates - Approval Overview";
@@ -12,20 +13,21 @@
 
 <section class="estimates-page">
     <div class="estimate-top-actions">
-        <button class="primary-estimate-button" type="button" data-estimate-modal="new-estimate">New Estimate</button>
+        @if (await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Estimates", "Create")) {
+            <button class="primary-estimate-button" type="button" data-dialog-open="estimate-editor">New Estimate</button>
+        }
     </div>
 
     <div class="estimate-filter-bar">
         <label class="estimate-search-box">
             <span>Q</span>
-            <input type="search" placeholder="Search client or car..." />
+            <input type="search" placeholder="Search client, vehicle or status..." data-table-search="estimates-table" />
         </label>
-        <button type="button">Approval Status: All Statuses V</button>
     </div>
 
     <section class="estimate-panel">
         <h2>Estimates Index</h2>
-        <table class="estimate-table">
+        <table class="estimate-table" id="estimates-table">
             <thead>
                 <tr>
                     <th>Estimate #</th>
@@ -55,19 +57,10 @@
 
         <footer class="estimate-table-footer">
             <span>Showing @estimates.Count estimate@(estimates.Count == 1 ? "" : "s")</span>
-            <nav class="estimate-pagination" aria-label="Estimate pagination">
-                <button type="button">Previous</button>
-                <button class="active" type="button">1</button>
-                <button type="button">2</button>
-                <button type="button">3</button>
-                <button type="button">Next</button>
-            </nav>
         </footer>
     </section>
 </section>
 
-@await Html.PartialAsync("_NewEstimateModal")
-
-@section Scripts {
-    @await Html.PartialAsync("_EstimateModalScripts")
+@if (await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Estimates", "Create")) {
+    @await Html.PartialAsync("_EstimateEditor", (EstimateEditorViewModel)ViewData["EstimateEditor"]!)
 }

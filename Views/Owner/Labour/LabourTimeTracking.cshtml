@@ -1,11 +1,33 @@
-﻿@{
-    Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+@model RepairOperationsViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = "Labour & Time Tracking"; ViewData["ActiveNav"] = "Labour Time Tracking";
+    var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode("Labour", action));
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page">
+    <div class="repair-toolbar"><h2>Labour Entries</h2>@if(Can("Create")) { <button class="primary" type="button" data-dialog-open="labour-0">Add Labour / Start Timer</button> }</div>
+    <section class="repair-section"><form method="get" class="repair-actions"><label>Work order<select name="workOrderId"><option value="">All work orders</option>@foreach(var order in Model.Orders) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label><button type="submit">Apply Filter</button></form></section>
+    <section class="repair-section"><h2>Tasks and Time Logs</h2><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Mechanic / task</th><th>Elapsed / minutes</th><th>Rate</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
+    @foreach(var row in Model.Labour.OrderByDescending(x => x.ServiceEntryId)) {
+        var segments = Model.Segments.Where(x => x.ServiceEntryId == row.ServiceEntryId).ToList();
+        var active = segments.FirstOrDefault(x => x.SegmentEnd == null);
+        var seconds = segments.Where(x => x.SegmentType == "Work" && x.SegmentEnd.HasValue && x.SegmentStart.HasValue).Sum(x => (x.SegmentEnd!.Value - x.SegmentStart!.Value).TotalSeconds);
+        var editable = Model.Orders.Any(x => x.WorkOrderId == row.WorkOrderId && x.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC"));
+        <tr><td>WO-@row.WorkOrderId</td><td><strong>@row.MechanicName</strong><br />@row.ServiceDescription</td><td>
+        @if(active is not null) { <strong data-timer-seconds="@seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-timer-start="@(active.SegmentType == "Work" ? DateTime.SpecifyKind(active.SegmentStart ?? DateTime.UtcNow, DateTimeKind.Utc).ToString("O") : "")"></strong><br /><span>@(active.SegmentType == "Work" ? "Running" : "Paused")</span> }
+        else { <span>@row.DurationMinutes minutes</span> }
+        </td><td>@row.HourlyRate?.ToString("N2")</td><td>@row.ServiceCost?.ToString("N2")</td><td><div class="repair-actions">
+        @if(editable && active is not null && Can("Edit")) { <form method="post" asp-action="ChangeLabourTimer"><input type="hidden" name="ServiceEntryId" value="@row.ServiceEntryId" /><button type="submit" name="Transition" value="@(active.SegmentType == "Work" ? "Pause" : "Resume")">@(active.SegmentType == "Work" ? "Pause" : "Resume")</button><button type="submit" name="Transition" value="Complete">Complete</button></form> }
+        @if(editable && active is null && Can("Edit")) { <button type="button" data-dialog-open="labour-@row.ServiceEntryId">Edit</button> }
+        @if(editable && active is null && Can("Delete")) { <button type="button" data-dialog-open="delete-labour-@row.ServiceEntryId">Delete</button> }
+        </div></td></tr>
+    }
+    @if(Model.Labour.Count == 0) { <tr><td colspan="6">No labour entries found.</td></tr> }
+    </tbody></table></div><p class="repair-total">Logged labour: @Model.Labour.Sum(x => x.ServiceCost ?? 0).ToString("N2")</p></section>
+</div>
+@if(Can("Create")) { @await Html.PartialAsync("_LabourEditor", new LabourEditor(new LabourSaveForm { WorkOrderId = Model.WorkOrderId ?? 0 }, Model)) }
+@foreach(var row in Model.Labour) {
+    if(Can("Edit")) { @await Html.PartialAsync("_LabourEditor", new LabourEditor(new LabourSaveForm { ApprovedEstimateLineId = row.ApprovedEstimateLineId, ServiceEntryId = row.ServiceEntryId, WorkOrderId = row.WorkOrderId ?? 0, EmployeeProfileId = Model.Employees.FirstOrDefault(x => (!string.IsNullOrEmpty(row.MechanicUserId) && x.UserId == row.MechanicUserId) || (x.FirstName + " " + x.LastName).Trim() == row.MechanicName)?.EmployeeProfileId ?? 0, Description = row.ServiceDescription ?? "", Minutes = row.DurationMinutes ?? 60, HourlyRate = row.HourlyRate ?? 0, Notes = row.Notes }, Model)) }
+    if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"delete-labour-{row.ServiceEntryId}", "Delete Labour Entry", "DeleteLabour", row.ServiceEntryId)) }
+}

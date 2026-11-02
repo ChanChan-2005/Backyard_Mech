@@ -1,11 +1,44 @@
-﻿@{
+@model EstimateWorkflowViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
     Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+    ViewData["Title"] = ViewData["PageTitle"] = $"Estimate EST-{Model.Estimate.EstimateId:0000}";
+    ViewData["ActiveNav"] = "Estimates / Customers Approval";
+    var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string module, string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, action));
+    var open = Model.Revision.EstimateStatus != "Cancelled";
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page">
+    <nav class="repair-toolbar"><a href="/Owner/EstimateApprovals">Back to Estimates</a><div class="repair-actions">
+        @if (open && Can("Estimates", "Edit")) { <button type="button" data-dialog-open="estimate-editor">Edit Estimate</button> }
+        @if (open && !Model.WorkOrderId.HasValue && Can("Estimates", "Delete")) { <button type="button" data-dialog-open="cancel-estimate">Cancel Estimate</button> }
+        @if (Model.WorkOrderId.HasValue && Can("Work Orders", "View")) { <a class="repair-button" href="/Owner/WorkOrderDetails/@Model.WorkOrderId">View Work Order</a> }
+        else if ((Model.Revision.EstimateStatus is "Approved" or "Partially Approved") && Can("Work Orders", "Create")) { <a class="repair-button primary" href="/Owner/WorkOrders">Create Work Order</a> }
+    </div></nav>
+    <section class="repair-section"><header><div><h2>@Model.Customer</h2><p>@Model.Vehicle</p></div><span class="repair-status">@Model.Revision.EstimateStatus / Revision @Model.Revision.RevisionNumber</span></header>
+        <div class="repair-table-wrap"><table><thead><tr><th>Type</th><th>Description</th><th>Qty / hours</th><th>Price / rate</th><th>Total</th></tr></thead><tbody>
+        @foreach(var line in Model.Lines) { <tr><td>@line.LineType</td><td>@line.Description</td><td>@line.Quantity</td><td>@line.UnitPrice?.ToString("N2")</td><td>@line.LineTotal?.ToString("N2")</td></tr> }
+        </tbody></table></div>
+        <p>Subtotal: @Model.Revision.Subtotal?.ToString("N2") | Tax: @Model.Revision.TaxAmount?.ToString("N2")</p><p class="repair-total">Total: @Model.Revision.Total?.ToString("N2")</p>
+        @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Edit")) {
+            <form method="post" asp-action="CreateCustomerApprovalLink" class="repair-actions">
+                @Html.AntiForgeryToken()<input type="hidden" name="Id" value="@Model.Estimate.EstimateId" />
+                <input type="hidden" name="Reason" value="Customer approval requested" />
+                <button type="submit" class="primary">@(Model.ApprovalUrl is null ? "Create customer approval link" : "Refresh approval link")</button>
+            </form>
+        }
+        @if (Model.ApprovalUrl is not null) { <p class="repair-notice">Customer link (expires in 7 days): <a href="@Model.ApprovalUrl">@Model.ApprovalUrl</a></p> }
+    </section>
+    @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Approve")) {
+        <section class="repair-section"><h2>Customer Decision</h2><form method="post" asp-action="RecordEstimateDecision">
+            <input type="hidden" name="EstimateId" value="@Model.Estimate.EstimateId" /><input type="hidden" name="ExpectedRevisionId" value="@Model.Revision.EstimateRevisionId" />
+            <div class="repair-fields"><label>Decision<select name="Decision" required><option value="">Select decision</option><option>Approved</option><option>Declined</option></select></label>
+            <label>Confirmation details<input name="Reason" required maxlength="1000" placeholder="Customer name, confirmation date and reference" /></label></div>
+            <button type="submit" class="primary">Record Decision</button></form></section>
+    }
+    <section class="repair-section"><h2>Revision History</h2><div class="repair-table-wrap"><table><thead><tr><th>Revision</th><th>Created</th><th>By</th><th>Reason</th><th>Status</th><th>Total</th></tr></thead><tbody>
+        @foreach(var row in Model.Revisions) { <tr><td>@row.RevisionNumber</td><td>@row.CreatedUtc.ToString("g") UTC</td><td>@row.CreatedByName</td><td>@row.RevisionReason</td><td>@row.EstimateStatus</td><td>@row.Total?.ToString("N2")</td></tr> }
+    </tbody></table></div></section>
+</div>
+@if(open && Can("Estimates", "Edit")) { @await Html.PartialAsync("_EstimateEditor", Model.Editor) }
+@if(open && Can("Estimates", "Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("cancel-estimate", "Cancel Estimate", "CancelEstimate", Model.Estimate.EstimateId)) }

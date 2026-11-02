@@ -1,4 +1,5 @@
 @model EmployeeScheduleViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Employee Schedule";
@@ -9,11 +10,12 @@
 }
 
 @section TopbarActions {
+    <a class="users-button" href="/Owner/StaffAvailability">Availability Exceptions</a>
     <div class="users-schedule-top-controls">
         <button class="users-icon-button" type="button">&lt;</button>
         <strong>@Model.PeriodLabel</strong>
         <button class="users-icon-button" type="button">&gt;</button>
-        <button class="users-button-blue" type="button" data-users-modal="add-shift">Add Shift</button>
+        @if(await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"),"Employees","Edit")){<button class="users-button-blue" type="button" data-users-modal="add-shift">Add Shift</button>}
     </div>
 }
 

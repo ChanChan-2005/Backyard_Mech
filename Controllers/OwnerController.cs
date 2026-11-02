@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Backyard_Mech.Controllers
 {
     [ServiceFilter(typeof(OwnerPermissionFilter))]
-    public class OwnerController : Controller
+    public partial class OwnerController : Controller
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly RecordsDispositionService _recordsDispositionService;
@@ -114,14 +114,14 @@ namespace Backyard_Mech.Controllers
             var workOrderById = workOrders.ToDictionary(order => order.WorkOrderId);
 
             var todaysRevenue = invoices
-                .Where(invoice => invoice.IssuedUtc >= today && invoice.IssuedUtc < tomorrow)
+                .Where(invoice => invoice.IssuedUtc >= today && invoice.IssuedUtc < tomorrow && invoice.InvoiceStatus != "Voided")
                 .Sum(invoice => invoice.Total ?? 0);
             var yesterdayRevenue = invoices
-                .Where(invoice => invoice.IssuedUtc >= today.AddDays(-1) && invoice.IssuedUtc < today)
+                .Where(invoice => invoice.IssuedUtc >= today.AddDays(-1) && invoice.IssuedUtc < today && invoice.InvoiceStatus != "Voided")
                 .Sum(invoice => invoice.Total ?? 0);
-            var activeWorkOrders = workOrders.Count(order => !string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+            var activeWorkOrders = workOrders.Count(order => order.WorkOrderStatus is not ("Completed" or "Cancelled" or "Ready for Pickup" or "Picked Up"));
             var urgentWorkOrders = appointments.Count(appointment => string.Equals(appointment.AppointmentStatus, "Waiting Approval", StringComparison.OrdinalIgnoreCase));
-            var vehiclesServiced = workOrders.Count(order => string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase) && (order.ActualEnd ?? order.ScheduledEnd)?.Date == today);
+            var vehiclesServiced = workOrders.Count(order => (order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up") && (order.ActualEnd ?? order.ScheduledEnd)?.Date == today);
             if (vehiclesServiced == 0)
             {
                 vehiclesServiced = appointments.Count(appointment => string.Equals(appointment.AppointmentStatus, "Completed", StringComparison.OrdinalIgnoreCase) && appointment.ScheduledStart?.Date == today);
@@ -187,7 +187,7 @@ namespace Backyard_Mech.Controllers
                     .Where(assignment => string.Equals(NormalizeText(assignment.MechanicName, ""), name, StringComparison.OrdinalIgnoreCase))
                     .Select(assignment => assignment.WorkOrderId ?? 0)
                     .ToHashSet();
-                var currentOrder = workOrders.FirstOrDefault(order => assignedOrderIds.Contains(order.WorkOrderId) && !string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+                var currentOrder = workOrders.FirstOrDefault(order => assignedOrderIds.Contains(order.WorkOrderId) && order.WorkOrderStatus is not ("Completed" or "Ready for Pickup" or "Picked Up" or "Cancelled"));
                 var todayHours = workOrders.Where(order => assignedOrderIds.Contains(order.WorkOrderId) && order.ScheduledStart?.Date == today).Sum(CalculateWorkOrderHours);
                 var productivity = Math.Clamp((int)Math.Round(todayHours / 8m * 100), 0, 100);
                 var workStatus = currentOrder is null ? "Idle" : string.Equals(currentOrder.WorkOrderStatus, "Waiting Approval", StringComparison.OrdinalIgnoreCase) ? "Waiting for approval" : "Busy";
@@ -433,55 +433,7 @@ namespace Backyard_Mech.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddVehicle(VehicleFormModel form)
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            if (!ModelState.IsValid)
-            {
-                TempData["OwnerMessage"] = "Vehicle was not saved. Please complete the required fields.";
-                return RedirectToAction(nameof(CustomerDetails), new { id = form.CustomerId });
-            }
-
-            var customer = await _dbContext.Customers.FindAsync(form.CustomerId);
-            if (customer is null)
-            {
-                TempData["OwnerMessage"] = "Customer was not found.";
-                return RedirectToAction(nameof(CustomerVehicle));
-            }
-
-            var vehicle = new Vehicle
-            {
-                Make = form.Make.Trim(),
-                Model = form.Model.Trim(),
-                Year = form.Year,
-                Color = form.Color?.Trim(),
-                OwnerFullName = $"{customer.FirstName} {customer.LastName}".Trim(),
-                LicensePlate = form.LicensePlate.Trim(),
-                Odometer = form.Odometer,
-                VIN = form.VIN.Trim(),
-                CreatedUtc = DateTime.UtcNow
-            };
-
-            _dbContext.Vehicles.Add(vehicle);
-            await _dbContext.SaveChangesAsync();
-
-            _dbContext.VehicleOwnerships.Add(new VehicleOwnership
-            {
-                VehicleId = vehicle.VehicleId,
-                CustomerId = customer.CustomerId,
-                OwnerFirstName = customer.FirstName,
-                OwnerLastName = customer.LastName,
-                OwnershipStartUtc = DateTime.UtcNow
-            });
-
-            await _dbContext.SaveChangesAsync();
-            TempData["OwnerMessage"] = "Vehicle saved.";
-            return RedirectToAction(nameof(CustomerDetails), new { id = customer.CustomerId });
-        }
+        public Task<IActionResult> AddVehicle(VehicleFormModel form) => RegisterVehicle(form);
 
         private static string BuildInitials(string? firstName, string? lastName)
         {
@@ -610,6 +562,7 @@ namespace Backyard_Mech.Controllers
 
             return new ServiceQueueDetailsViewModel
             {
+                CheckedIn = appointment.CheckedInUtc.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(appointment.CheckedInUtc.Value, DateTimeKind.Utc), GarageZone()).ToString("MMM dd, yyyy hh:mm tt") : "Not checked in",
                 AppointmentId = appointment.AppointmentId,
                 Id = $"APT-{appointment.AppointmentId:0000}",
                 Customer = NormalizeText(appointment.CustomerName, "Unknown customer"),
@@ -620,7 +573,7 @@ namespace Backyard_Mech.Controllers
                 StatusTone = GetAppointmentTone(status),
                 Type = NormalizeText(appointment.AppointmentType, "Appointment"),
                 Bay = bay?.Name ?? (appointment.BayId.HasValue ? $"Bay {appointment.BayId}" : "Unassigned"),
-                Technician = NormalizeText(appointment.AssignedMechanicName ?? appointment.PreferredMechanicName, "Unassigned"),
+                Technician = NormalizeText(appointment.AssignedMechanicName, "Unassigned"),
                 Advisor = NormalizeText(appointment.CreatedByName, "System"),
                 Start = start?.ToString("MMM dd, yyyy hh:mm tt") ?? "Not scheduled",
                 End = end?.ToString("MMM dd, yyyy hh:mm tt") ?? "Not scheduled",
@@ -870,6 +823,9 @@ namespace Backyard_Mech.Controllers
                     : null;
 
             var status = NormalizeStatus(order.WorkOrderStatus, "Pending");
+            var invoice = await _dbContext.Invoices.AsNoTracking().Where(x => x.WorkOrderId == order.WorkOrderId && x.InvoiceStatus != "Voided")
+                .OrderByDescending(x => x.InvoiceId).FirstOrDefaultAsync();
+            var paidAmount = invoice is null ? 0 : await _dbContext.Payments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).SumAsync(x => x.Amount ?? 0);
             var mechanicNames = assignments
                 .Select(item => NormalizeText(item.MechanicName, "Unassigned"))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -909,10 +865,11 @@ namespace Backyard_Mech.Controllers
             }
 
             var partRows = partTransactions
+                .Where(x => x.TransactionType is "Installed" or "Returned")
                 .Select(transaction =>
                 {
                     parts.TryGetValue(transaction.PartId ?? 0, out var part);
-                    var quantity = Math.Abs(transaction.Quantity ?? 0);
+                    var quantity = (transaction.Quantity ?? 0) * (transaction.TransactionType == "Returned" ? -1 : 1);
                     var unitPrice = transaction.UnitCostAtTransaction ?? part?.UnitPrice ?? part?.UnitCost ?? 0;
                     return new WorkOrderPartRow
                     {
@@ -925,12 +882,12 @@ namespace Backyard_Mech.Controllers
                 })
                 .ToList();
             var laborTotal = laborRows.Sum(item => item.CostValue);
-            var partsTotal = partTransactions.Sum(transaction =>
+            var partsTotal = partTransactions.Where(x => x.TransactionType is "Installed" or "Returned").Sum(transaction =>
             {
                 parts.TryGetValue(transaction.PartId ?? 0, out var part);
-                return Math.Abs(transaction.Quantity ?? 0) * (transaction.UnitCostAtTransaction ?? part?.UnitPrice ?? part?.UnitCost ?? 0);
+                return (transaction.Quantity ?? 0) * (transaction.TransactionType == "Returned" ? -1 : 1) * (transaction.UnitCostAtTransaction ?? part?.UnitCost ?? 0);
             });
-            var shopSuppliesFee = Math.Round((laborTotal + partsTotal) * 0.04m, 2);
+            var shopSuppliesFee = 0m;
             var activity = new List<WorkOrderActivityItem>
             {
                 new() { Title = "Created by system", Detail = "Work order opened", Time = order.CreatedUtc.ToString("hh:mm tt") }
@@ -967,6 +924,10 @@ namespace Backyard_Mech.Controllers
                 Mechanic = mechanic,
                 Status = status,
                 StatusTone = GetWorkOrderTone(status),
+                InvoiceStatus = invoice?.InvoiceStatus ?? string.Empty,
+                InvoiceBalance = invoice is null ? 0 : Math.Max(0, (invoice.Total ?? 0) - paidAmount),
+                ReleasedUtc = order.ReleasedUtc,
+                ReleasedByName = order.ReleasedByName,
                 Priority = priority,
                 PriorityTone = priority == "Urgent" ? "urgent" : "blue",
                 ScheduledStart = order.ScheduledStart?.ToString("MMM dd, yyyy hh:mm tt") ?? "Not scheduled",
@@ -1002,7 +963,7 @@ namespace Backyard_Mech.Controllers
 
             var bays = await _dbContext.Bays.AsNoTracking().OrderBy(item => item.BayId).ToListAsync();
             var activeOrders = await _dbContext.WorkOrders.AsNoTracking()
-                .Where(item => item.BayId.HasValue && item.WorkOrderId != workOrderId && !string.Equals(item.WorkOrderStatus, "Completed"))
+                .Where(item => item.BayId.HasValue && item.WorkOrderId != workOrderId && item.WorkOrderStatus != "Completed" && item.WorkOrderStatus != "Ready for Pickup" && item.WorkOrderStatus != "Picked Up" && item.WorkOrderStatus != "Cancelled")
                 .ToListAsync();
             var appointmentIds = activeOrders.Where(item => item.AppointmentId.HasValue).Select(item => item.AppointmentId!.Value).Distinct().ToList();
             var appointments = appointmentIds.Count == 0
@@ -1069,7 +1030,7 @@ namespace Backyard_Mech.Controllers
                 .ThenBy(item => item.LastName)
                 .ToListAsync();
             var activeOrders = await _dbContext.WorkOrders.AsNoTracking()
-                .Where(item => !string.Equals(item.WorkOrderStatus, "Completed"))
+                .Where(item => item.WorkOrderStatus != "Completed" && item.WorkOrderStatus != "Ready for Pickup" && item.WorkOrderStatus != "Picked Up" && item.WorkOrderStatus != "Cancelled")
                 .ToListAsync();
             var assignments = await _dbContext.WorkOrderAssignments.AsNoTracking().ToListAsync();
             var currentAssignments = assignments.Where(item => item.WorkOrderId == workOrderId).ToList();
@@ -1179,7 +1140,7 @@ namespace Backyard_Mech.Controllers
                     .FirstOrDefault();
                 var activeOrder = workOrders.FirstOrDefault(order =>
                     order.BayId == bay.BayId &&
-                    !string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+                    order.WorkOrderStatus is not ("Completed" or "Ready for Pickup" or "Picked Up" or "Cancelled"));
                 appointments.TryGetValue(activeOrder?.AppointmentId ?? 0, out var appointment);
                 vehicles.TryGetValue(appointment?.VehicleId ?? 0, out var vehicle);
                 var tech = assignments
@@ -1270,6 +1231,7 @@ namespace Backyard_Mech.Controllers
         {
             return await _dbContext.Suppliers
                 .AsNoTracking()
+                .Where(supplier => supplier.IsActive)
                 .OrderBy(supplier => supplier.SupplierName)
                 .Select(supplier => new ProductListingOption
                 {
@@ -1382,9 +1344,7 @@ namespace Backyard_Mech.Controllers
                 .Where(transaction => transaction.PartId == part.PartId)
                 .OrderByDescending(transaction => transaction.PerformedUtc)
                 .ToListAsync();
-            var reserved = transactions
-                .Where(transaction => string.Equals(transaction.TransactionType, "Reserved", StringComparison.OrdinalIgnoreCase))
-                .Sum(transaction => Math.Max(0, transaction.Quantity ?? 0));
+            var reserved = Math.Max(0, ReservedUnits(transactions));
             var available = Math.Max(0, part.QuantityOnHand - reserved);
             var markup = part.UnitCost is > 0 && part.UnitPrice is not null
                 ? $"{((part.UnitPrice.Value - part.UnitCost.Value) / part.UnitCost.Value * 100):N1}%"
@@ -1394,7 +1354,7 @@ namespace Backyard_Mech.Controllers
             var rows = new List<PartTransactionDetailRow>();
             foreach (var transaction in transactions)
             {
-                var quantity = transaction.Quantity ?? 0;
+                var quantity = PhysicalDelta(transaction.TransactionType, transaction.Quantity ?? 0);
                 var type = NormalizeText(transaction.TransactionType, "Adjustment");
                 rows.Add(new PartTransactionDetailRow
                 {
@@ -1466,19 +1426,23 @@ namespace Backyard_Mech.Controllers
                 .AsNoTracking()
                 .Where(checkout => checkout.ReturnedUtc == null)
                 .ToListAsync();
+            var openMaintenance = await _dbContext.ToolMaintenances.AsNoTracking().Where(x => x.PerformedUtc == null).ToListAsync();
 
             return tools.Select(tool =>
             {
                 categories.TryGetValue(tool.ToolCategoryId ?? 0, out var category);
                 var checkout = activeCheckouts.FirstOrDefault(item => item.ToolId == tool.ToolId);
-                var isMissingOrDamaged = string.Equals(checkout?.ToolIssueStatus, "Missing", StringComparison.OrdinalIgnoreCase) ||
+                var isMissingOrDamaged = string.Equals(tool.Condition, "Missing", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(tool.Condition, "Damaged", StringComparison.OrdinalIgnoreCase);
-                var isMaintenance = string.Equals(checkout?.ToolIssueStatus, "Maintenance", StringComparison.OrdinalIgnoreCase);
-                var status = isMissingOrDamaged ? "Damaged" : isMaintenance ? "Under Maintenance" : checkout is null ? "Available" : "Checked Out";
+                var isMaintenance = openMaintenance.Any(x => x.ToolId == tool.ToolId) || string.Equals(tool.Condition, "Under Maintenance", StringComparison.OrdinalIgnoreCase);
+                var isCalibrationOverdue = tool.NextCalibrationDueUtc.HasValue && tool.NextCalibrationDueUtc.Value.Date < DateTime.UtcNow.Date;
+                var status = isMaintenance ? "Under Maintenance" : isMissingOrDamaged ? "Damaged / Missing" : checkout is not null ? "Checked Out" : isCalibrationOverdue ? "Calibration Overdue" : "Available";
 
                 return new ToolListItem
                 {
                     ToolId = tool.ToolId,
+                    ActiveCheckoutId = checkout?.ToolCheckoutId,
+                    HasOpenMaintenance = isMaintenance,
                     ToolCategoryId = tool.ToolCategoryId,
                     Name = NormalizeText(tool.Name, "Unnamed tool"),
                     Serial = NormalizeText(tool.SerialNumber, $"TOOL-{tool.ToolId:0000}"),
@@ -1494,7 +1458,7 @@ namespace Backyard_Mech.Controllers
                         : "N/A",
                     Status = status,
                     Tone = status == "Available" ? "available" : status == "Checked Out" ? "checked" : status == "Under Maintenance" ? "maintenance" : "missing",
-                    Action = status == "Available" ? "Checkout" : status == "Checked Out" ? "Return" : "View"
+                    Action = status == "Available" ? "Checkout" : status == "Checked Out" ? "Return" : status == "Under Maintenance" ? "Complete Maintenance" : status == "Calibration Overdue" ? "Calibrate" : "View"
                 };
             }).ToList();
         }
@@ -1533,12 +1497,14 @@ namespace Backyard_Mech.Controllers
                 .OrderByDescending(checkout => checkout.CheckedOutUtc)
                 .ToListAsync();
             var activeCheckout = checkouts.FirstOrDefault(checkout => checkout.ReturnedUtc is null);
+            var hasOpenMaintenance = await _dbContext.ToolMaintenances.AsNoTracking().AnyAsync(x => x.ToolId == tool.ToolId && x.PerformedUtc == null);
+            var calibrationOverdue = tool.NextCalibrationDueUtc.HasValue && tool.NextCalibrationDueUtc.Value.Date < DateTime.UtcNow.Date;
             var logs = checkouts.Select(checkout => new ToolCheckoutLogRow
             {
                 Date = checkout.CheckedOutUtc.ToString("MMM dd, yyyy"),
                 Mechanic = NormalizeText(checkout.MechanicName, "Unassigned"),
                 WorkOrder = checkout.WorkOrderId is null ? "-" : $"WO-{checkout.WorkOrderId:0000}",
-                Action = checkout.ReturnedUtc is null ? "Checkout" : "Returned",
+                Action = checkout.ReturnedUtc is null ? "Checkout" : checkout.ToolIssueStatus is "Damaged" or "Missing" ? checkout.ToolIssueStatus : "Returned",
                 ConditionOut = NormalizeText(checkout.ConditionAtCheckout, "-"),
                 ConditionReturn = NormalizeText(checkout.ConditionAtReturn, "--"),
                 Notes = NormalizeText(checkout.Notes, "-")
@@ -1552,8 +1518,8 @@ namespace Backyard_Mech.Controllers
                 Category = NormalizeText(category?.CategoryName, "Uncategorized"),
                 Location = NormalizeText(tool.Location, "-"),
                 Condition = NormalizeText(tool.Condition, "Good"),
-                Status = activeCheckout is null ? "Available" : "Checked Out",
-                StatusTone = activeCheckout is null ? "available" : "checked",
+                Status = activeCheckout is not null ? "Checked Out" : hasOpenMaintenance || tool.Condition == "Under Maintenance" ? "Under Maintenance" : tool.Condition is "Damaged" or "Missing" ? tool.Condition : calibrationOverdue ? "Calibration Overdue" : "Available",
+                StatusTone = activeCheckout is not null ? "checked" : hasOpenMaintenance || tool.Condition == "Under Maintenance" || calibrationOverdue ? "maintenance" : tool.Condition is "Damaged" or "Missing" ? "missing" : "available",
                 LastCalibration = tool.LastCalibratedUtc?.ToString("MMM dd, yyyy") ?? "Not recorded",
                 NextCalibration = tool.NextCalibrationDueUtc?.ToString("MMM dd, yyyy") ?? "Not scheduled",
                 ActiveCheckout = activeCheckout is null ? null : new ToolCheckoutDetail
@@ -1581,7 +1547,7 @@ namespace Backyard_Mech.Controllers
                 vehicles.TryGetValue(appointment?.VehicleId ?? 0, out var vehicle);
                 var paid = payments.Where(payment => payment.InvoiceId == invoice.InvoiceId).Sum(payment => payment.Amount ?? 0);
                 var total = invoice.Total ?? 0;
-                var balance = Math.Max(0, total - paid);
+                var balance = invoice.InvoiceStatus == "Voided" ? 0 : Math.Max(0, total - paid);
                 var status = NormalizeStatus(invoice.InvoiceStatus, balance == 0 && total > 0 ? "Paid" : "Draft");
 
                 return new InvoiceListItem
@@ -1689,7 +1655,7 @@ namespace Backyard_Mech.Controllers
             {
                 "in progress" => "progress",
                 "pending qc" => "pending-qc",
-                "completed" => "completed",
+                "completed" or "ready for pickup" or "picked up" => "completed",
                 "qc failed" => "failed",
                 _ => "pending"
             };
@@ -1772,7 +1738,7 @@ namespace Backyard_Mech.Controllers
                 .ToList();
 
             var otherRows = rows
-                .Where(row => !order.Contains(row.Status, StringComparer.OrdinalIgnoreCase))
+                .Where(row => !order.Contains(row.Status, StringComparer.OrdinalIgnoreCase) && row.Status != "Cancelled" && row.Status != "No Show" && row.Status != "Completed")
                 .ToList();
 
             if (otherRows.Count > 0)
@@ -1815,6 +1781,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AssignQueueBay(QueueBayAssignmentFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -1844,9 +1811,15 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(ServiceQueueDetails), new { id = redirectId });
             }
 
-            appointment.BayId = bay.BayId;
-
             var workOrder = await _dbContext.WorkOrders.FirstOrDefaultAsync(item => item.AppointmentId == appointment.AppointmentId);
+            Require(appointment.AppointmentStatus is not ("Cancelled" or "Completed" or "No Show"), "This queue item is closed.");
+            if (workOrder is not null) await EditableOrder(workOrder.WorkOrderId);
+            var scheduleStart = workOrder?.ScheduledStart ?? appointment.ScheduledStart;
+            var scheduleEnd = workOrder?.ScheduledEnd ?? appointment.ScheduledEnd;
+            Require(scheduleStart.HasValue && scheduleEnd.HasValue, "Set a schedule before assigning a bay.");
+            var scheduleError = await ScheduleError(scheduleStart!.Value, scheduleEnd!.Value, bay.BayId, Array.Empty<EmployeeProfile>(), appointment.AppointmentId, workOrder?.WorkOrderId);
+            Require(scheduleError is null, scheduleError ?? "Schedule unavailable.");
+            appointment.BayId = bay.BayId;
             if (workOrder is not null)
             {
                 workOrder.BayId = bay.BayId;
@@ -1870,19 +1843,10 @@ namespace Backyard_Mech.Controllers
             TempData["OwnerMessage"] = $"{bayName} assigned.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(ServiceQueueDetails), new { id = redirectId });
+            }, nameof(ServiceQueue));
         }
 
-        public async Task<IActionResult> Appointments(string view = "calendar")
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            await SetOperationalOptionViewDataAsync();
-            ViewData["AppointmentViewMode"] = string.Equals(view, "list", StringComparison.OrdinalIgnoreCase) ? "list" : "calendar";
-            return View(await LoadAppointmentRowsAsync());
-        }
+        public Task<IActionResult> Appointments(string view = "calendar") => IntakeAppointments(view);
 
         private static bool IsAllowedAppointmentStatus(string? status)
         {
@@ -1910,7 +1874,7 @@ namespace Backyard_Mech.Controllers
             var ownsVehicle = await _dbContext.VehicleOwnerships.AnyAsync(ownership =>
                 ownership.CustomerId == customer.CustomerId &&
                 ownership.VehicleId == vehicle.VehicleId &&
-                !ownership.OwnershipEndUtc.HasValue);
+                !ownership.OwnershipEndUtc.HasValue && (!ownership.OwnershipStartUtc.HasValue || ownership.OwnershipStartUtc <= DateTime.UtcNow));
             if (!ownsVehicle)
             {
                 return (customer, vehicle, null, null, "The selected vehicle is not assigned to this customer.");
@@ -1952,7 +1916,7 @@ namespace Backyard_Mech.Controllers
                 return "End time must be later than start time.";
             }
 
-            if (scheduledStart < DateTime.Now.AddMinutes(-5) && form.AppointmentId == 0 && !form.IsWalkIn)
+            if (scheduledStart < GarageNow().AddMinutes(-5) && form.AppointmentId == 0 && !form.IsWalkIn)
             {
                 return "New appointments cannot be scheduled in the past.";
             }
@@ -1966,6 +1930,14 @@ namespace Backyard_Mech.Controllers
                     item.AppointmentStatus != "Completed" &&
                     item.ScheduledStart < scheduledEnd &&
                     item.ScheduledEnd > scheduledStart);
+
+            if (await overlapping.AnyAsync(item => item.VehicleId == form.VehicleId))
+                return "This vehicle already has an appointment during this time.";
+
+            if (await _dbContext.WorkOrders.AnyAsync(w => w.WorkOrderStatus != "Cancelled" && w.WorkOrderStatus != "Completed" && w.WorkOrderStatus != "Picked Up" &&
+                w.WorkOrderStatus != "Ready for Pickup" && w.ScheduledStart < scheduledEnd && w.ScheduledEnd > scheduledStart &&
+                _dbContext.Appointments.Any(a => a.AppointmentId == w.AppointmentId && a.VehicleId == form.VehicleId)))
+                return "This vehicle already has a work order during this time.";
 
             if (form.BayId.HasValue && await overlapping.AnyAsync(item => item.BayId == form.BayId))
             {
@@ -1983,257 +1955,23 @@ namespace Backyard_Mech.Controllers
                 }
             }
 
-            return null;
+            return await ScheduleError(scheduledStart, scheduledEnd, form.BayId,
+                employee is null ? Array.Empty<EmployeeProfile>() : new[] { employee }, form.AppointmentId);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateAppointment(AppointmentFormModel form)
+        public Task<IActionResult> CreateAppointment(AppointmentFormModel form)
         {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            if (form.IsWalkIn)
-            {
-                form.ScheduledDate = DateTime.Today;
-                if (form.StartTime == default)
-                {
-                    form.StartTime = DateTime.Now.TimeOfDay;
-                }
-                form.EndTime = form.StartTime.Add(TimeSpan.FromHours(1));
-                form.AppointmentStatus = "Arrived";
-            }
-
-            var redirectView = string.Equals(form.ViewMode, "list", StringComparison.OrdinalIgnoreCase) ? "list" : "calendar";
-            if (!ModelState.IsValid || form.ScheduledDate == default || !IsAllowedAppointmentStatus(form.AppointmentStatus))
-            {
-                TempData["OwnerMessage"] = "Appointment was not saved. Complete all required fields.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var references = await LoadAppointmentReferencesAsync(form);
-            if (references.Error is not null)
-            {
-                TempData["OwnerMessage"] = references.Error;
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var scheduledStart = form.ScheduledDate.Date.Add(form.StartTime);
-            var scheduledEnd = form.ScheduledDate.Date.Add(form.EndTime);
-            var scheduleError = await ValidateAppointmentScheduleAsync(form, scheduledStart, scheduledEnd, references.Employee);
-            if (scheduleError is not null)
-            {
-                TempData["OwnerMessage"] = scheduleError;
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var customerName = NormalizeText($"{references.Customer!.FirstName} {references.Customer.LastName}".Trim(), references.Customer.Email ?? "Customer");
-            var employeeName = references.Employee is null
-                ? null
-                : NormalizeText($"{references.Employee.FirstName} {references.Employee.LastName}".Trim(), references.Employee.Email ?? "Employee");
-            var actorName = HttpContext.Session.GetString("UserName") ?? "Owner";
-            var actorId = HttpContext.Session.GetString("UserId");
-            var notes = form.IsWalkIn && !string.Equals(form.Priority, "Normal", StringComparison.OrdinalIgnoreCase)
-                ? $"Priority: {form.Priority}. {form.Notes}".Trim()
-                : form.Notes?.Trim();
-
-            var appointment = new Appointment
-            {
-                CustomerId = references.Customer.CustomerId,
-                CustomerName = customerName,
-                VehicleId = references.Vehicle!.VehicleId,
-                BayId = references.Bay?.BayId,
-                AssignedMechanicUserId = references.Employee?.UserId,
-                AssignedMechanicName = employeeName,
-                ScheduledStart = scheduledStart,
-                ScheduledEnd = scheduledEnd,
-                AppointmentType = form.AppointmentType.Trim(),
-                AppointmentStatus = form.AppointmentStatus.Trim(),
-                CreatedByUserId = actorId,
-                CreatedByName = actorName,
-                CheckedInUtc = form.IsWalkIn ? DateTime.UtcNow : null,
-                CheckedInByUserId = form.IsWalkIn ? actorId : null,
-                CheckedInByName = form.IsWalkIn ? actorName : null,
-                Notes = notes,
-                CreatedUtc = DateTime.UtcNow
-            };
-            _dbContext.Appointments.Add(appointment);
-            await _dbContext.SaveChangesAsync();
-
-            _dbContext.AppointmentServices.Add(new AppointmentService
-            {
-                AppointmentId = appointment.AppointmentId,
-                ServiceName = appointment.AppointmentType,
-                Notes = appointment.Notes,
-                CreatedUtc = DateTime.UtcNow
-            });
-            _dbContext.QueueStatusHistories.Add(new QueueStatusHistory
-            {
-                AppointmentId = appointment.AppointmentId,
-                QueueStatus = appointment.AppointmentStatus,
-                ChangedUtc = DateTime.UtcNow,
-                ChangedByUserId = actorId,
-                ChangedByName = actorName,
-                Notes = form.IsWalkIn ? "Walk-in checked in." : "Appointment created."
-            });
-            await _dbContext.SaveChangesAsync();
-
-            TempData["OwnerMessage"] = form.IsWalkIn ? "Walk-in added to the service queue." : "Appointment created.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(Appointments), new { view = redirectView });
+            form.AppointmentId = 0;
+            return SaveIntakeAppointment(form, true);
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditAppointment(AppointmentFormModel form)
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
+        [HttpPost, ValidateAntiForgeryToken]
+        public Task<IActionResult> EditAppointment(AppointmentFormModel form) => SaveIntakeAppointment(form, false);
 
-            var redirectView = string.Equals(form.ViewMode, "list", StringComparison.OrdinalIgnoreCase) ? "list" : "calendar";
-            var appointment = await _dbContext.Appointments.FirstOrDefaultAsync(item => item.AppointmentId == form.AppointmentId);
-            if (appointment is null)
-            {
-                TempData["OwnerMessage"] = "Appointment was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            if (string.Equals(appointment.AppointmentStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
-            {
-                TempData["OwnerMessage"] = "A cancelled appointment cannot be edited.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            if (!ModelState.IsValid || form.ScheduledDate == default || !IsAllowedAppointmentStatus(form.AppointmentStatus))
-            {
-                TempData["OwnerMessage"] = "Appointment was not updated. Complete all required fields.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var references = await LoadAppointmentReferencesAsync(form);
-            if (references.Error is not null)
-            {
-                TempData["OwnerMessage"] = references.Error;
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var scheduledStart = form.ScheduledDate.Date.Add(form.StartTime);
-            var scheduledEnd = form.ScheduledDate.Date.Add(form.EndTime);
-            var scheduleError = await ValidateAppointmentScheduleAsync(form, scheduledStart, scheduledEnd, references.Employee);
-            if (scheduleError is not null)
-            {
-                TempData["OwnerMessage"] = scheduleError;
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            var previousStatus = NormalizeStatus(appointment.AppointmentStatus, "Scheduled");
-            var employeeName = references.Employee is null
-                ? null
-                : NormalizeText($"{references.Employee.FirstName} {references.Employee.LastName}".Trim(), references.Employee.Email ?? "Employee");
-            appointment.CustomerId = references.Customer!.CustomerId;
-            appointment.CustomerName = NormalizeText($"{references.Customer.FirstName} {references.Customer.LastName}".Trim(), references.Customer.Email ?? "Customer");
-            appointment.VehicleId = references.Vehicle!.VehicleId;
-            appointment.BayId = references.Bay?.BayId;
-            appointment.AssignedMechanicUserId = references.Employee?.UserId;
-            appointment.AssignedMechanicName = employeeName;
-            appointment.ScheduledStart = scheduledStart;
-            appointment.ScheduledEnd = scheduledEnd;
-            appointment.AppointmentType = form.AppointmentType.Trim();
-            appointment.AppointmentStatus = form.AppointmentStatus.Trim();
-            appointment.Notes = form.Notes?.Trim();
-
-            var appointmentService = await _dbContext.AppointmentServices
-                .OrderBy(item => item.CreatedUtc)
-                .FirstOrDefaultAsync(item => item.AppointmentId == appointment.AppointmentId);
-            if (appointmentService is null)
-            {
-                _dbContext.AppointmentServices.Add(new AppointmentService
-                {
-                    AppointmentId = appointment.AppointmentId,
-                    ServiceName = appointment.AppointmentType,
-                    Notes = appointment.Notes,
-                    CreatedUtc = DateTime.UtcNow
-                });
-            }
-            else
-            {
-                appointmentService.ServiceName = appointment.AppointmentType;
-                appointmentService.Notes = appointment.Notes;
-            }
-
-            var actorName = HttpContext.Session.GetString("UserName") ?? "Owner";
-            _dbContext.QueueStatusHistories.Add(new QueueStatusHistory
-            {
-                AppointmentId = appointment.AppointmentId,
-                QueueStatus = appointment.AppointmentStatus,
-                ChangedUtc = DateTime.UtcNow,
-                ChangedByUserId = HttpContext.Session.GetString("UserId"),
-                ChangedByName = actorName,
-                Notes = string.Equals(previousStatus, appointment.AppointmentStatus, StringComparison.OrdinalIgnoreCase)
-                    ? "Appointment details updated."
-                    : $"Status changed from {previousStatus} to {appointment.AppointmentStatus}."
-            });
-            await _dbContext.SaveChangesAsync();
-
-            TempData["OwnerMessage"] = "Appointment updated.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(Appointments), new { view = redirectView });
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelAppointment(CancelAppointmentFormModel form)
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            var redirectView = string.Equals(form.ViewMode, "list", StringComparison.OrdinalIgnoreCase) ? "list" : "calendar";
-            var appointment = await _dbContext.Appointments.FirstOrDefaultAsync(item => item.AppointmentId == form.AppointmentId);
-            if (appointment is null)
-            {
-                TempData["OwnerMessage"] = "Appointment was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            if (string.Equals(appointment.AppointmentStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
-            {
-                TempData["OwnerMessage"] = "Appointment is already cancelled.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Appointments), new { view = redirectView });
-            }
-
-            appointment.AppointmentStatus = "Cancelled";
-            var reason = string.IsNullOrWhiteSpace(form.Reason) ? "No reason provided." : form.Reason.Trim();
-            _dbContext.QueueStatusHistories.Add(new QueueStatusHistory
-            {
-                AppointmentId = appointment.AppointmentId,
-                QueueStatus = "Cancelled",
-                ChangedUtc = DateTime.UtcNow,
-                ChangedByUserId = HttpContext.Session.GetString("UserId"),
-                ChangedByName = HttpContext.Session.GetString("UserName") ?? "Owner",
-                Notes = $"Appointment cancelled. Reason: {reason}"
-            });
-            await _dbContext.SaveChangesAsync();
-
-            TempData["OwnerMessage"] = "Appointment cancelled. Its history was retained.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(Appointments), new { view = redirectView });
-        }
+        [HttpPost, ValidateAntiForgeryToken]
+        public Task<IActionResult> CancelAppointment(CancelAppointmentFormModel form) => CancelIntakeAppointment(form);
 
         public async Task<IActionResult> EstimateApprovals()
         {
@@ -2242,18 +1980,34 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            await SetOperationalOptionViewDataAsync();
+            ViewData["EstimateEditor"] = await EstimateEditor();
             return View(await LoadEstimateRowsAsync());
         }
 
-        public IActionResult EstimateDetails(string id = "")
+        public async Task<IActionResult> EstimateDetails(string id = "")
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(EstimateApprovals));
+            var estimate = await _dbContext.Estimates.AsNoTracking().FirstOrDefaultAsync(x => x.EstimateId == ParseEntityId(id, "EST"));
+            if (estimate is null) return NotFound();
+            var revision = await LatestRevision(estimate.EstimateId);
+            if (revision is null) return NotFound();
+            var appointment = await _dbContext.Appointments.FindAsync(estimate.AppointmentId);
+            var vehicle = appointment?.VehicleId is int vehicleId ? await _dbContext.Vehicles.FindAsync(vehicleId) : null;
+            var lines = await _dbContext.EstimateRevisionLineItems.AsNoTracking().Where(x => x.EstimateRevisionId == revision.EstimateRevisionId).ToListAsync();
+            var editor = await EstimateEditor(new EstimateSaveForm { EstimateId = estimate.EstimateId, ExpectedRevisionId = revision.EstimateRevisionId,
+                AppointmentId = estimate.AppointmentId ?? 0, Reason = "", Lines = lines.Select(x => new EstimateLineForm { LineType = x.LineType ?? "Labour",
+                    PartId = x.PartId, ServiceId = x.ServiceId, Description = x.Description ?? "", Quantity = x.Quantity ?? 1, UnitPrice = x.UnitPrice ?? 0 }).ToList() });
+            editor.Form.TaxRateId = editor.Taxes.FirstOrDefault(x => Math.Round((revision.Subtotal ?? 0) * (x.Rate ?? 0), 2) == revision.TaxAmount)?.TaxRateId;
+            return View(new EstimateWorkflowViewModel { Estimate = estimate, Revision = revision, Lines = lines, Editor = editor,
+                Customer = appointment?.CustomerName ?? "Customer unavailable", Vehicle = BuildVehicleName(vehicle),
+                ApprovalUrl = revision.ApprovalToken.HasValue && revision.ApprovalTokenExpiresUtc > DateTime.UtcNow
+                    ? Url.Action("Review", "CustomerEstimateApproval", new { token = revision.ApprovalToken }) : null,
+                Revisions = await _dbContext.EstimateRevisions.AsNoTracking().Where(x => x.EstimateId == estimate.EstimateId).OrderByDescending(x => x.RevisionNumber).ToListAsync(),
+                WorkOrderId = await _dbContext.WorkOrders.Where(x => x.EstimateId == estimate.EstimateId && x.WorkOrderStatus != "Cancelled").Select(x => (int?)x.WorkOrderId).FirstOrDefaultAsync() });
         }
 
         public IActionResult EditEstimate(string id = "est-2045")
@@ -2309,6 +2063,18 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DispatchWorkOrderBay(WorkOrderBayDispatchFormModel form)
         {
+            return await SaveWorkflow(async () =>
+            {
+            var checkedOrder = await EditableOrder(form.WorkOrderId);
+            Require(await _dbContext.Bays.AnyAsync(x => x.BayId == form.BayId && x.IsActive), "Select an active bay.");
+            Require(checkedOrder.ScheduledStart.HasValue && checkedOrder.ScheduledEnd.HasValue, "Set a work order schedule first.");
+            var scheduleError = await ScheduleError(checkedOrder.ScheduledStart!.Value, checkedOrder.ScheduledEnd!.Value, form.BayId, Array.Empty<EmployeeProfile>(), checkedOrder.AppointmentId, checkedOrder.WorkOrderId);
+            Require(scheduleError is null, scheduleError ?? "Schedule unavailable.");
+            Require(!await _dbContext.BayMaintenanceSchedules.AnyAsync(x => x.BayId == form.BayId && !x.IsCompleted &&
+                x.StartDate < (checkedOrder.ScheduledEnd ?? DateTime.UtcNow.AddDays(1)) && x.EstimatedReturnDate >= (checkedOrder.ScheduledStart ?? DateTime.UtcNow)), "The bay is under maintenance.");
+            Require(!await _dbContext.WorkOrders.AnyAsync(x => x.WorkOrderId != form.WorkOrderId && x.BayId == form.BayId &&
+                x.WorkOrderStatus != "Cancelled" && x.WorkOrderStatus != "Completed" && x.WorkOrderStatus != "Ready for Pickup" && x.WorkOrderStatus != "Picked Up" &&
+                x.ScheduledStart < checkedOrder.ScheduledEnd && x.ScheduledEnd > checkedOrder.ScheduledStart), "This bay is already booked.");
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -2324,7 +2090,7 @@ namespace Backyard_Mech.Controllers
             }
 
             order.BayId = bay.BayId;
-            order.WorkOrderStatus = string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase)
+            order.WorkOrderStatus = order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up"
                 ? order.WorkOrderStatus
                 : "In Progress";
             order.ActualStart ??= DateTime.UtcNow;
@@ -2354,6 +2120,8 @@ namespace Backyard_Mech.Controllers
             TempData["OwnerMessage"] = $"WO-{order.WorkOrderId:0000} dispatched to {NormalizeText(bay.Name, $"Bay {bay.BayId}")}.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(StaffDispatchMatrix), new { id = $"WO-{order.WorkOrderId:0000}" });
+
+            }, nameof(WorkOrders));
         }
 
         public async Task<IActionResult> StaffDispatchMatrix(string id = "")
@@ -2378,6 +2146,20 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DispatchWorkOrderStaff(WorkOrderStaffDispatchFormModel form)
         {
+            return await SaveWorkflow(async () =>
+            {
+            var checkedOrder = await EditableOrder(form.WorkOrderId);
+            var selectedEmployees = new[] { form.LeadEmployeeProfileId, form.HelperEmployeeProfileId ?? 0 }.Where(x => x > 0).Distinct().ToArray();
+            Require(await _dbContext.EmployeeProfiles.CountAsync(x => selectedEmployees.Contains(x.EmployeeProfileId) && x.IsActive && !x.IsArchived && !x.IsDeleted) == selectedEmployees.Length, "Select active mechanics.");
+            var selectedProfiles = await _dbContext.EmployeeProfiles.Where(x => selectedEmployees.Contains(x.EmployeeProfileId)).ToListAsync();
+            Require(checkedOrder.ScheduledStart.HasValue && checkedOrder.ScheduledEnd.HasValue, "Set a work order schedule first.");
+            var scheduleError = await ScheduleError(checkedOrder.ScheduledStart!.Value, checkedOrder.ScheduledEnd!.Value, checkedOrder.BayId, selectedProfiles, checkedOrder.AppointmentId, checkedOrder.WorkOrderId);
+            Require(scheduleError is null, scheduleError ?? "Schedule unavailable.");
+            var names = selectedProfiles.Select(BuildEmployeeName).ToArray();
+            var conflictIds = await _dbContext.WorkOrders.Where(x => x.WorkOrderId != form.WorkOrderId &&
+                x.WorkOrderStatus != "Cancelled" && x.WorkOrderStatus != "Completed" && x.WorkOrderStatus != "Ready for Pickup" && x.WorkOrderStatus != "Picked Up" &&
+                x.ScheduledStart < checkedOrder.ScheduledEnd && x.ScheduledEnd > checkedOrder.ScheduledStart).Select(x => x.WorkOrderId).ToListAsync();
+            Require(!await _dbContext.WorkOrderAssignments.AnyAsync(x => conflictIds.Contains(x.WorkOrderId ?? 0) && names.Contains(x.MechanicName!)), "A selected mechanic is already booked.");
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -2432,7 +2214,7 @@ namespace Backyard_Mech.Controllers
                 }
             }
 
-            order.WorkOrderStatus = string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase)
+            order.WorkOrderStatus = order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up"
                 ? order.WorkOrderStatus
                 : "In Progress";
             order.ActualStart ??= DateTime.UtcNow;
@@ -2452,6 +2234,8 @@ namespace Backyard_Mech.Controllers
             TempData["OwnerMessage"] = $"Staff dispatch saved for WO-{order.WorkOrderId:0000}.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(WorkOrderStatus), new { id = $"WO-{order.WorkOrderId:0000}" });
+
+            }, nameof(WorkOrders));
         }
 
         public async Task<IActionResult> WorkOrderDetails(string id = "")
@@ -2469,6 +2253,8 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(WorkOrders));
             }
 
+            await SetOperationalOptionViewDataAsync();
+            ViewData["WorkOrderEntity"] = await _dbContext.WorkOrders.AsNoTracking().FirstAsync(x => x.WorkOrderId == model.WorkOrderId);
             return View(model);
         }
 
@@ -2487,7 +2273,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(WorkOrders));
             }
 
-            return View(model);
+            return View("LabourTimeTracking", await RepairOperations(model.WorkOrder.WorkOrderId));
         }
 
         [HttpPost]
@@ -2506,36 +2292,13 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(WorkOrderLaborTracking), new { id = $"WO-{form.WorkOrderId:0000}" });
             }
 
-            var order = await _dbContext.WorkOrders.FirstOrDefaultAsync(item => item.WorkOrderId == form.WorkOrderId);
-            if (order is null)
-            {
-                TempData["OwnerMessage"] = "Work order was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(WorkOrders));
-            }
-
-            _dbContext.ServiceEntries.Add(new ServiceEntry
-            {
-                WorkOrderId = order.WorkOrderId,
-                MechanicName = form.MechanicName.Trim(),
-                ServiceDescription = form.TaskDescription.Trim(),
-                EstimatedHours = form.Hours,
-                DurationMinutes = (int)Math.Round(form.Hours * 60),
-                HourlyRate = form.HourlyRate,
-                ServiceCost = form.Hours * form.HourlyRate,
-                Notes = "Manual labor entry"
-            });
-            order.ActualStart ??= DateTime.UtcNow;
-            if (!string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase))
-            {
-                order.WorkOrderStatus = "In Progress";
-            }
-
-            await _dbContext.SaveChangesAsync();
-            TempData["OwnerMessage"] = "Labor entry added.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(WorkOrderLaborTracking), new { id = $"WO-{order.WorkOrderId:0000}" });
+            var employee = (await _dbContext.EmployeeProfiles.Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).ToListAsync())
+                .FirstOrDefault(x => BuildEmployeeName(x).Equals(form.MechanicName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (employee is null) return BadRequest("Select an active mechanic.");
+            return await SaveLabour(new LabourSaveForm { WorkOrderId = form.WorkOrderId, EmployeeProfileId = employee.EmployeeProfileId,
+                ApprovedEstimateLineId = form.ApprovedEstimateLineId, Description = form.TaskDescription, Minutes = (int)Math.Round(form.Hours * 60), HourlyRate = form.HourlyRate }, false);
         }
+
 
         public async Task<IActionResult> WorkOrderStatus(string id = "")
         {
@@ -2564,54 +2327,21 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var order = await _dbContext.WorkOrders.FirstOrDefaultAsync(item => item.WorkOrderId == form.WorkOrderId);
-            if (order is null)
+            return await SaveWorkflow(async () =>
             {
-                TempData["OwnerMessage"] = "Work order was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(WorkOrders));
-            }
-
-            var transition = NormalizeText(form.Transition, "").ToLowerInvariant();
-            if (transition == "pause")
-            {
-                order.WorkOrderStatus = "Paused";
-                TempData["OwnerMessage"] = $"WO-{order.WorkOrderId:0000} paused.";
-            }
-            else if (transition == "qc")
-            {
-                order.WorkOrderStatus = "Pending QC";
+                var order = await EditableOrder(form.WorkOrderId);
+                var transition = form.Transition?.Trim().ToLowerInvariant();
+                Require(transition is "pause" or "qc" or "resume" or "start", "Use Quality Control to complete and sign off a work order.");
+                var ids = await _dbContext.ServiceEntries.Where(x => x.WorkOrderId == order.WorkOrderId).Select(x => x.ServiceEntryId).ToListAsync();
+                Require(!await _dbContext.ServiceTimeSegments.AnyAsync(x => ids.Contains(x.ServiceEntryId ?? 0) && x.SegmentEnd == null), "Complete all active and paused timers before changing the job status.");
+                if (transition == "qc") Require(ids.Count > 0, "Record the repair labour before sending it to QC.");
+                order.WorkOrderStatus = transition == "pause" ? "Paused" : transition == "qc" ? "Pending QC" : "In Progress";
                 order.ActualStart ??= DateTime.UtcNow;
-                TempData["OwnerMessage"] = $"WO-{order.WorkOrderId:0000} sent to quality control.";
-            }
-            else if (transition == "complete")
-            {
-                order.WorkOrderStatus = "Completed";
-                order.ActualEnd = DateTime.UtcNow;
-                TempData["OwnerMessage"] = $"WO-{order.WorkOrderId:0000} completed.";
-            }
-            else
-            {
-                order.WorkOrderStatus = "In Progress";
-                order.ActualStart ??= DateTime.UtcNow;
-                TempData["OwnerMessage"] = $"WO-{order.WorkOrderId:0000} marked in progress.";
-            }
-
-            _dbContext.AuditLogEntries.Add(new AuditLogEntry
-            {
-                UserId = HttpContext.Session.GetString("UserId"),
-                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
-                Action = "Work Order Status",
-                EntityName = "WorkOrder",
-                EntityId = order.WorkOrderId.ToString(),
-                TimestampUtc = DateTime.UtcNow,
-                Details = NormalizeText(form.Notes, $"Status changed to {order.WorkOrderStatus}")
-            });
-            await _dbContext.SaveChangesAsync();
-
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(WorkOrderStatus), new { id = $"WO-{order.WorkOrderId:0000}" });
+                WorkflowAudit("WorkOrder", order.WorkOrderId, "Change status", new { order.WorkOrderStatus, form.Notes });
+                return RedirectToAction(nameof(WorkOrderDetails), new { id = order.WorkOrderId });
+            }, nameof(WorkOrderDetails), new { id = form.WorkOrderId });
         }
+
 
         public async Task<IActionResult> BayManagement()
         {
@@ -2710,6 +2440,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetBayMaintenance(BayMaintenanceFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -2747,12 +2478,14 @@ namespace Backyard_Mech.Controllers
                 IsCompleted = false,
                 CreatedUtc = DateTime.UtcNow
             });
-
+            var scheduleError = await ScheduleError(startDate, estimatedReturnDate.AddDays(1), form.BayId, Array.Empty<EmployeeProfile>());
+            Require(scheduleError is null, scheduleError ?? "Bay is already booked.");
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = startDate <= DateTime.Today
                 ? "Bay maintenance started."
                 : "Bay maintenance scheduled.";
             return RedirectToAction(nameof(BayManagement));
+            }, nameof(BayManagement));
         }
 
         public IActionResult EditBay(string id = "bay-1")
@@ -2932,6 +2665,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddPart(PartFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -2943,6 +2677,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(PartsManagement));
             }
 
+            await ValidatePartReferences(form, null);
             _dbContext.Parts.Add(new Part
             {
                 SupplierId = form.SupplierId,
@@ -2960,12 +2695,19 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Part saved.";
             return RedirectToAction(nameof(PartsManagement));
+            }, nameof(PartsManagement));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditPart(PartFormModel form)
         {
+            return await SaveWorkflow(async () =>
+            {
+            var existingPart = await _dbContext.Parts.FindAsync(form.PartId);
+            Require(existingPart is not null, "Part not found.");
+            Require(!await _dbContext.PartTransactions.AnyAsync(x => x.PartId == form.PartId) || existingPart!.QuantityOnHand == form.QuantityOnHand,
+                "Use Stock Transactions to change quantity once this part has movement history.");
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -2984,6 +2726,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(PartsManagement));
             }
 
+            await ValidatePartReferences(form, part);
             part.SupplierId = form.SupplierId;
             part.PartCategoryId = form.PartCategoryId;
             part.SKU = form.SKU.Trim();
@@ -2997,12 +2740,17 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Part updated.";
             return RedirectToAction(nameof(PartsManagement));
+
+            }, nameof(PartsManagement));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArchivePart(PartStateFormModel form)
         {
+            return await SaveWorkflow(async () =>
+            {
+            await EnsurePartCanBeRetired(form.PartId);
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3023,12 +2771,17 @@ namespace Backyard_Mech.Controllers
 
             TempData["OwnerMessage"] = "Part archived.";
             return RedirectToAction(nameof(PartsManagement));
+
+            }, nameof(PartsManagement));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SoftDeletePart(PartStateFormModel form)
         {
+            return await SaveWorkflow(async () =>
+            {
+            await EnsurePartCanBeRetired(form.PartId);
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3048,6 +2801,8 @@ namespace Backyard_Mech.Controllers
 
             TempData["OwnerMessage"] = "Part moved to records disposition.";
             return RedirectToAction(nameof(PartsManagement));
+
+            }, nameof(PartsManagement));
         }
 
         public async Task<IActionResult> PartDetails(string id = "")
@@ -3086,27 +2841,28 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(PartsManagement));
+            return RedirectToAction(nameof(SparesAllocation), new { partId = ParseEntityId(id, "PART") });
         }
 
-        public IActionResult SparesAllocation(string id = "")
+        public async Task<IActionResult> SparesAllocation(string id = "", int? workOrderId = null, int? partId = null)
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(PartsManagement));
+            if (!string.IsNullOrWhiteSpace(id)) workOrderId = ParseEntityId(id, "WO");
+            return View(await RepairOperations(workOrderId, partId));
         }
 
-        public IActionResult LabourTimeTracking()
+        public async Task<IActionResult> LabourTimeTracking(int? workOrderId = null)
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(LabourProductivityReport));
+            return View(await RepairOperations(workOrderId));
         }
 
         public IActionResult ServiceTimer(string id = "")
@@ -3116,7 +2872,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(LabourProductivityReport));
+            return RedirectToAction(nameof(LabourTimeTracking));
         }
 
         public IActionResult LabourHistory()
@@ -3126,37 +2882,40 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(LabourProductivityReport));
+            return RedirectToAction(nameof(LabourTimeTracking));
         }
 
-        public IActionResult QualityControl()
+        public async Task<IActionResult> QualityControl()
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(WorkOrders));
+            return View(await RepairOperations());
         }
 
-        public IActionResult ExecuteInspection(string id = "")
+        public async Task<IActionResult> ExecuteInspection(string id = "")
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(WorkOrders));
+            var orderId = ParseEntityId(id, "WO");
+            if (!await _dbContext.WorkOrders.AnyAsync(x => x.WorkOrderId == orderId)) return NotFound();
+            return View(await RepairOperations(orderId));
         }
 
-        public IActionResult InspectionResult(string id = "")
+        public async Task<IActionResult> InspectionResult(string id = "")
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(WorkOrders));
+            var check = await _dbContext.QualityChecks.AsNoTracking().FirstOrDefaultAsync(x => x.QualityCheckId == ParseEntityId(id, "QC"));
+            return check is null ? NotFound() : View(check);
         }
 
         public IActionResult QCFailed(string id = "")
@@ -3166,7 +2925,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(WorkOrders));
+            return RedirectToAction(nameof(QualityControl));
         }
 
         public IActionResult QCPassed(string id = "")
@@ -3176,7 +2935,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(WorkOrders));
+            return RedirectToAction(nameof(QualityControl));
         }
 
         public async Task<IActionResult> ToolTracking()
@@ -3189,7 +2948,9 @@ namespace Backyard_Mech.Controllers
             return View(new ToolTrackingViewModel
             {
                 Tools = await LoadToolRowsAsync(),
-                ToolCategoryOptions = await LoadToolCategoryOptionsAsync()
+                ToolCategoryOptions = await LoadToolCategoryOptionsAsync(),
+                Mechanics = await _dbContext.EmployeeProfiles.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
+                OpenWorkOrders = await _dbContext.WorkOrders.AsNoTracking().Where(x => x.WorkOrderStatus != "Cancelled" && x.WorkOrderStatus != "Completed" && x.WorkOrderStatus != "Ready for Pickup" && x.WorkOrderStatus != "Picked Up").OrderByDescending(x => x.CreatedUtc).ToListAsync()
             });
         }
 
@@ -3207,6 +2968,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddTool(ToolFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3218,6 +2980,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(ToolTracking));
             }
 
+            await ValidateToolCategory(form.ToolCategoryId, null);
             _dbContext.Tools.Add(new Tool
             {
                 ToolCategoryId = form.ToolCategoryId,
@@ -3233,12 +2996,14 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Tool saved.";
             return RedirectToAction(nameof(ToolTracking));
+            }, nameof(ToolTracking));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditTool(ToolFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3257,6 +3022,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(ToolTracking));
             }
 
+            await ValidateToolCategory(form.ToolCategoryId, tool.ToolCategoryId);
             tool.ToolCategoryId = form.ToolCategoryId;
             tool.Name = form.Name.Trim();
             tool.SerialNumber = form.SerialNumber.Trim();
@@ -3268,6 +3034,7 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Tool updated.";
             return RedirectToAction(nameof(ToolTracking));
+            }, nameof(ToolTracking));
         }
 
         [HttpPost]
@@ -3280,7 +3047,18 @@ namespace Backyard_Mech.Controllers
             }
 
             var tool = await _dbContext.Tools.FindAsync(form.ToolId);
-            if (tool is not null)
+            if (tool is null)
+            {
+                TempData["OwnerMessage"] = "Tool was not found.";
+                TempData["OwnerMessageTone"] = "error";
+            }
+            else if (await _dbContext.ToolCheckouts.AnyAsync(x => x.ToolId == form.ToolId && x.ReturnedUtc == null) ||
+                await _dbContext.ToolMaintenances.AnyAsync(x => x.ToolId == form.ToolId && x.PerformedUtc == null))
+            {
+                TempData["OwnerMessage"] = "Return the tool and complete its maintenance before archiving it.";
+                TempData["OwnerMessageTone"] = "error";
+            }
+            else
             {
                 tool.IsArchived = true;
                 tool.IsDeleted = false;
@@ -3289,10 +3067,11 @@ namespace Backyard_Mech.Controllers
                 tool.DeletedUtc = null;
                 tool.ArchiveReason = string.IsNullOrWhiteSpace(form.Reason) ? "Archived from Tools Tracking" : form.Reason.Trim();
                 tool.DeleteReason = null;
+                WorkflowAudit("Tool", tool.ToolId, "Archive", new { form.Reason });
                 await _dbContext.SaveChangesAsync();
             }
 
-            TempData["OwnerMessage"] = "Tool archived.";
+            if (tool is not null && TempData["OwnerMessageTone"] is not "error") TempData["OwnerMessage"] = "Tool archived.";
             return RedirectToAction(nameof(ToolTracking));
         }
 
@@ -3306,7 +3085,18 @@ namespace Backyard_Mech.Controllers
             }
 
             var tool = await _dbContext.Tools.FindAsync(form.ToolId);
-            if (tool is not null)
+            if (tool is null)
+            {
+                TempData["OwnerMessage"] = "Tool was not found.";
+                TempData["OwnerMessageTone"] = "error";
+            }
+            else if (await _dbContext.ToolCheckouts.AnyAsync(x => x.ToolId == form.ToolId && x.ReturnedUtc == null) ||
+                await _dbContext.ToolMaintenances.AnyAsync(x => x.ToolId == form.ToolId && x.PerformedUtc == null))
+            {
+                TempData["OwnerMessage"] = "Return the tool and complete its maintenance before deleting it.";
+                TempData["OwnerMessageTone"] = "error";
+            }
+            else
             {
                 tool.IsArchived = false;
                 tool.IsDeleted = true;
@@ -3314,10 +3104,11 @@ namespace Backyard_Mech.Controllers
                 tool.ArchivedUtc = null;
                 tool.DeletedUtc = DateTime.UtcNow;
                 tool.DeleteReason = string.IsNullOrWhiteSpace(form.Reason) ? "Deleted from Tools Tracking" : form.Reason.Trim();
+                WorkflowAudit("Tool", tool.ToolId, "Soft delete", new { form.Reason });
                 await _dbContext.SaveChangesAsync();
             }
 
-            TempData["OwnerMessage"] = "Tool moved to records disposition.";
+            if (tool is not null && TempData["OwnerMessageTone"] is not "error") TempData["OwnerMessage"] = "Tool moved to records disposition.";
             return RedirectToAction(nameof(ToolTracking));
         }
 
@@ -3378,24 +3169,30 @@ namespace Backyard_Mech.Controllers
             return View(await LoadInvoiceRowsAsync());
         }
 
-        public IActionResult InvoiceDetails(string id = "")
+        public async Task<IActionResult> InvoiceDetails(string id = "", string? modal = null)
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceRegistry));
+            var numeric = int.TryParse(id, out var parsed) ? parsed : 0;
+            var invoice = await _dbContext.Invoices.AsNoTracking().FirstOrDefaultAsync(x => x.InvoiceId == numeric || x.InvoiceNumber == id);
+            if (invoice is null) return NotFound();
+            return View(new InvoiceWorkflowViewModel { Invoice = invoice, OpenModal = modal,
+                Lines = await _dbContext.InvoiceLineItems.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync(),
+                Payments = await _dbContext.Payments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).OrderByDescending(x => x.PaidUtc).ToListAsync(),
+                Adjustments = await _dbContext.InvoiceAdjustments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync() });
         }
 
-        public IActionResult GenerateInvoice()
+        public async Task<IActionResult> GenerateInvoice()
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceRegistry));
+            return View(await RepairOperations());
         }
 
         public IActionResult RecordPayment(string id = "")
@@ -3405,7 +3202,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceRegistry));
+            return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "payment-new" });
         }
 
         public IActionResult ApplyInvoiceAdjustment(string id = "")
@@ -3415,7 +3212,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceRegistry));
+            return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "adjustment-new" });
         }
 
         public IActionResult IssueCreditAdjustment(string id = "")
@@ -3425,7 +3222,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceRegistry));
+            return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "adjustment-new" });
         }
 
         public async Task<IActionResult> ArchiveRecords(string tab = "all")
@@ -3662,8 +3459,8 @@ namespace Backyard_Mech.Controllers
             }
 
             var account = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(user =>
-                (!string.IsNullOrWhiteSpace(employee.UserId) && user.Id.ToString() == employee.UserId) ||
-                (!string.IsNullOrWhiteSpace(employee.Email) && user.Email == employee.Email));
+                !string.IsNullOrWhiteSpace(employee.UserId) && user.Id.ToString() == employee.UserId);
+            ViewData["EmployeeAccountId"] = account?.Id;
             ViewData["EmployeeAccountRole"] = account?.Role ?? "";
             ViewData["EmployeeHasLoginAccount"] = account is not null;
             ViewData["EmployeeRoleOptions"] = await _dbContext.AppRoles.AsNoTracking()
@@ -3714,6 +3511,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddEmployee(EmployeeFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3725,8 +3523,8 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(Employees));
             }
 
-            var nextNumber = $"EMP-{DateTime.UtcNow:yyyyMMddHHmmss}";
-            _dbContext.EmployeeProfiles.Add(new EmployeeProfile
+            var nextNumber = $"EMP-{Guid.NewGuid():N}";
+            var employee = new EmployeeProfile
             {
                 EmployeeNumber = nextNumber,
                 FirstName = form.FirstName.Trim(),
@@ -3742,17 +3540,22 @@ namespace Backyard_Mech.Controllers
                 HourlyRate = form.HourlyRate,
                 HireDate = DateOnly.FromDateTime(DateTime.UtcNow),
                 IsActive = true
-            });
+            };
+            _dbContext.EmployeeProfiles.Add(employee);
 
             await _dbContext.SaveChangesAsync();
+            WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Create staff profile",new{EmployeeNumber=nextNumber,form.FirstName,form.LastName});
             TempData["OwnerMessage"] = "Employee saved.";
             return RedirectToAction(nameof(Employees));
+            },nameof(Employees));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditEmployee(EmployeeFormModel form)
         {
+            return await SaveWorkflow(async () => {
+            Require(string.IsNullOrWhiteSpace(form.RoleId),"Use Account Access to change login roles and permissions.");
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3771,7 +3574,6 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(Employees));
             }
 
-            var previousEmail = employee.Email;
             employee.FirstName = form.FirstName.Trim();
             employee.MiddleName = form.MiddleInitial?.Trim();
             employee.LastName = form.LastName.Trim();
@@ -3784,33 +3586,11 @@ namespace Backyard_Mech.Controllers
             employee.JobTitle = form.JobTitle.Trim();
             employee.HourlyRate = form.HourlyRate;
 
-            if (!string.IsNullOrWhiteSpace(form.RoleId))
-            {
-                var role = await _dbContext.AppRoles.AsNoTracking()
-                    .FirstOrDefaultAsync(item => item.RoleKey == form.RoleId && item.IsActive);
-                var account = await _dbContext.Users.FirstOrDefaultAsync(user =>
-                    (!string.IsNullOrWhiteSpace(employee.UserId) && user.Id.ToString() == employee.UserId) ||
-                    (!string.IsNullOrWhiteSpace(previousEmail) && user.Email == previousEmail));
-                if (role is null || account is null)
-                {
-                    TempData["OwnerMessage"] = role is null ? "Selected role was not found." : "This employee does not have a login account to assign a role to.";
-                    TempData["OwnerMessageTone"] = "error";
-                    return RedirectToAction(nameof(EmployeeAccountDetails), new { id = form.EmployeeProfileId });
-                }
-
-                account.Role = role.RoleKey;
-                account.Email = employee.Email ?? account.Email;
-                if (HttpContext.Session.GetString("UserId") == account.Id.ToString())
-                {
-                    HttpContext.Session.SetString("UserRole", role.RoleKey);
-                }
-
-                _permissionService.ClearCache(role.RoleKey);
-            }
-
+            WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Edit staff profile",new{employee.FirstName,employee.LastName,employee.JobTitle,employee.Email});
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Employee updated.";
             return RedirectToAction(nameof(EmployeeAccountDetails), new { id = employee.EmployeeProfileId });
+            },nameof(Employees));
         }
 
         [HttpPost]
@@ -3890,6 +3670,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetEmployeeShift(EmployeeShiftFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -3932,10 +3713,28 @@ namespace Backyard_Mech.Controllers
             availability.EndTime = form.IsAvailable ? endTime : null;
 
             await _dbContext.SaveChangesAsync();
+            var employeeName = BuildEmployeeName(employee);
+            var appointments = await _dbContext.Appointments.Where(x => x.ScheduledEnd > DateTime.Now &&
+                x.AppointmentStatus != "Cancelled" && x.AppointmentStatus != "Completed" && x.AppointmentStatus != "No Show" &&
+                (x.AssignedMechanicName == employeeName || (employee.UserId != null && x.AssignedMechanicUserId == employee.UserId))).ToListAsync();
+            foreach (var appointment in appointments.Where(x => x.ScheduledStart.HasValue && x.ScheduledEnd.HasValue))
+            {
+                var linked = await _dbContext.WorkOrders.FirstOrDefaultAsync(x => x.AppointmentId == appointment.AppointmentId && x.WorkOrderStatus != "Cancelled");
+                var error = await ScheduleError(appointment.ScheduledStart!.Value, appointment.ScheduledEnd!.Value, null, new[] { employee }, appointment.AppointmentId, linked?.WorkOrderId);
+                Require(error is null, error ?? "Shift conflicts with existing appointments.");
+            }
+            var orderIds = await _dbContext.WorkOrderAssignments.Where(x => x.MechanicName == employeeName || (employee.UserId != null && x.MechanicUserId == employee.UserId)).Select(x => x.WorkOrderId).ToListAsync();
+            var orders = await _dbContext.WorkOrders.Where(x => orderIds.Contains(x.WorkOrderId) && x.ScheduledEnd > DateTime.Now && x.WorkOrderStatus != "Cancelled" && x.WorkOrderStatus != "Completed" && x.WorkOrderStatus != "Ready for Pickup" && x.WorkOrderStatus != "Picked Up").ToListAsync();
+            foreach (var order in orders.Where(x => x.ScheduledStart.HasValue && x.ScheduledEnd.HasValue))
+            {
+                var error = await ScheduleError(order.ScheduledStart!.Value, order.ScheduledEnd!.Value, null, new[] { employee }, order.AppointmentId, order.WorkOrderId);
+                Require(error is null, error ?? "Shift conflicts with existing work orders.");
+            }
 
             TempData["OwnerMessage"] = "Employee shift saved.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(EmployeeSchedule));
+            }, nameof(EmployeeSchedule));
         }
 
         private async Task<List<RecordGovernanceItem>> LoadArchivedRecordRowsAsync()
@@ -4474,7 +4273,7 @@ namespace Backyard_Mech.Controllers
                 .Where(service => appointmentIds.Contains(service.AppointmentId ?? 0))
                 .ToListAsync();
 
-            var completedOrders = workOrders.Where(order => string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase)).ToList();
+            var completedOrders = workOrders.Where(order => order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up").ToList();
             var totalHours = workOrders.Sum(CalculateWorkOrderHours);
             var activeHours = workOrders
                 .Where(order => order.ScheduledStart?.Date >= DateTime.Today.AddDays(-7))
@@ -4662,7 +4461,7 @@ namespace Backyard_Mech.Controllers
                     .Select(assignment => assignment.WorkOrderId ?? 0)
                     .ToHashSet();
                 var employeeOrders = workOrders.Where(order => orderIds.Contains(order.WorkOrderId)).ToList();
-                var completed = employeeOrders.Count(order => string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+                var completed = employeeOrders.Count(order => order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up");
                 if (completed == 0)
                 {
                     completed = employeeOrders.Count;
@@ -4976,12 +4775,12 @@ namespace Backyard_Mech.Controllers
 
             var invoices = await _dbContext.Invoices
                 .AsNoTracking()
-                .Where(invoice => invoice.IssuedUtc >= start && invoice.IssuedUtc < endExclusive)
+                .Where(invoice => invoice.IssuedUtc >= start && invoice.IssuedUtc < endExclusive && invoice.InvoiceStatus != "Voided")
                 .OrderByDescending(invoice => invoice.IssuedUtc)
                 .ToListAsync();
             var previousRevenue = await _dbContext.Invoices
                 .AsNoTracking()
-                .Where(invoice => invoice.IssuedUtc >= previousStart && invoice.IssuedUtc < previousEndExclusive)
+                .Where(invoice => invoice.IssuedUtc >= previousStart && invoice.IssuedUtc < previousEndExclusive && invoice.InvoiceStatus != "Voided")
                 .SumAsync(invoice => invoice.Total ?? 0);
 
             var workOrders = await _dbContext.WorkOrders.AsNoTracking().ToDictionaryAsync(order => order.WorkOrderId);
@@ -5092,7 +4891,7 @@ namespace Backyard_Mech.Controllers
                 var billable = actualServiceHours > 0 ? actualServiceHours : assignedOrders.Sum(CalculateWorkOrderHours);
                 var total = Math.Max(capacityPerPerson, billable);
                 var nonBillable = Math.Max(0, total - billable);
-                var completedJobs = assignedOrders.Count(order => string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+                var completedJobs = assignedOrders.Count(order => order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up");
                 if (completedJobs == 0)
                 {
                     completedJobs = assignedOrders.Count;
@@ -5154,7 +4953,7 @@ namespace Backyard_Mech.Controllers
                 var bayOrders = workOrders.Where(order => order.BayId == bay.BayId).ToList();
                 var occupied = Math.Min(availablePerBay, bayOrders.Sum(CalculateWorkOrderHours));
                 var utilization = availablePerBay == 0 ? 0 : occupied / availablePerBay * 100;
-                var jobs = bayOrders.Count(order => string.Equals(order.WorkOrderStatus, "Completed", StringComparison.OrdinalIgnoreCase));
+                var jobs = bayOrders.Count(order => order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up");
                 if (jobs == 0)
                 {
                     jobs = bayOrders.Count;
@@ -5337,7 +5136,8 @@ namespace Backyard_Mech.Controllers
             var appointments = await _dbContext.Appointments.AsNoTracking().ToDictionaryAsync(appointment => appointment.AppointmentId);
 
             var labourCost = serviceEntries.Sum(entry => entry.ServiceCost ?? ((entry.HourlyRate ?? 0) * (entry.DurationMinutes is > 0 ? entry.DurationMinutes.Value / 60m : entry.EstimatedHours ?? 0)));
-            var partsCost = partTransactions.Where(transaction => string.Equals(transaction.TransactionType, "Installed", StringComparison.OrdinalIgnoreCase)).Sum(transaction => (transaction.UnitCostAtTransaction ?? 0) * (transaction.Quantity ?? 0));
+            var partsCost = partTransactions.Where(x => x.TransactionType is "Installed" or "Returned" or "Wasted")
+                .Sum(x => (x.UnitCostAtTransaction ?? 0) * (x.Quantity ?? 0) * (x.TransactionType == "Returned" ? -1 : 1));
             var totalRevenue = sales.Rows.Sum(row => decimal.Parse(row.Amount.Replace("$", "").Replace(",", "")));
             var totalCost = labourCost + partsCost;
             var profit = totalRevenue - totalCost;
@@ -5663,6 +5463,12 @@ namespace Backyard_Mech.Controllers
             try
             {
                 var export = _reportExportService.CreateFile(report, format);
+                _dbContext.AuditLogEntries.Add(new AuditLogEntry {
+                    UserId = HttpContext.Session.GetString("UserId"), UserName = HttpContext.Session.GetString("UserName"),
+                    Action = "Export report", EntityName = "Report", EntityId = normalizedReportType, TimestampUtc = DateTime.UtcNow,
+                    Details = System.Text.Json.JsonSerializer.Serialize(new { format, startDate, endDate, Rows = report.Rows.Count })
+                });
+                await _dbContext.SaveChangesAsync();
                 var safeName = normalizedReportType.Replace(' ', '-');
                 var fileName = $"backyard-mech-{safeName}-{DateTime.Today:yyyyMMdd}.{export.Extension}";
                 return File(export.Content, export.ContentType, fileName);
@@ -5690,7 +5496,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return View(await _dbContext.TaxRates.AsNoTracking().OrderByDescending(rate => rate.EffectiveFrom).ToListAsync());
+            return await TaxMasterPage();
         }
 
         private static readonly string[] SettingsPermissionActions = { "View", "Create", "Edit", "Delete", "Approve" };
@@ -5826,6 +5632,7 @@ namespace Backyard_Mech.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveRolePermissions(SettingsRolePermissionFormModel form)
         {
+            return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
@@ -5852,11 +5659,19 @@ namespace Backyard_Mech.Controllers
                 .Where(permission => permission.IsActive && form.PermissionIds.Contains(permission.PermissionId))
                 .Select(permission => permission.PermissionId)
                 .ToListAsync();
+            var actorCodes=await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            var requestedCodes=await _dbContext.Permissions.Where(x=>validPermissionIds.Contains(x.PermissionId)).Select(x=>x.PermissionCode!).ToListAsync();
+            Require(actorCodes.Contains("*") || requestedCodes.All(actorCodes.Contains),"You cannot grant role permissions beyond your own access.");
             var existing = await _dbContext.RolePermissions
                 .Where(rolePermission => rolePermission.RoleId == form.RoleId)
                 .ToListAsync();
 
             _dbContext.RolePermissions.RemoveRange(existing);
+            _dbContext.AuditLogEntries.Add(new AuditLogEntry {
+                UserId = HttpContext.Session.GetString("UserId"), UserName = HttpContext.Session.GetString("UserName"),
+                Action = "Update permissions", EntityName = "AppRole", EntityId = role.RoleKey, TimestampUtc = DateTime.UtcNow,
+                Details = System.Text.Json.JsonSerializer.Serialize(new { Before = existing.Select(x => x.PermissionId), After = validPermissionIds })
+            });
             _dbContext.RolePermissions.AddRange(validPermissionIds.Distinct().Select(permissionId => new RolePermission
             {
                 RoleId = form.RoleId,
@@ -5868,6 +5683,7 @@ namespace Backyard_Mech.Controllers
             TempData["OwnerMessage"] = $"{role.RoleName} permissions updated.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(SettingsRoles), new { role = form.RoleId });
+            },nameof(SettingsRoles),new{role=form.RoleId});
         }
 
         [HttpPost]

@@ -1,0 +1,4 @@
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #20262d; background: #f2f4f6; }
+main { box-sizing: border-box; max-width: 480px; margin: 10vh auto; padding: 28px; background: white; border: 1px solid #d9dfe5; border-radius: 6px; }
+h1 { font-size: 24px; } label, input, code { display: block; } input { box-sizing: border-box; width: 100%; padding: 12px; margin: 8px 0 16px; border: 1px solid #687483; border-radius: 4px; font: inherit; }
+code { overflow-wrap: anywhere; padding: 14px; background: #eef2f6; margin: 16px 0; } button { padding: 12px 24px; background: #1765c1; color: white; border: 0; border-radius: 4px; font: inherit; cursor: pointer; } a { display: block; margin-top: 20px; color: #1765c1; } .validation-summary-errors { color: #b32323; } @media(max-width: 520px) { main { margin: 24px 12px; } }

@@ -1,4 +1,5 @@
 @model IReadOnlyList<WorkOrderListItem>
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Work Orders";
@@ -14,7 +15,9 @@
 }
 
 @section TopbarActions {
+    @if(await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Work Orders", "Create")) {
     <button class="wo-topbar-button" type="button" data-workorder-modal="create-work-order">+ Create Work Order</button>
+    }
 }
 
 <section class="wo-page">
@@ -136,7 +139,7 @@
     </section>
 </section>
 
-@await Html.PartialAsync("_CreateWorkOrderModal")
+@if(await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Work Orders", "Create")) { @await Html.PartialAsync("_CreateWorkOrderModal") }
 
 @section Scripts {
     @await Html.PartialAsync("_WorkOrderModalScripts")

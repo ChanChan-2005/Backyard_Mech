@@ -6,7 +6,7 @@
 <div class="wo-modal" data-workorder-modal-panel="create-work-order" aria-hidden="true">
     <div class="wo-modal-backdrop" data-workorder-modal-close></div>
     <section class="wo-modal-card" role="dialog" aria-modal="true" aria-labelledby="create-work-order-title">
-        <form class="wo-modal-form">
+        <form class="wo-modal-form" asp-action="GenerateWorkOrder" method="post">
             <header class="wo-modal-header">
                 <div>
                     <h2 id="create-work-order-title">Create Work Order</h2>
@@ -23,17 +23,13 @@
                 <div class="wo-form-grid">
                     <label>
                         <span class="wo-label">Originating Estimate</span>
-                        <select class="wo-select">
+                        <select class="wo-select" name="EstimateId" required>
                             <option value="" selected disabled>Select approved estimate</option>
                             @foreach (var estimate in approvedEstimateOptions)
                             {
                                 <option value="@estimate.Id">@estimate.Label</option>
                             }
                         </select>
-                    </label>
-                    <label>
-                        <span class="wo-label">Owner & Asset</span>
-                        <input class="wo-field" placeholder="Enter owner and vehicle details" />
                     </label>
                 </div>
             </section>
@@ -45,7 +41,7 @@
                 <div class="wo-form-grid">
                     <label>
                         <span class="wo-label">Assign Primary Lead Mechanic</span>
-                        <select class="wo-select">
+                        <select class="wo-select" name="EmployeeProfileId" required>
                             <option value="" selected disabled>Select lead mechanic</option>
                             @foreach (var employee in employeeOptions)
                             {
@@ -55,7 +51,7 @@
                     </label>
                     <label>
                         <span class="wo-label">Assign Service Bay Location</span>
-                        <select class="wo-select">
+                        <select class="wo-select" name="BayId" required>
                             <option value="" selected disabled>Select service bay</option>
                             @foreach (var bay in bayOptions)
                             {
@@ -65,11 +61,11 @@
                     </label>
                     <label>
                         <span class="wo-label">Expected Job Start</span>
-                        <input class="wo-field" placeholder="Select or enter expected start time" />
+                        <input class="wo-field" type="datetime-local" name="ScheduledStart" required />
                     </label>
                     <label>
                         <span class="wo-label">Expected Completion Deadline</span>
-                        <input class="wo-field" placeholder="Select or enter completion deadline" />
+                        <input class="wo-field" type="datetime-local" name="ScheduledEnd" required />
                     </label>
                 </div>
             </section>
@@ -77,13 +73,13 @@
             <section class="wo-modal-section">
                 <label class="wo-wide-label">
                     <span class="wo-label">Maintenance and Dispatch Instructions</span>
-                    <textarea class="wo-textarea" placeholder="Enter maintenance notes, parts instructions, and dispatch details."></textarea>
+                    <textarea class="wo-textarea" name="Notes" maxlength="2000" placeholder="Maintenance and dispatch notes"></textarea>
                 </label>
             </section>
 
             <footer class="wo-modal-actions">
                 <button class="wo-button" type="button" data-workorder-modal-close>Cancel</button>
-                <a class="wo-topbar-button" href="/Owner/WorkOrders">Generate WO</a>
+                <button class="wo-topbar-button" type="submit">Generate WO</button>
             </footer>
         </form>
     </section>

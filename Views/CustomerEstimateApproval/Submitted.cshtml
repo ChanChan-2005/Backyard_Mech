@@ -1,0 +1,4 @@
+@model string
+@{ Layout = "_Layout"; ViewData["Title"] = ViewData["PageTitle"] = "Response recorded"; }
+<link rel="stylesheet" href="~/css/owner/repair-workflow.css" asp-append-version="true" />
+<main class="repair-page"><section class="repair-section"><h2>Thank you. Your response was recorded.</h2><p>@(Model == "Approved" ? "The full estimate is approved." : Model == "Partially Approved" ? "Your approved items were sent to the shop." : Model == "Changes Requested" ? "The shop will review your requested changes." : "The estimate was declined.")</p></section></main>

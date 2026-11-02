@@ -1,0 +1,16 @@
+.staff-access{margin-bottom:20px}
+.staff-access h3{font:700 18px Arial,sans-serif;margin:24px 0 16px}
+.staff-access-fields{border:0;margin:0;padding:0;min-width:0}
+.staff-account-controls{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.staff-access label{display:flex;flex-direction:column;gap:8px;font-weight:600}
+.staff-access .staff-check{flex-direction:row;align-items:center}
+.staff-access .staff-check input{min-height:0;width:18px;height:18px}
+.staff-access textarea{width:100%;min-height:80px;margin-bottom:20px}
+.staff-access input[type=search]{margin-bottom:18px}
+.staff-access select{min-width:110px}
+.staff-access summary{cursor:pointer;padding:14px 0;font-weight:600}
+.staff-notice{padding:12px;background:#fff5d6;color:#704a00}
+.staff-access a{color:#205bc0;text-decoration:underline;text-underline-offset:3px}
+.staff-access td,.staff-access th{max-width:none}
+.staff-access fieldset:disabled select{background:#f3f5f7;color:#596375}
+@media(max-width:650px){.staff-account-controls{display:grid;grid-template-columns:minmax(0,1fr)}.staff-access td,.staff-access th{min-width:100px}}

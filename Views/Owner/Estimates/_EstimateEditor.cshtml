@@ -1,0 +1,16 @@
+@model EstimateEditorViewModel
+<dialog class="repair-dialog" id="estimate-editor" aria-labelledby="estimate-editor-title">
+    <form method="post" asp-controller="Owner" asp-action="@(Model.Form.EstimateId == 0 ? "CreateEstimate" : "UpdateEstimate")" data-estimate-editor>
+        <header><h2 id="estimate-editor-title">@(Model.Form.EstimateId == 0 ? "New Estimate" : "Edit Estimate")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+        <input type="hidden" name="EstimateId" value="@Model.Form.EstimateId" /><input type="hidden" name="ExpectedRevisionId" value="@Model.Form.ExpectedRevisionId" />
+        <div class="repair-fields">
+            <label>Customer appointment<select name="AppointmentId" required><option value="">Select appointment</option>@foreach(var option in Model.Appointments.Where(x => Model.Form.EstimateId == 0 || x.Id == Model.Form.AppointmentId)) { <option value="@option.Id" selected="@(option.Id == Model.Form.AppointmentId)">@option.Label</option> }</select></label>
+            <label>Tax<select name="TaxRateId"><option value="">No tax</option>@foreach(var tax in Model.Taxes) { <option value="@tax.TaxRateId" selected="@(tax.TaxRateId == Model.Form.TaxRateId)">@tax.Description (@((tax.Rate ?? 0).ToString("P2")))</option> }</select></label>
+            <label class="repair-wide">@(Model.Form.EstimateId == 0 ? "Notes" : "Reason for revision")<input name="Reason" value="@Model.Form.Reason" required maxlength="1000" /></label>
+        </div><h3>Parts and Labour</h3>
+        <div data-estimate-lines>@foreach(var line in Model.Form.Lines) { @await Html.PartialAsync("_EstimateLineEditor", new EstimateLineEditor(line, Model)) }</div>
+        <template>@await Html.PartialAsync("_EstimateLineEditor", new EstimateLineEditor(new EstimateLineForm(), Model))</template>
+        <button type="button" data-add-line>Add Line</button>
+        <footer><button type="button" data-dialog-close>Cancel</button><button type="submit" class="primary">Save Estimate</button></footer>
+    </form>
+</dialog>

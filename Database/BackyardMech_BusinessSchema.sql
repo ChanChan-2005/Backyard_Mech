@@ -516,8 +516,19 @@ CREATE TABLE dbo.WorkOrder (
     ScheduledEnd DATETIME2 NULL,
     ActualStart DATETIME2 NULL,
     ActualEnd DATETIME2 NULL,
+    ReleasedUtc DATETIME2 NULL,
+    ReleasedByUserId NVARCHAR(450) NULL,
+    ReleasedByName NVARCHAR(256) NULL,
     CreatedUtc DATETIME2 NOT NULL CONSTRAINT DF_WorkOrder_CreatedUtc DEFAULT (SYSUTCDATETIME())
 );
+GO
+
+IF COL_LENGTH(N'dbo.WorkOrder', N'ReleasedUtc') IS NULL
+    ALTER TABLE dbo.WorkOrder ADD ReleasedUtc DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.WorkOrder', N'ReleasedByUserId') IS NULL
+    ALTER TABLE dbo.WorkOrder ADD ReleasedByUserId NVARCHAR(450) NULL;
+IF COL_LENGTH(N'dbo.WorkOrder', N'ReleasedByName') IS NULL
+    ALTER TABLE dbo.WorkOrder ADD ReleasedByName NVARCHAR(256) NULL;
 GO
 
 IF OBJECT_ID(N'dbo.WorkOrderAssignment', N'U') IS NULL
@@ -952,6 +963,21 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Invoice_InvoiceNumber' AND object_id = OBJECT_ID(N'dbo.Invoice'))
 CREATE UNIQUE INDEX UX_Invoice_InvoiceNumber ON dbo.Invoice(InvoiceNumber) WHERE InvoiceNumber IS NOT NULL;
+GO
+
+-- Additive security/approved-scope upgrade; existing repair and account rows are retained.
+IF COL_LENGTH('dbo.ServiceEntry', 'ApprovedEstimateLineId') IS NULL
+    ALTER TABLE dbo.ServiceEntry ADD ApprovedEstimateLineId int NULL;
+GO
+IF OBJECT_ID('dbo.AccountSecurity', 'U') IS NULL
+CREATE TABLE dbo.AccountSecurity (
+    UserId int NOT NULL PRIMARY KEY REFERENCES dbo.Users(Id),
+    FailedAttempts int NOT NULL DEFAULT 0,
+    LockedUntilUtc datetime2 NULL,
+    AuthenticatorSecret nvarchar(2048) NULL,
+    LastOtpStep bigint NOT NULL DEFAULT -1,
+    RecoveryHashes nvarchar(max) NULL
+);
 GO
 
 SELECT t.name AS BusinessTable

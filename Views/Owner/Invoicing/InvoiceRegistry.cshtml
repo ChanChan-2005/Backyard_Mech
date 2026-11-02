@@ -1,4 +1,5 @@
 @model IReadOnlyList<InvoiceListItem>
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Invoice Registry";
@@ -9,13 +10,15 @@
 
     var invoices = Model ?? Array.Empty<InvoiceListItem>();
     decimal ParseMoney(string value) => decimal.TryParse(value.Replace("$", "").Replace(",", ""), out var amount) ? amount : 0;
-    var totalInvoiced = invoices.Sum(invoice => ParseMoney(invoice.Amount));
+    var totalInvoiced = invoices.Where(x => x.Status != "Voided").Sum(invoice => ParseMoney(invoice.Amount));
     var totalPaid = invoices.Sum(invoice => ParseMoney(invoice.Paid));
     var overdueBalance = invoices.Where(invoice => invoice.Status == "Overdue").Sum(invoice => ParseMoney(invoice.Balance));
 }
 
 @section TopbarActions {
+    @if(await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Create")) {
     <a class="invoice-button-blue" href="/Owner/GenerateInvoice">+ Generate Invoice</a>
+    }
 }
 
 <section class="invoice-page">
@@ -74,8 +77,8 @@
                         <td>@invoice.Date</td>
                         <td>
                             <a class="invoice-small-button" href="/Owner/InvoiceDetails/@invoiceSlug">View</a>
-                            <a class="invoice-small-button" href="/Owner/RecordPayment/@invoiceSlug">Pay</a>
-                            <a class="invoice-small-button" href="/Owner/ApplyInvoiceAdjustment/@invoiceSlug">Adjust</a>
+                            @if(invoice.Status != "Voided" && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Create")) { <a class="invoice-small-button" href="/Owner/RecordPayment/@invoiceSlug">Pay</a> }
+                            @if(invoice.Status != "Voided" && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Edit")) { <a class="invoice-small-button" href="/Owner/ApplyInvoiceAdjustment/@invoiceSlug">Adjust</a> }
                         </td>
                     </tr>
                 }
@@ -83,14 +86,6 @@
         </table>
         <footer class="invoice-panel-footer">
             <span>Showing @invoices.Count invoice@(invoices.Count == 1 ? "" : "s")</span>
-            <nav class="invoice-pagination">
-                <button type="button">Prev</button>
-                <button class="active" type="button">1</button>
-                <button type="button">2</button>
-                <button type="button">3</button>
-                <button type="button">...</button>
-                <button type="button">Next</button>
-            </nav>
         </footer>
     </section>
 </section>

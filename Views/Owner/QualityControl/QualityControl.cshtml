@@ -1,11 +1,24 @@
-﻿@{
-    Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+@model RepairOperationsViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = "Quality Control"; ViewData["ActiveNav"] = "Quality Control";
+    var canInspect = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inspections", "Create");
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page">
+    <section class="repair-section"><header><h2>Inspection Queue</h2><span class="repair-status">@Model.Orders.Count(x => x.WorkOrderStatus == "Pending QC") awaiting inspection</span></header>
+        <label>Search<input type="search" data-table-search="qc-queue" placeholder="Work order, customer or status" /></label>
+        <div class="repair-table-wrap"><table id="qc-queue"><thead><tr><th>Work order</th><th>Customer</th><th>Repair status</th><th>Last inspection</th><th>Inspector</th><th>Actions</th></tr></thead><tbody>
+        @foreach(var order in Model.Orders.Where(x => x.WorkOrderStatus is "Pending QC" or "Completed" or "In Repair" or "Ready for Pickup")) {
+            var latest = Model.Checks.FirstOrDefault(x => x.WorkOrderId == order.WorkOrderId);
+            <tr><td>WO-@order.WorkOrderId</td><td>@Model.Customers.GetValueOrDefault(order.WorkOrderId)</td><td>@order.WorkOrderStatus</td><td>@(latest is null ? "Not inspected" : latest.Passed == true ? "Passed" : latest.Passed == false ? "Failed" : "Voided")</td><td>@latest?.InspectorName</td><td><div class="repair-actions">
+                @if(canInspect && order.WorkOrderStatus == "Pending QC") { <a class="repair-button primary" href="/Owner/ExecuteInspection/@order.WorkOrderId">Start Inspection</a> }
+                @if(latest is not null) { <a class="repair-button" href="/Owner/InspectionResult/@latest.QualityCheckId">View Result</a> }
+            </div></td></tr>
+        }
+        </tbody></table></div>
+    </section>
+    <section class="repair-section"><h2>Inspection History</h2><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Inspected (UTC)</th><th>Inspector</th><th>Result</th><th></th></tr></thead><tbody>
+    @foreach(var check in Model.Checks) { <tr><td>WO-@check.WorkOrderId</td><td>@check.PerformedUtc.ToString("g")</td><td>@check.InspectorName</td><td>@(check.Passed == true ? "Passed" : check.Passed == false ? "Failed" : "Voided")</td><td><a href="/Owner/InspectionResult/@check.QualityCheckId">View</a></td></tr> }
+    @if(Model.Checks.Count == 0) { <tr><td colspan="5">No inspections recorded.</td></tr> }
+    </tbody></table></div></section>
+</div>

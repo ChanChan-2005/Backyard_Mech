@@ -11,6 +11,8 @@ namespace Backyard_Mech.Data
         }
 
         public DbSet<AppUser> Users => Set<AppUser>();
+        public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
+        public DbSet<AccountSecurity> AccountSecurity => Set<AccountSecurity>();
         public DbSet<AppRole> AppRoles => Set<AppRole>();
         public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
         public DbSet<EmployeeRateHistory> EmployeeRateHistories => Set<EmployeeRateHistory>();
@@ -95,6 +97,10 @@ namespace Backyard_Mech.Data
             modelBuilder.Entity<EmployeeAvailability>().ToTable("EmployeeAvailability");
             modelBuilder.Entity<EmployeeAvailabilityException>().ToTable("EmployeeAvailabilityException");
             modelBuilder.Entity<Permission>().ToTable("Permission");
+            modelBuilder.Entity<UserPermissionOverride>().ToTable("UserPermissionOverride")
+                .HasIndex(x=>new {x.UserId,x.PermissionId}).IsUnique();
+            modelBuilder.Entity<UserPermissionOverride>().HasOne<AppUser>().WithMany().HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<UserPermissionOverride>().HasOne<Permission>().WithMany().HasForeignKey(x=>x.PermissionId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<RolePermission>().ToTable("RolePermission");
             modelBuilder.Entity<AuditLogEntry>().ToTable("AuditLogEntry");
             modelBuilder.Entity<RecordsDispositionPolicy>(entity =>

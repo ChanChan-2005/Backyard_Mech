@@ -1,0 +1,50 @@
+@model ToolTrackingViewModel
+@{
+    var mechanics = Model.Mechanics;
+    var orders = Model.OpenWorkOrders;
+}
+<div class="tools-modal" data-tools-modal-panel="checkout-tool" aria-hidden="true"><div class="tools-modal-backdrop" data-tools-modal-close></div><section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="checkout-tool-title">
+    <form class="tools-form-panel" asp-action="CheckoutTool" method="post">@Html.AntiForgeryToken()
+        <header class="tools-modal-header"><div><h2 id="checkout-tool-title">Check Out Tool</h2><p>Record who is taking the tool and where it will be used.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
+        <input type="hidden" name="ToolId" data-tool-transaction-id />
+        <div class="tools-form-grid">
+            <label><span class="tools-label">Mechanic *</span><select class="tools-select" name="EmployeeProfileId" required><option value="">Choose mechanic</option>@foreach(var e in mechanics){<option value="@e.EmployeeProfileId">@e.FirstName @e.LastName</option>}</select></label>
+            <label><span class="tools-label">Work order</span><select class="tools-select" name="WorkOrderId"><option value="">No work order</option>@foreach(var o in orders){<option value="@o.WorkOrderId">WO-@o.WorkOrderId.ToString("0000")</option>}</select></label>
+            <label><span class="tools-label">Condition at checkout *</span><select class="tools-select" name="ConditionAtCheckout" required><option>Excellent</option><option selected>Good</option><option>Fair</option></select></label>
+            <label class="tools-wide-label"><span class="tools-label">Notes</span><input class="tools-input" name="Notes" maxlength="1000" placeholder="What is the tool needed for?" /></label>
+        </div>
+        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Complete Checkout</button></footer>
+    </form>
+</section></div>
+
+<div class="tools-modal" data-tools-modal-panel="return-tool" aria-hidden="true"><div class="tools-modal-backdrop" data-tools-modal-close></div><section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="return-tool-title">
+    <form class="tools-form-panel" asp-action="ReturnEquipment" method="post">@Html.AntiForgeryToken()
+        <header class="tools-modal-header"><div><h2 id="return-tool-title">Return &amp; Inspect Tool</h2><p>Record its condition before returning it to storage.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
+        <input type="hidden" name="ToolCheckoutId" data-tool-checkout-id />
+        <div class="tools-form-grid"><label><span class="tools-label">Condition at return *</span><select class="tools-select" name="ConditionAtReturn" required><option>Excellent</option><option selected>Good</option><option>Fair</option><option>Damaged</option><option>Missing</option></select></label>
+            <label class="tools-wide-label"><span class="tools-label">Inspection notes *</span><input class="tools-input" name="Notes" required maxlength="1000" placeholder="Describe wear, damage, or confirm it is in good condition" /></label></div>
+        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Save Return</button></footer>
+    </form>
+</section></div>
+
+<div class="tools-modal" data-tools-modal-panel="start-maintenance" aria-hidden="true"><div class="tools-modal-backdrop" data-tools-modal-close></div><section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="start-maintenance-title">
+    <form class="tools-form-panel" asp-action="StartToolMaintenance" method="post">@Html.AntiForgeryToken()
+        <header class="tools-modal-header"><div><h2 id="start-maintenance-title">Start Tool Maintenance</h2><p>The tool will be unavailable until maintenance is completed.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
+        <input type="hidden" name="ToolId" data-tool-transaction-id />
+        <div class="tools-form-grid"><label><span class="tools-label">Maintenance type *</span><select class="tools-select" name="MaintenanceType"><option>Repair</option><option>Calibration</option><option>Preventive maintenance</option><option>Safety inspection</option></select></label>
+            <label class="tools-wide-label"><span class="tools-label">Reason / reported issue *</span><input class="tools-input" name="Notes" required maxlength="1000" placeholder="Example: calibration is overdue" /></label></div>
+        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Mark Under Maintenance</button></footer>
+    </form>
+</section></div>
+
+<div class="tools-modal" data-tools-modal-panel="complete-maintenance" aria-hidden="true"><div class="tools-modal-backdrop" data-tools-modal-close></div><section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="complete-maintenance-title">
+    <form class="tools-form-panel" asp-action="CompleteToolMaintenance" method="post">@Html.AntiForgeryToken()
+        <header class="tools-modal-header"><div><h2 id="complete-maintenance-title">Complete Tool Maintenance</h2><p>Save the service record and return the tool to available inventory.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
+        <input type="hidden" name="ToolId" data-tool-transaction-id />
+        <div class="tools-form-grid"><label><span class="tools-label">Condition after maintenance *</span><select class="tools-select" name="ConditionAfter" required><option>Excellent</option><option selected>Good</option><option>Fair</option><option>Damaged</option></select></label>
+            <label><span class="tools-label">Next calibration due</span><input class="tools-input" type="date" name="NextDueUtc" /></label>
+            <label><span class="tools-label">Maintenance cost</span><input class="tools-input" type="number" min="0" step="0.01" name="Cost" value="0" /></label>
+            <label class="tools-wide-label"><span class="tools-label">Work completed *</span><input class="tools-input" name="Notes" required maxlength="1000" placeholder="Describe the repair, calibration, or check performed" /></label></div>
+        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Complete Maintenance</button></footer>
+    </form>
+</section></div>

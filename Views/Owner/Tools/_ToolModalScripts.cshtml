@@ -1,3 +1,4 @@
+<script src="~/js/owner-master-references.js" asp-append-version="true"></script>
 <script>
     (() => {
         const openModal = (name) => {
@@ -25,7 +26,7 @@
 
         const setEditToolField = (modal, field, value) => {
             const input = modal?.querySelector(`[data-edit-tool-field="${field}"]`);
-            if (input) input.value = value ?? "";
+            window.setMasterReferenceValue(input, value);
         };
 
         const populateEditToolModal = (button) => {

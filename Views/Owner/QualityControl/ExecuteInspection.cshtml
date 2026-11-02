@@ -1,11 +1,20 @@
-﻿@{
-    Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+@model RepairOperationsViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
+@{
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = $"Inspect WO-{Model.WorkOrderId}"; ViewData["ActiveNav"] = "Quality Control";
+    var checklist = Backyard_Mech.Controllers.OwnerController.QcChecklist;
+    var order = Model.Orders.First(x => x.WorkOrderId == Model.WorkOrderId);
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
-</section>
+<div class="repair-page"><a href="/Owner/QualityControl">Back to QC Queue</a>
+    <section class="repair-section"><h2>@Model.Customers.GetValueOrDefault(order.WorkOrderId)</h2><p>Work order: WO-@order.WorkOrderId | @order.WorkOrderStatus</p><p>Inspector account: @Context.Session.GetString("UserName")</p></section>
+    @if(order.WorkOrderStatus == "Pending QC" && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inspections", "Approve")) {
+    <section class="repair-section"><h2>Inspection Checklist</h2><form method="post" asp-action="SaveQualityInspection">
+        <input type="hidden" name="WorkOrderId" value="@order.WorkOrderId" />
+        @for(var i = 0; i < checklist.Length; i++) {
+            <div class="repair-check"><strong>@checklist[i]</strong><label>Result<select name="Answers[@i].Result" required><option value="">Select result</option><option>Pass</option><option>Fail</option></select></label><textarea name="Answers[@i].Notes" maxlength="500" aria-label="Notes for @checklist[i]" placeholder="Findings or reason for failure"></textarea></div>
+        }
+        <div class="repair-fields"><label class="repair-wide">Overall assessment<textarea name="Notes" required maxlength="2000" rows="3"></textarea></label></div>
+        <button type="submit" class="primary">Save Inspection &amp; Sign Off</button>
+    </form></section>
+    } else { <section class="repair-section">This work order is not awaiting inspection, or your role cannot sign off inspections.</section> }
+</div>

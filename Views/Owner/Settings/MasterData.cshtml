@@ -1,0 +1,64 @@
+@model MasterDataPage
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = Model.Title;
+    ViewData["PageTitle"] = Model.Title;
+    ViewData["PageSubtitle"] = Model.Module == "Settings" ? "GARAGE CONFIGURATION" : "SHOP DIRECTORY";
+    ViewData["ActiveNav"] = Model.Module == "Settings" ? "Settings" : Model.Title;
+    ViewData["SettingsTab"] = Model.Kind ?? "Tax";
+}
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+@if (Model.Module == "Settings") { @await Html.PartialAsync("_SettingsTabs") }
+<section class="master-data">
+    <header class="master-toolbar">
+        <h2>@Model.Title</h2>
+        @if(Model.CanCreate) { <button class="master-primary" type="button" data-master-open="master-new">+ Add @(Model.Mode == "categories" ? "Category" : Model.Mode == "tax" ? "Tax Rate" : Model.Mode == "services" ? "Service" : "Supplier")</button> }
+    </header>
+    <div class="master-toolbar">
+        <input type="search" data-master-search placeholder="Search @Model.Title.ToLowerInvariant()..." aria-label="Search records" />
+        <select data-master-status aria-label="Filter status"><option value="">All statuses</option><option>Active</option><option>Inactive</option>@if(Model.Mode=="tax"){<option>Scheduled</option>}</select>
+    </div>
+    <div class="master-table-wrap"><table>
+        <thead><tr>@foreach(var heading in Model.Headers){<th scope="col">@heading</th>}<th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+        @foreach(var row in Model.Rows)
+        {
+            <tr data-master-row data-status="@row.Status">
+                @foreach(var cell in row.Cells){<td>@cell</td>}
+                <td><span class="master-status @(row.Active ? "is-active" : "")">@row.Status</span></td>
+                <td><div class="master-actions">
+                    <button type="button" data-master-open="master-view-@row.Form.Id">View</button>
+                    @if(Model.CanEdit) {
+                        <button type="button" data-master-open="master-edit-@row.Form.Id">Edit</button>
+                        @if(Model.Mode!="tax" || row.Active){<button type="button" data-master-open="master-state-@row.Form.Id">@(row.Active?"Deactivate":"Reactivate")</button>}
+                    }
+                </div></td>
+            </tr>
+        }
+        </tbody>
+    </table></div>
+    <p data-master-empty hidden>No matching records.</p>
+    <footer class="master-toolbar"><span data-master-count></span><div class="master-actions"><button type="button" data-master-prev>Previous</button><span data-master-page></span><button type="button" data-master-next>Next</button></div></footer>
+</section>
+@if(Model.CanCreate) {
+    <dialog class="master-dialog" id="master-new" aria-label="Add record">@await Html.PartialAsync("_MasterDataEditor", new MasterEditor(Model, new MasterDataForm { Kind=Model.Kind, Start=DateTime.UtcNow.Date }))</dialog>
+}
+@foreach(var row in Model.Rows) {
+    <dialog class="master-dialog" id="master-view-@row.Form.Id" aria-label="View record">@await Html.PartialAsync("_MasterDataEditor",new MasterEditor(Model,row.Form,true))</dialog>
+    @if(Model.CanEdit) {
+        <dialog class="master-dialog" id="master-edit-@row.Form.Id" aria-label="Edit record">@await Html.PartialAsync("_MasterDataEditor",new MasterEditor(Model,row.Form))</dialog>
+        @if(Model.Mode!="tax" || row.Active){
+            <dialog class="master-dialog master-confirm" id="master-state-@row.Form.Id" aria-label="Change status">
+                <form method="post" action="/Owner/@Model.StateAction">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="Id" value="@row.Form.Id" /><input type="hidden" name="Expected" value="@row.Form.Expected" /><input type="hidden" name="Kind" value="@Model.Kind" /><input type="hidden" name="Active" value="@((!row.Active).ToString().ToLowerInvariant())" />
+                    <h2>@(row.Active?"Deactivate":"Reactivate") @row.Form.Name?</h2>
+                    <p>Existing transactions and history will be preserved.</p>
+                    <label>Reason<textarea name="Reason" required maxlength="500"></textarea></label>
+                    <footer><button type="button" data-master-close>Cancel</button><button class="master-primary" type="submit">Confirm</button></footer>
+                </form>
+            </dialog>
+        }
+    }
+}
+@section Scripts { <script src="~/js/owner-master-data.js" asp-append-version="true"></script> }

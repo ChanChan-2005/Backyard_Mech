@@ -36,6 +36,7 @@
     }
 
     <nav class="parts-subtabs" aria-label="Parts management views">
+        <a asp-controller="Owner" asp-action="SparesAllocation">Stock Transactions</a>
         <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="parts">Inventory Registry</a>
         <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="product-listings">Product Listing</a>
     </nav>

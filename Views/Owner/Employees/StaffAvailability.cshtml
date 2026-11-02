@@ -1,0 +1,27 @@
+@model StaffAvailabilityPage
+@{
+    Layout="_AppLayout";ViewData["Title"]=ViewData["PageTitle"]="Availability Exceptions";
+    ViewData["ActiveNav"]="User Management";ViewData["PageSubtitle"]="EMPLOYEES > SCHEDULE";
+}
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/owner/employees/owner-staff-access.css" asp-append-version="true" />
+<section class="master-data staff-access">
+    <header class="master-toolbar"><div><h2>Absences & Special Availability</h2><p>@Model.TimeZone</p></div><div class="master-actions"><a href="/Owner/EmployeeSchedule">Weekly Schedule</a>@if(Model.CanEdit){<button type="button" class="master-primary" data-staff-open="exception-new">+ Add Exception</button>}</div></header>
+    <input type="search" data-staff-search placeholder="Search staff or reason..." aria-label="Search exceptions" />
+    <div class="master-table-wrap"><table><thead><tr><th>Staff</th><th>Type</th><th>Start</th><th>End</th><th>Reason</th><th>Actions</th></tr></thead><tbody>
+    @foreach(var row in Model.Rows){<tr data-staff-row><td>@row.Name</td><td>@(row.Record.IsAvailable?"Extra Availability":"Unavailable / Leave")</td><td>@row.Start.ToString("MMM dd, yyyy HH:mm")</td><td>@row.End.ToString("MMM dd, yyyy HH:mm")</td><td>@row.Record.Reason</td><td>@if(Model.CanEdit){<div class="master-actions"><button type="button" data-staff-open="exception-@row.Record.EmployeeAvailabilityExceptionId">Edit</button><button type="button" data-staff-open="delete-exception-@row.Record.EmployeeAvailabilityExceptionId">Delete</button></div>}</td></tr>}
+    </tbody></table></div>
+    @if(Model.Rows.Count==0){<p>No availability exceptions.</p>}
+</section>
+@if(Model.CanEdit){
+    <dialog class="master-dialog" id="exception-new" aria-label="Add availability exception">@await Html.PartialAsync("_AvailabilityExceptionEditor",(Model,new AvailabilityExceptionForm()))</dialog>
+    @foreach(var row in Model.Rows){
+        <dialog class="master-dialog" id="exception-@row.Record.EmployeeAvailabilityExceptionId" aria-label="Edit availability exception">@await Html.PartialAsync("_AvailabilityExceptionEditor",(Model,new AvailabilityExceptionForm {Id=row.Record.EmployeeAvailabilityExceptionId,EmployeeProfileId=row.Record.EmployeeProfileId??0,Expected=row.Expected,Start=row.Start,End=row.End,IsAvailable=row.Record.IsAvailable,Reason=row.Record.Reason??""}))</dialog>
+        <dialog class="master-dialog master-confirm" id="delete-exception-@row.Record.EmployeeAvailabilityExceptionId" aria-label="Delete availability exception">
+            <form method="post" asp-action="DeleteAvailabilityException">@Html.AntiForgeryToken()<input type="hidden" name="Id" value="@row.Record.EmployeeAvailabilityExceptionId" /><input type="hidden" name="Expected" value="@row.Expected" />
+                <h2>Delete Exception for @row.Name?</h2><p>@row.Start.ToString("MMM dd, yyyy HH:mm") - @row.End.ToString("MMM dd, yyyy HH:mm")</p><label>Reason *<textarea name="Reason" maxlength="500" required></textarea></label><footer><button type="button" data-staff-close>Cancel</button><button type="submit" class="master-primary">Delete Exception</button></footer>
+            </form>
+        </dialog>
+    }
+}
+@section Scripts{<script src="~/js/owner-staff-access.js" asp-append-version="true"></script>}

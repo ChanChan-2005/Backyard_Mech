@@ -397,6 +397,9 @@ namespace Backyard_Mech.Models
         public DateTime? ScheduledEnd { get; set; }
         public DateTime? ActualStart { get; set; }
         public DateTime? ActualEnd { get; set; }
+        public DateTime? ReleasedUtc { get; set; }
+        public string? ReleasedByUserId { get; set; }
+        public string? ReleasedByName { get; set; }
         public DateTime CreatedUtc { get; set; }
     }
 
@@ -412,6 +415,7 @@ namespace Backyard_Mech.Models
 
     public class ServiceEntry
     {
+        public int? ApprovedEstimateLineId { get; set; }
         public int ServiceEntryId { get; set; }
         public int? WorkOrderId { get; set; }
         public int? ServiceId { get; set; }

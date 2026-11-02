@@ -10,6 +10,8 @@ namespace Backyard_Mech.Data
         {
             await dbContext.Database.EnsureCreatedAsync();
             await EnsureBusinessSchemaAsync(dbContext);
+            await SecuritySchema.EnsureAsync(dbContext);
+            await StaffAccessSeed.EnsureAsync(dbContext);
 
             if (await dbContext.Users.AnyAsync())
             {
@@ -235,6 +237,12 @@ namespace Backyard_Mech.Data
                     (N'Employees', N'Delete', N'employees.delete', N'Delete employees.'),
                     (N'Employees', N'Approve', N'employees.approve', N'Approve employee workflow items.'),
                     (N'Settings', N'View', N'settings.view', N'View settings.'),
+                    (N'Suppliers', N'View', N'suppliers.view', N'View suppliers.'),
+                    (N'Suppliers', N'Create', N'suppliers.create', N'Create suppliers.'),
+                    (N'Suppliers', N'Edit', N'suppliers.edit', N'Edit and deactivate suppliers.'),
+                    (N'Services', N'View', N'services.view', N'View service catalog.'),
+                    (N'Services', N'Create', N'services.create', N'Create services.'),
+                    (N'Services', N'Edit', N'services.edit', N'Edit and deactivate services.'),
                     (N'Settings', N'Create', N'settings.create', N'Create settings records.'),
                     (N'Settings', N'Edit', N'settings.edit', N'Edit settings.'),
                     (N'Settings', N'Delete', N'settings.delete', N'Delete settings records.'),

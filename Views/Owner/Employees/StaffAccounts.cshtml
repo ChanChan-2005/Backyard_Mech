@@ -1,0 +1,69 @@
+@model StaffAccountsPage
+@{
+    Layout="_AppLayout";
+    ViewData["Title"]=ViewData["PageTitle"]="Staff Profiles & Accounts";
+    ViewData["PageSubtitle"]="USER MANAGEMENT";
+    ViewData["ActiveNav"]="Account Access";
+    var eligible=Model.Profiles.Where(x=>x.IsActive && string.IsNullOrWhiteSpace(x.UserId)).ToList();
+}
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/owner/employees/owner-staff-access.css" asp-append-version="true" />
+<section class="master-data staff-access">
+    <header class="master-toolbar"><h2>Staff Profiles</h2><div class="master-actions"><a href="/Owner/Employees">Employee Directory</a>@if(Model.CanCreate){<button class="master-primary" data-staff-open="create-account" type="button" disabled="@(eligible.Count==0)">+ Create Account</button>}</div></header>
+    <div class="master-table-wrap"><table><thead><tr><th>Name</th><th>Job Title</th><th>Staff Status</th><th>Login Account</th><th>Role</th><th>Action</th></tr></thead><tbody>
+    @foreach(var profile in Model.Profiles){
+        var account=Model.Accounts.FirstOrDefault(x=>x.Id.ToString()==profile.UserId);
+        <tr><td>@profile.FirstName @profile.LastName</td><td>@profile.JobTitle</td><td>@(profile.IsActive?"Active":"Inactive")</td><td>@(account?.Email??"No account")</td><td>@(account?.Role??"Not assigned")</td><td>@if(account is not null){<a href="/Owner/StaffAccounts?userId=@account.Id#access-settings">View Access</a>}</td></tr>
+    }
+    </tbody></table></div>
+    <details><summary>Other Login Accounts</summary><div class="master-table-wrap"><table><thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody>
+    @foreach(var account in Model.Accounts.Where(x=>!Model.Profiles.Any(p=>p.UserId==x.Id.ToString()))){<tr><td>@account.UserName</td><td>@account.Email</td><td>@account.Role</td><td><a href="/Owner/StaffAccounts?userId=@account.Id#access-settings">View Access</a></td></tr>}
+    </tbody></table></div></details>
+</section>
+@if(Model.Selected is not null){
+    var user=Model.Selected;
+    <section class="master-data staff-access" id="access-settings">
+        <form method="post" asp-action="SaveUserAccess" data-user-access data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(Model.RoleDefaults)">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="UserId" value="@user.Id" /><input type="hidden" name="Expected" value="@Model.Expected" />
+            <header class="master-toolbar"><h2>Account Access: @user.UserName</h2><span>@user.Email</span></header>
+            @if(!Model.CanEdit){<p class="staff-notice">Read-only access. Your own account and the protected owner cannot be changed here.</p>}
+            <fieldset disabled="@(!Model.CanEdit)" class="staff-access-fields">
+                <div class="staff-account-controls">
+                    <label>Role<select name="RoleKey" data-account-role>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected || x.RoleKey==user.Role)){<option value="@role.RoleKey" selected="@(role.RoleKey==user.Role)">@role.RoleName</option>}</select></label>
+                    <label class="staff-check"><input type="checkbox" name="IsActive" value="true" checked="@user.IsActive" />Account enabled</label>
+                </div>
+                <h3>Individual Permissions</h3>
+                <input type="search" data-permission-search placeholder="Search module or action..." aria-label="Search permissions" />
+                <div class="master-table-wrap"><table><thead><tr><th>Module</th><th>Action</th><th>Role Default</th><th>User Setting</th><th>Effective Access</th></tr></thead><tbody>
+                @for(var i=0;i<Model.Permissions.Count;i++){
+                    var permission=Model.Permissions[i];var setting=Model.Overrides.FirstOrDefault(x=>x.PermissionId==permission.PermissionId);var mode=setting is null?"Inherit":setting.IsAllowed?"Allow":"Deny";
+                    <tr data-permission-row data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName">
+                        <td>@permission.ModuleName<input type="hidden" name="Permissions[@i].PermissionId" value="@permission.PermissionId" /></td><td>@permission.ActionName</td><td data-default></td>
+                        <td><select name="Permissions[@i].Mode" aria-label="@permission.ModuleName @permission.ActionName permission" data-permission-choice>@foreach(var choice in new[]{"Inherit","Allow","Deny"}){<option selected="@(choice==mode)">@choice</option>}</select></td><td data-effective></td>
+                    </tr>
+                }
+                </tbody></table></div>
+                <label>Reason for Change *<textarea name="Reason" maxlength="500" required></textarea></label>
+                @if(Model.CanEdit){<footer class="master-toolbar"><span></span><button class="master-primary" type="submit">Save Account Access</button></footer>}
+            </fieldset>
+        </form>
+    </section>
+}
+@if(Model.CanCreate){
+<dialog class="master-dialog" id="create-account" aria-labelledby="create-account-title">
+    <form method="post" asp-action="CreateStaffAccount">
+        @Html.AntiForgeryToken()
+        <header class="master-toolbar"><h2 id="create-account-title">Create Staff Account</h2><button type="button" data-staff-close aria-label="Close">&#215;</button></header>
+        <div class="master-fields">
+            <label class="master-wide">Staff Profile *<select name="EmployeeProfileId" required><option value="">Select a staff member</option>@foreach(var p in eligible){<option value="@p.EmployeeProfileId">@p.FirstName @p.LastName - @p.JobTitle</option>}</select></label>
+            <label>Login Email *<input type="email" name="Email" maxlength="256" required autocomplete="off" /></label>
+            <label>Username *<input name="UserName" maxlength="120" required autocomplete="off" /></label>
+            <label>Password *<input type="password" name="Password" minlength="12" maxlength="128" required autocomplete="new-password" aria-describedby="password-requirements" /><small id="password-requirements">12+ characters, uppercase, lowercase, number and symbol.</small></label>
+            <label>Role *<select name="RoleKey" required><option value="">Select a role</option>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected)){<option value="@role.RoleKey">@role.RoleName</option>}</select></label>
+        </div>
+        <footer><button type="button" data-staff-close>Cancel</button><button class="master-primary" type="submit">Create Account</button></footer>
+    </form>
+</dialog>
+}
+@section Scripts{<script src="~/js/owner-staff-access.js" asp-append-version="true"></script>}

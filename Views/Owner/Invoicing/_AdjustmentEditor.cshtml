@@ -1,0 +1,10 @@
+@model AdjustmentSaveForm
+@{ var edit = Model.InvoiceAdjustmentId > 0; var dialog = edit ? $"adjustment-{Model.InvoiceAdjustmentId}" : "adjustment-new"; }
+<dialog class="repair-dialog repair-dialog-small" id="@dialog" aria-labelledby="@(dialog)-title"><form method="post" asp-action="@(edit ? "EditInvoiceAdjustment" : "AddInvoiceAdjustment")">
+<header><h2 id="@(dialog)-title">@(edit ? "Edit Adjustment" : "Invoice Adjustment")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+<input type="hidden" name="InvoiceId" value="@Model.InvoiceId" /><input type="hidden" name="InvoiceAdjustmentId" value="@Model.InvoiceAdjustmentId" /><input type="hidden" name="SubmissionToken" value="@Model.SubmissionToken" />
+<div class="repair-fields"><label>Type<select name="AdjustmentType"><option value="Credit" selected="@(Model.AdjustmentType == "Credit")">Credit (reduce total)</option><option value="Debit" selected="@(Model.AdjustmentType == "Debit")">Debit (increase total)</option></select></label>
+<label>Amount (tax-inclusive)<input type="number" name="Amount" min=".01" max="100000000" step=".01" required value="@Model.Amount" /></label>
+<label class="repair-wide">Reason<textarea name="Reason" required maxlength="1000">@Model.Reason</textarea></label></div>
+<footer><button type="button" data-dialog-close>Cancel</button><button type="submit" class="primary">Save Adjustment</button></footer>
+</form></dialog>

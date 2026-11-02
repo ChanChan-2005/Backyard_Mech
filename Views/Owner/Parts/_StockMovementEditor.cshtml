@@ -1,0 +1,15 @@
+@model StockMovementEditor
+@{ var form = Model.Form; var edit = form.PartTransactionId > 0; var dialog = $"stock-{form.PartTransactionId}"; }
+<dialog class="repair-dialog" id="@dialog" aria-labelledby="@(dialog)-title">
+<form method="post" asp-action="@(edit ? "EditStockMovement" : "AddStockMovement")">
+    <header><h2 id="@(dialog)-title">@(edit ? "Edit Stock Movement" : "New Stock Movement")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+    <input type="hidden" name="PartTransactionId" value="@form.PartTransactionId" />
+    <input type="hidden" name="SubmissionToken" value="@form.SubmissionToken" />
+    <div class="repair-fields">
+        <label>Part<select name="PartId" required><option value="">Select part</option>@foreach(var part in Model.Options.Parts.Where(x => edit ? x.PartId == form.PartId : x.IsActive && !x.IsArchived && !x.IsDeleted)) { <option value="@part.PartId" selected="@(part.PartId == form.PartId)">@part.Name (@part.QuantityOnHand on hand)</option> }</select></label>
+        <label>Movement<select name="TransactionType" required>@foreach(var type in new[] { "Received", "Reserved", "Installed", "Wasted", "Returned", "Released", "Adjustment In", "Adjustment Out" }.Where(x => !edit || x == form.TransactionType)) { <option selected="@(type == form.TransactionType)">@type</option> }</select></label>
+        <label>Work order<select name="WorkOrderId"><option value="">None (receipt / adjustment)</option>@foreach(var order in Model.Options.Orders.Where(x => edit ? x.WorkOrderId == form.WorkOrderId : x.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC"))) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == form.WorkOrderId)">WO-@order.WorkOrderId - @Model.Options.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label>
+        <label>Quantity<input name="Quantity" type="number" min="1" max="100000" value="@form.Quantity" required /></label>
+        <label class="repair-wide">Reason / notes<textarea name="Notes" required maxlength="1000">@form.Notes</textarea></label>
+    </div><footer><button type="button" data-dialog-close>Cancel</button><button class="primary" type="submit">Save Movement</button></footer>
+</form></dialog>
