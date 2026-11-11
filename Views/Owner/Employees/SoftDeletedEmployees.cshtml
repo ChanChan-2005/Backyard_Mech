@@ -31,7 +31,7 @@
     <div class="users-alert red">Soft deleted employees are retained for historical and audit purposes only. Their records cannot be modified.</div>
 
     <div class="users-filter-card">
-        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <label class="users-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="deleted-employees-table" placeholder="Search by name, role, email..." /></label>
         <div class="users-filter-right">
             <button class="users-button" type="button">Role: All V</button>
             <button class="users-button" type="button">Sort By: Name V</button>
@@ -39,7 +39,7 @@
     </div>
 
     <section class="users-panel">
-        <table class="users-table">
+        <table class="users-table" id="deleted-employees-table">
             <thead><tr><th>Employee Name</th><th>Role</th><th>Date Deleted</th><th>Deleted By</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
                 @foreach (var employee in deleted)

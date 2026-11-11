@@ -1,7 +1,9 @@
 <div class="bay-modal" data-bay-modal-panel="set-maintenance" aria-hidden="true">
     <div class="bay-modal-backdrop" data-bay-modal-close></div>
     <section class="bay-modal-card" role="dialog" aria-modal="true" aria-labelledby="set-maintenance-title">
-        <form class="bay-form-card">
+        <form class="bay-form-card" asp-controller="Owner" asp-action="SetBayMaintenance" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="BayId" id="maintenance-bay-id" />
             <header class="bay-form-header">
                 <div>
                     <h2 id="set-maintenance-title">Set Maintenance</h2>
@@ -13,11 +15,12 @@
             <div class="bay-form-body">
                 <label>
                     <span class="bay-label">Bay *</span>
-                    <input class="bay-input" type="text" placeholder="Select or enter bay" />
+                    <input class="bay-input" id="maintenance-bay-name" type="text" readonly />
                 </label>
                 <label>
                     <span class="bay-label">Maintenance Type *</span>
-                    <select class="bay-select">
+                    <select class="bay-select" name="MaintenanceType" required>
+                        <option value="" selected disabled>Select maintenance type</option>
                         <option>Routine Inspection</option>
                         <option>Lift Service</option>
                         <option>Tool Calibration</option>
@@ -26,25 +29,25 @@
                 </label>
                 <label>
                     <span class="bay-label">Start Date *</span>
-                    <input class="bay-input" type="date" />
+                    <input class="bay-input" type="date" name="StartDate" required />
                 </label>
                 <label>
                     <span class="bay-label">Estimated Return *</span>
-                    <input class="bay-input" type="date" />
+                    <input class="bay-input" type="date" name="EstimatedReturnDate" required />
                 </label>
                 <label>
                     <span class="bay-label">Assigned Technician</span>
-                    <input class="bay-input" type="text" placeholder="Select or enter technician" />
+                    <input class="bay-input" type="text" name="AssignedTechnician" maxlength="120" placeholder="Select or enter technician" />
                 </label>
                 <label>
                     <span class="bay-label">Notes *</span>
-                    <textarea class="bay-textarea" placeholder="Add maintenance notes."></textarea>
+                    <textarea class="bay-textarea" name="Notes" maxlength="1000" placeholder="Add maintenance notes." required></textarea>
                 </label>
             </div>
 
             <footer class="bay-form-footer">
                 <button class="bay-button" type="button" data-bay-modal-close>Cancel</button>
-                <button class="bay-button-blue" type="button" data-bay-modal-close>Set Maintenance</button>
+                <button class="bay-button-blue" type="submit">Set Maintenance</button>
             </footer>
         </form>
     </section>

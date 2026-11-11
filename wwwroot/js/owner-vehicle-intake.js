@@ -8,8 +8,8 @@
     document.querySelectorAll('dialog form').forEach(form => form.addEventListener('submit', () => {
         form.querySelectorAll('button:not([type="button"])').forEach(button => { button.disabled = true; });
     }));
-    document.querySelector('[data-intake-search]')?.addEventListener('input', event => {
-        const query = event.target.value.trim().toLowerCase();
+    document.querySelector('[data-intake-search]')?.addEventListener('searchcommit', event => {
+        const query = event.detail.value.toLowerCase();
         document.querySelectorAll('[data-intake-row]').forEach(row => { row.hidden = !row.textContent.toLowerCase().includes(query); });
     });
 })();

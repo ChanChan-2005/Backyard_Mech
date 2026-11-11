@@ -4,6 +4,7 @@ namespace Backyard_Mech.Models
     {
         public string PageDateLabel { get; set; } = string.Empty;
         public IReadOnlyList<DashboardMetricCard> Metrics { get; set; } = Array.Empty<DashboardMetricCard>();
+        public string QueueFilter { get; set; } = "all";
         public IReadOnlyList<DashboardServiceQueueRow> ServiceQueue { get; set; } = Array.Empty<DashboardServiceQueueRow>();
         public IReadOnlyList<DashboardMechanicCard> Mechanics { get; set; } = Array.Empty<DashboardMechanicCard>();
         public IReadOnlyList<DashboardApprovalItem> PendingApprovals { get; set; } = Array.Empty<DashboardApprovalItem>();
@@ -50,6 +51,7 @@ namespace Backyard_Mech.Models
 
     public class DashboardApprovalItem
     {
+        public int EstimateId { get; set; }
         public string Customer { get; set; } = string.Empty;
         public string Vehicle { get; set; } = string.Empty;
         public string Amount { get; set; } = string.Empty;
@@ -87,5 +89,6 @@ namespace Backyard_Mech.Models
     {
         public string Title { get; set; } = string.Empty;
         public string Time { get; set; } = string.Empty;
+        public DateTime TimestampUtc { get; set; }
     }
 }

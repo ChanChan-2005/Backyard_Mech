@@ -97,6 +97,10 @@
   flex-wrap: wrap;
 }
 
+.reports-date-filter > .reports-button-blue {
+  align-self: flex-end;
+}
+
 .reports-date-field {
   display: grid;
   gap: 4px;

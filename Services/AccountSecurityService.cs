@@ -8,6 +8,9 @@ namespace Backyard_Mech.Services;
 
 public sealed class AccountSecurityService(ApplicationDbContext db, PermissionService permissions)
 {
+    public const int SessionIdleTimeoutMinutes = 20;
+    public const int MaximumSessionHours = 8;
+
     public static string CredentialStamp(AppUser user) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(user.PasswordHash)));
 
     public async Task<bool> RequiresMfa(AppUser user)
@@ -24,7 +27,7 @@ public sealed class AccountSecurityService(ApplicationDbContext db, PermissionSe
         if (!int.TryParse(session.GetString("UserId"), out var id)) return null;
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
         var state = await db.AccountSecurity.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == id);
-        var expired = !long.TryParse(session.GetString("AuthenticatedAt"), out var ticks) || DateTime.UtcNow.Ticks - ticks > TimeSpan.FromHours(8).Ticks;
+        var expired = !long.TryParse(session.GetString("AuthenticatedAt"), out var ticks) || DateTime.UtcNow.Ticks - ticks > TimeSpan.FromHours(MaximumSessionHours).Ticks;
         if (user is null || !user.IsActive || user.Role != session.GetString("UserRole") ||
             CredentialStamp(user) != session.GetString("CredentialStamp") || expired ||
             state?.LockedUntilUtc > DateTime.UtcNow ||

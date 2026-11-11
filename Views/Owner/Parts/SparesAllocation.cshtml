@@ -6,9 +6,31 @@
     bool Can(string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode("Inventory", action));
 }
 <div class="repair-page">
-    <div class="repair-toolbar"><a href="/Owner/PartsManagement">Inventory Registry</a>@if(Can("Create")) { <button type="button" class="primary" data-dialog-open="stock-0">Add Movement</button> }</div>
-    <section class="repair-section"><form method="get" class="repair-fields"><label>Work order<select name="workOrderId"><option value="">All work orders</option>@foreach(var order in Model.Orders) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label>
-        <label>Part<select name="partId"><option value="">All parts</option>@foreach(var part in Model.Parts) { <option value="@part.PartId" selected="@(part.PartId == Model.PartId)">@part.Name</option> }</select></label><button type="submit">Apply Filters</button><a href="/Owner/SparesAllocation">Reset</a></form></section>
+    <div class="repair-toolbar"><a class="app-action-link" href="/Owner/PartsManagement">Inventory Registry</a>@if(Can("Create")) { <button type="button" class="primary" data-dialog-open="stock-0">Add Movement</button> }</div>
+    <section class="repair-section stock-filter-section">
+        <form method="get" class="repair-fields stock-filter-form">
+            <label>Work order
+                <select name="workOrderId">
+                    <option value="">All work orders</option>
+                    @foreach (var order in Model.Orders)
+                    {
+                        <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option>
+                    }
+                </select>
+            </label>
+            <label>Part
+                <select name="partId">
+                    <option value="">All parts</option>
+                    @foreach (var part in Model.Parts)
+                    {
+                        <option value="@part.PartId" selected="@(part.PartId == Model.PartId)">@part.Name</option>
+                    }
+                </select>
+            </label>
+            <button type="submit">Apply Filters</button>
+            <a class="app-action-link" href="/Owner/SparesAllocation">Reset</a>
+        </form>
+    </section>
     <section class="repair-section"><h2>Stock Movement History</h2><div class="repair-table-wrap"><table><thead><tr><th>Date (UTC)</th><th>Part</th><th>Work order</th><th>Movement</th><th>Qty</th><th>By</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
     @foreach(var row in Model.Movements) {
         var editable = row.TransactionType != "Voided" && (!row.WorkOrderId.HasValue || Model.Orders.Any(x => x.WorkOrderId == row.WorkOrderId && x.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC")));

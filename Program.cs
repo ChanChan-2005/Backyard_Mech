@@ -44,7 +44,7 @@ builder.Services.AddControllersWithViews()
     });
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options => {
-    options.IdleTimeout = TimeSpan.FromMinutes(20);
+    options.IdleTimeout = TimeSpan.FromMinutes(AccountSecurityService.SessionIdleTimeoutMinutes);
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
@@ -90,6 +90,35 @@ app.UseRouting();
 app.UseRateLimiter();
 
 app.UseSession();
+if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("DevelopmentAuthentication:Bypass"))
+{
+    app.Use(async (context, next) =>
+    {
+        if (context.Connection.RemoteIpAddress is { } remoteIp && System.Net.IPAddress.IsLoopback(remoteIp) &&
+            context.Request.Cookies["DevelopmentAuthenticationSignedOut"] != "true" &&
+            !int.TryParse(context.Session.GetString("UserId"), out _))
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var developmentUser = await dbContext.Users.AsNoTracking()
+                .Where(user => user.IsActive && user.Role == "Owner")
+                .OrderBy(user => user.Id)
+                .FirstOrDefaultAsync();
+
+            if (developmentUser is not null)
+            {
+                context.Session.SetString("UserId", developmentUser.Id.ToString());
+                context.Session.SetString("UserRole", developmentUser.Role);
+                context.Session.SetString("UserName", developmentUser.UserName);
+                context.Session.SetString("CredentialStamp", AccountSecurityService.CredentialStamp(developmentUser));
+                context.Session.SetString("AuthenticatedAt", DateTime.UtcNow.Ticks.ToString());
+                context.Session.SetString("MfaVerified", "true");
+            }
+        }
+
+        await next();
+    });
+}
 app.UseAuthorization();
 
 app.MapControllerRoute(

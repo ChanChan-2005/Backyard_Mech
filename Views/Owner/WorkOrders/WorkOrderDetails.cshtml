@@ -31,7 +31,7 @@
 }
 
 <section class="wo-page">
-    <div class="repair-page"><nav class="repair-toolbar"><a href="/Owner/WorkOrders">Back to Work Orders</a><div class="repair-actions">
+    <div class="repair-page"><nav class="repair-toolbar"><a class="app-action-link" href="/Owner/WorkOrders">Back to Work Orders</a><div class="repair-actions">
         @if(editable && Can("Work Orders", "Edit")) { <button type="button" data-dialog-open="edit-workorder">Edit Schedule &amp; Assignment</button> }
         @if(editable && Can("Work Orders", "Delete")) { <button type="button" data-dialog-open="cancel-workorder">Cancel Work Order</button> }
         @if((order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Pending QC") && Can("Work Orders", "Edit")) { <button type="button" data-dialog-open="reopen-workorder">Reopen Repair</button> }

@@ -45,20 +45,32 @@
     </nav>
 
     <div class="users-filter-card">
-        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <div class="app-search-control users-search-control">
+            <label class="users-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="employees-table" placeholder="Search by name, role, email..." /></label>
+            <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        </div>
         <div class="users-filter-right">
-            <button class="users-button" type="button">Role: All V</button>
+            <label class="users-role-filter">
+                <span class="visually-hidden">Filter employees by role</span>
+                <select class="users-button" data-employee-role-filter aria-label="Filter employees by role">
+                    <option value="">Role: All</option>
+                    @foreach (var role in employees.Select(employee => employee.Role).Where(role => !string.IsNullOrWhiteSpace(role)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(role => role))
+                    {
+                        <option value="@role">Role: @role</option>
+                    }
+                </select>
+            </label>
             <button class="users-button" type="button">Sort By: Name V</button>
         </div>
     </div>
 
     <section class="users-panel">
-        <table class="users-table">
+        <table class="users-table" id="employees-table">
             <thead><tr><th>Employee Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Status</th><th>Utilization</th><th>Actions</th></tr></thead>
             <tbody>
                 @foreach (var employee in employees)
                 {
-                    <tr>
+                    <tr data-employee-role="@employee.Role">
                         <td><span class="users-avatar">@employee.Initials</span><a class="users-link" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">@employee.Name</a></td>
                         <td>@employee.Role</td>
                         <td>@employee.Phone</td>

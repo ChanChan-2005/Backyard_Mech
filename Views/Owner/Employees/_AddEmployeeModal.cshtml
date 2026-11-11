@@ -4,75 +4,78 @@
         <button class="users-modal-close" type="button" aria-label="Close add employee modal" data-users-modal-close>&times;</button>
     </header>
 
-    <form class="users-modal-form" asp-controller="Owner" asp-action="AddEmployee" method="post">
+    <form class="users-modal-form" asp-controller="Owner" asp-action="AddEmployee" method="post" data-staff-address-form>
         @Html.AntiForgeryToken()
+        <input type="hidden" name="StreetAddress" data-staff-address-value />
         <div class="users-employee-form-grid">
+            <h3 class="users-form-section-title">Personal Information</h3>
             <label>
                 <span class="users-label">First Name *</span>
-                <input class="users-input" name="FirstName" placeholder="Enter first name" required />
+                <input class="users-input" name="FirstName" maxlength="120" placeholder="Enter first name" required />
             </label>
             <label>
                 <span class="users-label">Last Name *</span>
-                <input class="users-input" name="LastName" placeholder="Enter last name" required />
+                <input class="users-input" name="LastName" maxlength="120" placeholder="Enter last name" required />
             </label>
             <label>
                 <span class="users-label">Middle Initial</span>
                 <input class="users-input" name="MiddleInitial" maxlength="1" placeholder="M" />
             </label>
 
+            <h3 class="users-form-section-title">Address</h3>
             <label>
-                <span class="users-label">Address *</span>
-                <input class="users-input" name="StreetAddress" placeholder="Enter street address" required />
-            </label>
-            <label>
-                <span class="users-label">Unit/Apt No. *</span>
-                <input class="users-input" placeholder="Enter unit or apartment number" />
+                <span class="users-label">Unit/Apt No.</span>
+                <input class="users-input" data-staff-address-unit placeholder="Optional for houses" />
             </label>
             <label>
                 <span class="users-label">Street No. *</span>
-                <input class="users-input" placeholder="Enter street number" />
+                <input class="users-input" data-staff-address-number placeholder="Enter street number" required />
+            </label>
+            <label class="users-span-full">
+                <span class="users-label">Street Name *</span>
+                <input class="users-input" data-staff-address-street placeholder="Enter street name" required />
+            </label>
+            <label>
+                <span class="users-label">Street Type</span>
+                <input class="users-input" data-staff-address-type placeholder="e.g. Street, Avenue" />
+            </label>
+            <label>
+                <span class="users-label">Province/Territory *</span>
+                <select class="users-select" name="Province" data-canada-province required>
+                    <option value="" selected disabled>Select province or territory</option>
+                </select>
+            </label>
+            <label class="users-span-full">
+                <span class="users-label">City / Municipality *</span>
+                <select class="users-select" name="City" data-canada-municipality required disabled>
+                    <option value="" selected disabled>Select a province or territory first</option>
+                </select>
             </label>
             <label>
                 <span class="users-label">Postal Code *</span>
-                <input class="users-input" name="PostalCode" placeholder="Enter postal code" required />
+                <input class="users-input" name="PostalCode" maxlength="20" placeholder="Enter postal code" required />
             </label>
 
-            <label class="users-span-2">
-                <span class="users-label">Street Name *</span>
-                <input class="users-input" placeholder="Enter street name" />
-            </label>
-            <label class="users-span-2">
-                <span class="users-label">Street Type *</span>
-                <input class="users-input" placeholder="Enter street type" />
-            </label>
-
+            <h3 class="users-form-section-title">Contact Details</h3>
             <label>
-                <span class="users-label">City *</span>
-                <input class="users-input" name="City" placeholder="Enter city" required />
-            </label>
-            <label class="users-span-2">
-                <span class="users-label">Province/Territory</span>
-                <input class="users-input" name="Province" placeholder="Enter province or territory" />
-            </label>
-
-            <label class="users-span-2">
                 <span class="users-label">Contact Number *</span>
-                <input class="users-input" name="Phone" type="tel" placeholder="Enter contact number" required />
+                <input class="users-input" name="Phone" type="tel" maxlength="40" placeholder="Enter contact number" required />
             </label>
-            <label class="users-span-2">
+            <label>
                 <span class="users-label">Email Address *</span>
-                <input class="users-input" name="Email" type="email" placeholder="Enter email address" required />
+                <input class="users-input" name="Email" type="email" maxlength="256" placeholder="Enter email address" required />
             </label>
 
-            <label class="users-span-2">
+            <h3 class="users-form-section-title">Employment Details</h3>
+            <label>
                 <span class="users-label">Employment Type *</span>
-                <select class="users-select">
+                <select class="users-select" name="EmploymentType" required>
                     <option value="" selected disabled>Select employment type</option>
                     <option>Full-time</option>
                     <option>Part-time</option>
                 </select>
             </label>
-            <label class="users-span-2">
+            <label>
                 <span class="users-label">Employment Classification *</span>
                 <select class="users-select" name="JobTitle" required>
                     <option value="" selected disabled>Select classification</option>
@@ -85,22 +88,22 @@
                 </select>
             </label>
 
-            <label class="users-span-2">
+            <label>
                 <span class="users-label">Employment Status *</span>
-                <select class="users-select">
+                <select class="users-select" name="EmploymentStatus" required>
                     <option value="" selected disabled>Select employment status</option>
                     <option>Active</option>
                     <option>Inactive</option>
                 </select>
             </label>
-            <label class="users-span-2">
+            <label>
                 <span class="users-label">Hourly Rate *</span>
                 <input class="users-input" name="HourlyRate" type="number" min="0" step="0.01" placeholder="Enter hourly rate" required />
             </label>
 
             <label class="users-span-full">
                 <span class="users-label">Skills and Qualifications</span>
-                <textarea class="users-textarea users-employee-skills" placeholder="Enter skills, certifications, and qualifications."></textarea>
+                <textarea class="users-textarea users-employee-skills" name="SkillsAndQualifications" maxlength="2000" placeholder="Enter skills, certifications, and qualifications."></textarea>
             </label>
         </div>
 

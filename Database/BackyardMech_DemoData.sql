@@ -203,8 +203,7 @@ BEGIN
             (N'jaypee.francisco@example.com', N'2T3RFREV8LW000002', N'Alignment Pit', N'Randy Tuazon', 510, 660, N'Walk-in', N'Arrived', N'Marc Tan', N'Pulling to the right'),
             (N'charles.almirol@example.com', N'1HGCV1F31MA000003', N'Diagnostic Hub', N'Randy Tuazon', 555, 690, N'Appointment', N'Inspection', N'Rasheed Altar', N'Check engine light'),
             (N'alexander.lababo@example.com', N'3GNAXUEV6NS000004', N'Tire & Brake Station', N'Jaypee Francisco', 615, 795, N'Appointment', N'Waiting Approval', N'Marc Tan', N'Brake noise estimate'),
-            (N'denise.labasbas@example.com', N'5NMS3CAD7LH000005', N'Heavy Duty Lift', N'Matthew Laluan', 660, 840, N'Appointment', N'In Bay', N'Rasheed Altar', N'Suspension clunk'),
-            (N'jhanlaine.basco@example.com', N'JM3KFBDM8M0000006', N'General Service Bay', N'Artlloyd Balagosa', 780, 900, N'Appointment', N'Scheduled', N'Marc Tan', N'Pre-trip inspection')
+            (N'denise.labasbas@example.com', N'5NMS3CAD7LH000005', N'Heavy Duty Lift', N'Matthew Laluan', 660, 840, N'Appointment', N'In Bay', N'Rasheed Altar', N'Suspension clunk')
     ) map(Email, VIN, BayName, MechanicName, StartMinute, EndMinute, AppointmentType, AppointmentStatus, AdvisorName, Notes)
     JOIN dbo.Customer c ON c.Email = map.Email
     JOIN dbo.Vehicle v ON v.VIN = map.VIN

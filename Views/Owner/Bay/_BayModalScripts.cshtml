@@ -8,7 +8,7 @@
             modal.setAttribute("aria-hidden", "false");
             document.body.classList.add("bay-modal-open");
 
-            const firstField = modal.querySelector("input, textarea, select, button");
+            const firstField = modal.querySelector('input:not([type="hidden"]):not([readonly]), textarea, select, button');
             firstField?.focus();
         };
 
@@ -33,10 +33,17 @@
             const bayStatus = button.dataset.bayStatus || 'Available';
 
             modal.querySelector('#edit-bay-id').value = bayId || '0';
-            modal.querySelector('#edit-bay-number').value = bayId || '';
+            modal.querySelector('#edit-bay-number').value = button.dataset.bayNumber || '';
             modal.querySelector('#edit-bay-name').value = bayName || '';
             modal.querySelector('#edit-bay-description').value = bayDescription || '';
             modal.querySelector('#edit-bay-status').value = bayStatus;
+        };
+
+        const fillMaintenanceModal = (button) => {
+            const modal = document.querySelector('[data-bay-modal-panel="set-maintenance"]');
+            if (!modal) return;
+            modal.querySelector('#maintenance-bay-id').value = button.dataset.bayId || '';
+            modal.querySelector('#maintenance-bay-name').value = button.dataset.bayNumber || '';
         };
 
         document.addEventListener("click", (event) => {
@@ -44,6 +51,8 @@
             if (openButton) {
                 if (openButton.dataset.bayModal === 'edit-bay') {
                     fillEditBayModal(openButton);
+                } else if (openButton.dataset.bayModal === 'set-maintenance') {
+                    fillMaintenanceModal(openButton);
                 }
 
                 openModal(openButton.dataset.bayModal);

@@ -3,8 +3,8 @@
     Layout = "_AppLayout";
     ViewData["Title"] = "Owner Dashboard";
     ViewData["PageTitle"] = "Dashboard";
-    ViewData["PageSubtitle"] = Model.PageDateLabel;
     ViewData["ActiveNav"] = "Dashboard";
+    ViewData["SearchPlaceholder"] = "Search dashboard records...";
 }
 
 <div class="metric-grid">
@@ -27,11 +27,11 @@
     <section class="dashboard-panel queue-panel">
         <div class="panel-heading">
             <div class="tab-row">
-                <span class="active">Service Queue</span>
-                <span>Appointments</span>
-                <span>Walk-ins</span>
+                <a class="@(Model.QueueFilter == "all" ? "active" : "")" asp-action="Dashboard" aria-current="@(Model.QueueFilter == "all" ? "page" : null)">Service Queue</a>
+                <a class="@(Model.QueueFilter == "appointments" ? "active" : "")" asp-action="Dashboard" asp-route-queue="appointments" aria-current="@(Model.QueueFilter == "appointments" ? "page" : null)">Appointments</a>
+                <a class="@(Model.QueueFilter == "walkins" ? "active" : "")" asp-action="Dashboard" asp-route-queue="walkins" aria-current="@(Model.QueueFilter == "walkins" ? "page" : null)">Walk-ins</a>
             </div>
-            <span class="muted">Live</span>
+            <span class="muted">Updated on refresh</span>
         </div>
         <table class="queue-table">
             <thead>
@@ -49,7 +49,7 @@
             <tbody>
                 @foreach (var order in Model.ServiceQueue)
                 {
-                    <tr>
+                    <tr data-search="@($"{order.Id} {order.Vehicle} {order.Customer} {order.Service} {order.Mechanic} {order.Status} {order.Priority}")">
                         <td>@order.Id</td>
                         <td>@order.Vehicle</td>
                         <td>@order.Customer</td>
@@ -76,7 +76,7 @@
         <div class="mechanic-list">
             @foreach (var mechanic in Model.Mechanics)
             {
-                <article class="mechanic-card">
+                <article class="mechanic-card" data-search="@($"{mechanic.Name} {mechanic.Work} {mechanic.Current}")">
                     <span class="mechanic-avatar">@mechanic.Avatar</span>
                     <div class="mechanic-main">
                         <strong>@mechanic.Name</strong>
@@ -105,7 +105,7 @@
         <div class="compact-list">
             @foreach (var approval in Model.PendingApprovals)
             {
-                <article class="approval-item"><div><span class="compact-primary">@approval.Customer</span><span class="compact-secondary">@approval.Vehicle</span></div><div><span class="approval-amount">@approval.Amount</span><span class="approval-sent">@approval.Sent</span></div><button class="mini-btn link">Resend</button></article>
+                <article class="approval-item" data-search="@($"{approval.Customer} {approval.Vehicle} {approval.Amount}")"><div><span class="compact-primary">@approval.Customer</span><span class="compact-secondary">@approval.Vehicle</span></div><div><span class="approval-amount">@approval.Amount</span><span class="approval-sent">@approval.Sent</span></div><a class="mini-btn link" asp-action="EstimateDetails" asp-route-id="@approval.EstimateId">View approval</a></article>
             }
             @if (!Model.PendingApprovals.Any())
             {
@@ -115,11 +115,11 @@
     </section>
 
     <section class="dashboard-panel">
-        <div class="panel-heading"><h2>Parts & Inventory Alerts</h2><a href="/Owner/LowStockPartsReport">Order Parts</a></div>
+        <div class="panel-heading"><h2>Parts & Inventory Alerts</h2><a asp-action="LowStockPartsReport">View low stock</a></div>
         <div class="compact-list">
             @foreach (var part in Model.PartAlerts)
             {
-                <article class="parts-item"><span class="parts-icon @part.IconTone" aria-hidden="true"></span><div><span class="compact-primary">@part.Name</span><span class="compact-secondary">@part.Detail</span></div><span class="badge @part.BadgeTone">@part.Badge</span></article>
+                <article class="parts-item" data-search="@($"{part.Name} {part.Detail} {part.Badge}")"><span class="parts-icon @part.IconTone" aria-hidden="true"></span><div><span class="compact-primary">@part.Name</span><span class="compact-secondary">@part.Detail</span></div><span class="badge @part.BadgeTone">@part.Badge</span></article>
             }
             @if (!Model.PartAlerts.Any())
             {
@@ -133,7 +133,7 @@
         <div class="compact-list">
             @foreach (var inspection in Model.Inspections)
             {
-                <article class="inspection-item"><span></span><div><span class="compact-primary">@inspection.Vehicle</span><span class="compact-secondary">@inspection.Detail</span></div><span class="badge @inspection.Tone">@inspection.Status</span></article>
+                <article class="inspection-item" data-search="@($"{inspection.Vehicle} {inspection.Detail} {inspection.Status}")"><span></span><div><span class="compact-primary">@inspection.Vehicle</span><span class="compact-secondary">@inspection.Detail</span></div><span class="badge @inspection.Tone">@inspection.Status</span></article>
             }
             @if (!Model.Inspections.Any())
             {
@@ -145,13 +145,13 @@
 
 <div class="bottom-grid">
     <section class="dashboard-panel invoice-panel">
-        <div class="panel-heading"><h2>Recent Invoices & Payments</h2><span class="muted">Today's Collected: <span class="collected">@Model.TodayCollected</span></span></div>
+        <div class="panel-heading"><h2>Recent Invoices</h2><span class="muted">Today's Collected: <span class="collected">@Model.TodayCollected</span></span></div>
         <table class="invoice-table">
             <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
             <tbody>
                 @foreach (var invoice in Model.RecentInvoices)
                 {
-                    <tr><td>@invoice.Invoice</td><td>@invoice.Customer</td><td class="amount">@invoice.Amount</td><td><span class="badge @invoice.Tone">@invoice.Status</span></td><td>@invoice.Date</td></tr>
+                    <tr data-search="@($"{invoice.Invoice} {invoice.Customer} {invoice.Amount} {invoice.Status} {invoice.Date}")"><td>@invoice.Invoice</td><td>@invoice.Customer</td><td class="amount">@invoice.Amount</td><td><span class="badge @invoice.Tone">@invoice.Status</span></td><td>@invoice.Date</td></tr>
                 }
                 @if (!Model.RecentInvoices.Any())
                 {
@@ -166,7 +166,7 @@
         <div class="activity-list">
             @foreach (var activity in Model.RecentActivity)
             {
-                <article><span class="activity-title">@activity.Title</span><span class="activity-time">@activity.Time</span></article>
+                <article data-search="@activity.Title"><span class="activity-title">@activity.Title</span><span class="activity-time">@activity.Time</span></article>
             }
             @if (!Model.RecentActivity.Any())
             {

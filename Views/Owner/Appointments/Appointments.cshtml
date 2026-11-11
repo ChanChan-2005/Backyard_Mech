@@ -7,11 +7,11 @@
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
-<section class="master-data intake-page" data-appointments data-today="@Model.Today.ToString("yyyy-MM-dd")" data-view="@Model.View">
+<section class="master-data intake-page appointments-page" data-appointments data-today="@Model.Today.ToString("yyyy-MM-dd")" data-view="@Model.View">
     <header class="master-toolbar"><h2>Appointments</h2><div class="master-actions">
         @if(Model.CanCreate){<button type="button" data-intake-open="walkin-new">+ Walk-in</button><button type="button" class="master-primary" data-intake-open="appointment-new">+ New Appointment</button>}
     </div></header>
-    <div class="master-toolbar"><input type="search" data-appointment-search placeholder="Search customer, vehicle or service" aria-label="Search appointments" />
+    <div class="master-toolbar"><div class="app-search-control"><label class="app-search"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-appointment-search data-search-managed placeholder="Search customer, vehicle or service" aria-label="Search appointments" /></label><button type="button" class="app-search-submit" data-search-submit>Search</button></div>
         <select data-appointment-status aria-label="Status"><option value="">All statuses</option>@foreach(var status in Model.Rows.Select(x => x.Row.AppointmentStatus).Distinct().Order()){<option>@status</option>}</select>
         <div class="intake-view-toggle" aria-label="Appointment view"><button type="button" data-appointment-view="calendar">Calendar</button><button type="button" data-appointment-view="list">List</button></div>
     </div>

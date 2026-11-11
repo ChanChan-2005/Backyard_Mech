@@ -9,18 +9,18 @@
     <input type="hidden" name="Id" value="@f.Id" /><input type="hidden" name="Expected" value="@f.Expected" /><input type="hidden" name="Kind" value="@(page.Kind)" />
     <header class="master-toolbar"><h2>@title @noun</h2><button type="button" data-master-close aria-label="Close">&#215;</button></header>
     <fieldset disabled="@Model.ReadOnly" class="master-fields">
-        <label class="master-wide">@noun Name *<input name="Name" value="@f.Name" required maxlength="@(page.Mode=="categories"?120:160)" /></label>
+        <label class="master-wide"><span>@noun Name <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Name" value="@f.Name" required maxlength="@(page.Mode=="categories"?120:160)" placeholder="@(page.Mode=="suppliers"?"e.g., Northside Auto Supply":page.Mode=="services"?"e.g., Brake inspection":null)" />@if(page.Mode=="services"){<small class="master-field-hint">Use a short, recognizable name for the service.</small>}</label>
         @if(page.Mode=="suppliers") {
-            <label>Contact First Name<input name="ContactFirstName" value="@f.ContactFirstName" maxlength="120" /></label>
-            <label>Contact Middle Name<input name="ContactMiddleName" value="@f.ContactMiddleName" maxlength="120" /></label>
-            <label>Contact Last Name<input name="ContactLastName" value="@f.ContactLastName" maxlength="120" /></label>
-            <label>Phone<input name="Phone" type="tel" value="@f.Phone" maxlength="40" /></label>
-            <label>Email<input name="Email" type="email" value="@f.Email" maxlength="256" /></label>
-            <label>Account Number<input name="AccountNumber" value="@f.AccountNumber" maxlength="80" /></label>
-            <label class="master-wide">Street Address<input name="StreetAddress" value="@f.StreetAddress" maxlength="250" /></label>
-            <label>City<input name="City" value="@f.City" maxlength="120" /></label>
-            <label>Province<input name="Province" value="@f.Province" maxlength="120" /></label>
-            <label>Postal Code<input name="PostalCode" value="@f.PostalCode" maxlength="20" /></label>
+            <label>Contact First Name<input name="ContactFirstName" value="@f.ContactFirstName" maxlength="120" placeholder="e.g., Alex" /><small class="master-field-hint">Primary contact's first name.</small></label>
+            <label>Contact Middle Name<input name="ContactMiddleName" value="@f.ContactMiddleName" maxlength="120" placeholder="Optional" /><small class="master-field-hint">Optional middle name or initial.</small></label>
+            <label>Contact Last Name<input name="ContactLastName" value="@f.ContactLastName" maxlength="120" placeholder="e.g., Chen" /><small class="master-field-hint">Primary contact's last name.</small></label>
+            <label>Phone<input name="Phone" type="tel" value="@f.Phone" maxlength="40" placeholder="e.g., (416) 555-0123" /><small class="master-field-hint">Include area code.</small></label>
+            <label>Email<input name="Email" type="email" value="@f.Email" maxlength="256" placeholder="name@company.ca" /><small class="master-field-hint">Supplier contact email.</small></label>
+            <label>Account Number<input name="AccountNumber" value="@f.AccountNumber" maxlength="80" placeholder="Supplier account number" /><small class="master-field-hint">Your account number with this supplier.</small></label>
+            <label class="master-wide">Street Address<input name="StreetAddress" value="@f.StreetAddress" maxlength="250" placeholder="Street number and name, unit if applicable" /><small class="master-field-hint">Supplier's mailing or business address.</small></label>
+            <label>City<input name="City" value="@f.City" maxlength="120" placeholder="e.g., Toronto" /></label>
+            <label>Province<input name="Province" value="@f.Province" maxlength="120" placeholder="e.g., Ontario" /></label>
+            <label>Postal Code<input name="PostalCode" value="@f.PostalCode" maxlength="20" placeholder="e.g., M5V 2T6" /></label>
         }
         @if(page.Mode is "categories" or "services") {
             var selected=page.Mode=="categories"?f.ParentId:f.CategoryId;
@@ -30,16 +30,17 @@
                     @if(selected.HasValue && !page.Options.Any(x=>x.Id==selected)){<option value="@selected" selected>Current category (inactive)</option>}
                     @foreach(var option in page.Options.Where(x=>page.Mode!="categories" || x.Id!=f.Id)){<option value="@option.Id" selected="@(option.Id==selected)">@option.Name</option>}
                 </select>
+                @if(page.Mode=="services"){<small class="master-field-hint">Group this service for easier browsing.</small>}
             </label>
-            <label class="master-wide">Description<textarea name="Description" maxlength="@(page.Mode=="categories"?500:1000)">@f.Description</textarea></label>
+            <label class="master-wide">Description<textarea name="Description" maxlength="@(page.Mode=="categories"?500:1000)" placeholder="@(page.Mode=="services"?"Briefly describe the work included":null)">@f.Description</textarea>@if(page.Mode=="services"){<small class="master-field-hint">Describe what the service covers for staff and customers.</small>}</label>
         }
         @if(page.Mode=="services") {
-            <label>Default Price *<input name="Price" type="number" min="0" max="99999999.99" step="0.01" value="@f.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
-            <label>Estimated Hours *<input name="Hours" type="number" min="0" max="9999.99" step="0.01" value="@f.Hours.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
+            <label>Default Price *<input name="Price" type="number" min="0" max="99999999.99" step="0.01" value="@f.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /> <small class="master-field-hint">Standard labour price before applicable tax.</small></label>
+            <label>Estimated Hours *<input name="Hours" type="number" min="0" max="9999.99" step="0.01" value="@f.Hours.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /> <small class="master-field-hint">Typical time needed to complete this service.</small></label>
         }
         @if(page.Mode=="tax") {
-            <label>Rate (%) *<input name="Percent" type="number" min="0" max="100" step="0.01" value="@f.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
-            <label>Effective From *<input name="Start" type="date" value="@f.Start?.ToString("yyyy-MM-dd")" required /></label>
+            <label><span>Rate (%) <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Percent" type="number" min="0" max="100" step="0.01" value="@f.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
+            <label><span>Effective From <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Start" type="date" value="@f.Start?.ToString("yyyy-MM-dd")" required /></label>
             <label>Effective To<input name="End" type="date" value="@f.End?.ToString("yyyy-MM-dd")" /></label>
         }
     </fieldset>

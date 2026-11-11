@@ -1,1 +1,414 @@
 .intake-page h3{font:700 18px Arial,sans-serif;margin:24px 0 16px}.intake-page a{color:#1758bb;text-decoration:underline;text-underline-offset:3px}.intake-page label{font-weight:600}.intake-page label input{margin:8px 0 20px}.master-dialog .intake-check{flex-direction:row;align-items:center;font-weight:400;gap:10px}.master-dialog .intake-check input{width:18px;height:18px;min-height:18px;flex:0 0 18px}.intake-services{border:1px solid #c6d0dc;border-radius:4px;padding:16px;display:grid;gap:12px}.intake-services legend{font-weight:700;padding:0 6px}.intake-calendar{display:grid;grid-template-columns:repeat(7,minmax(135px,1fr));gap:1px;background:#dce2e8;min-width:945px;border:1px solid #dce2e8}.intake-day{background:#fff;min-height:140px;padding:12px;min-width:0}.intake-day h3{font-size:14px;margin:0 0 12px}.intake-day.is-today{background:#eff8f3}.intake-day button{display:block;width:100%;margin-bottom:8px;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.5;min-height:58px;border-left:3px solid #2563eb;font-weight:400}.intake-day button strong{display:block;font-weight:700}.intake-detail{margin:20px 0;line-height:1.7}.intake-detail dt{font-weight:700}.intake-detail dd{margin:0 0 12px}.intake-range{font-weight:700;min-width:190px}.intake-page [hidden]{display:none!important}.intake-calendar-wrap{overflow:auto;margin-top:16px}.intake-summary{margin:16px 0}.intake-view-toggle{display:flex;gap:4px}.intake-view-toggle button[aria-pressed=true]{background:#17212d;color:white}.intake-count{color:#4b596a}.master-dialog input,.master-dialog select{width:100%}@media(max-width:600px){.intake-page .master-toolbar{align-items:flex-start}.intake-page .master-actions{width:100%}.intake-range{min-width:0}}
+
+.intake-page > .intake-search-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 24px;
+  color: #273241;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.intake-page a.intake-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #cbd8e8;
+  border-radius: 5px;
+  background: #fff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.intake-page a.intake-history-button:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.intake-page a.intake-history-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.intake-page > .intake-search-label input[type="search"] {
+  flex: 0 1 420px;
+  width: min(420px, 54vw);
+  min-width: min(300px, 100%);
+  margin: 0;
+  color: #202b38;
+  font: 14px/1.4 "Segoe UI", Arial, sans-serif;
+}
+
+.intake-page > .intake-search-label input[type="search"]::placeholder {
+  color: #667386;
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .intake-page > .intake-search-label {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+  }
+
+  .intake-page > .intake-search-label input[type="search"] {
+    flex-basis: auto;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Appointments workspace */
+.appointments-page {
+  width: min(100%, 1600px);
+  margin: 0 auto;
+  padding: clamp(16px, 1.8vw, 24px);
+  border: 1px solid #e4e9f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(19 33 53 / 6%);
+}
+.appointments-page > .master-toolbar:first-child {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf0f4;
+}
+.appointments-page > .master-toolbar:first-child h2 {
+  color: #17212d;
+  letter-spacing: -.025em;
+}
+.appointments-page > .master-toolbar:nth-child(2) {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 210px) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid #e8edf3;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.appointments-page > .master-toolbar:nth-child(2) input[type="search"] {
+  width: 100%;
+  max-width: 440px;
+}
+.appointments-page > .master-toolbar:nth-child(2) select { width: 100%; }
+.appointments-page .intake-view-toggle {
+  justify-self: end;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #fff;
+}
+.appointments-page .intake-view-toggle button {
+  min-height: 34px;
+  border-color: transparent;
+  border-radius: 6px;
+  padding: 6px 14px;
+}
+.appointments-page .intake-view-toggle button[aria-pressed="true"] {
+  background: #17212d;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 20%);
+}
+.appointments-page [data-calendar-panel] > .master-toolbar {
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 2px 14px;
+}
+.appointments-page .intake-range {
+  min-width: 0;
+  padding: 0 6px;
+  color: #26364a;
+  font-weight: 700;
+}
+.appointments-page .intake-calendar-wrap {
+  margin: 0;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  scrollbar-color: #bdc8d6 transparent;
+}
+.appointments-page .intake-calendar {
+  min-width: 770px;
+  gap: 0;
+  border: 0;
+  background: #e8edf3;
+}
+.appointments-page .intake-day {
+  min-height: clamp(140px, 19vh, 210px);
+  padding: 11px;
+  transition: background-color 140ms ease;
+}
+.appointments-page .intake-day:hover { background: #fbfcfe; }
+.appointments-page .intake-day h3 {
+  margin: 0 0 14px;
+  color: #344256;
+  font-size: 10px;
+  font-weight: 700;
+}
+.appointments-page .intake-day.is-today { background: #f0f8f4; }
+.appointments-page .intake-day button {
+  min-height: 0;
+  padding: 10px 11px;
+  border: 1px solid #d8e3f1;
+  border-left: 3px solid #3973dc;
+  border-radius: 7px;
+  background: #f5f8ff;
+  color: #26364a;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+}
+.appointments-page .intake-day button:hover {
+  border-color: #a9bfeb;
+  background: #edf3ff;
+}
+.appointments-page .intake-count { margin: 10px 2px 0; color: #65758a; }
+.appointments-page .master-table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+.appointments-page table { overflow: hidden; border-radius: 10px; }
+@media (max-width: 760px) {
+  .appointments-page { padding: 16px; border-radius: 10px; }
+  .appointments-page > .master-toolbar:nth-child(2) {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+  }
+  .appointments-page .intake-view-toggle { grid-column: 1 / -1; justify-self: start; }
+  .appointments-page [data-calendar-panel] > .master-toolbar { align-items: flex-start; }
+}
+@media (max-width: 480px) {
+  .appointments-page > .master-toolbar:nth-child(2) { grid-template-columns: 1fr; }
+  .appointments-page .intake-view-toggle { grid-column: auto; }
+  .appointments-page [data-calendar-panel] > .master-toolbar .master-actions { width: 100%; }
+  .appointments-page [data-calendar-panel] > .master-toolbar .master-actions:last-child input { flex: 1; min-width: 0; }
+}
+
+/* Vehicle records list */
+.vehicle-records-page {
+  width: min(100%, 1600px);
+  margin: 0 auto;
+  padding: clamp(16px, 1.8vw, 24px);
+  border: 1px solid #e4e9f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(19 33 53 / 6%);
+}
+.vehicle-records-page > .master-toolbar:first-child {
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf0f4;
+}
+.vehicle-records-page > .master-toolbar:first-child h2 {
+  color: #17212d;
+  letter-spacing: -.025em;
+}
+.vehicle-records-page > .intake-search-label {
+  display: grid;
+  grid-template-columns: minmax(105px, auto) minmax(220px, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 760px);
+  margin: 0 0 12px;
+  color: #344256;
+  font-size: 10px;
+  font-weight: 650;
+}
+.vehicle-records-page > .intake-search-label input[type="search"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 11px;
+  border: 1px solid #d8e0ea;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+}
+.vehicle-records-page > .intake-search-label input[type="search"]:focus-visible {
+  border-color: #7395df;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(57 115 220 / 13%);
+}
+.vehicle-records-page .master-table-wrap {
+  margin: 0;
+  overflow: auto;
+  border: 1px solid #e4e9f0;
+  border-radius: 9px;
+  background: #fff;
+}
+.vehicle-records-page table { min-width: 680px; }
+.vehicle-records-page th {
+  color: #65758a;
+  background: #f7f9fc;
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.vehicle-records-page td { color: #344256; }
+.vehicle-records-page tr:last-child td { border-bottom: 0; }
+@media (max-width: 600px) {
+  .vehicle-records-page { padding: 16px; border-radius: 10px; }
+  .vehicle-records-page > .intake-search-label {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    width: 100%;
+  }
+}
+
+/* Compact appointments density */
+body.app-shell-body .app-main .appointments-page,
+body.app-shell-body .app-main .appointments-page * {
+  font-size: 10px !important;
+}
+body.app-shell-body .app-main .appointments-page h2 { font-size: 14px !important; }
+.appointments-page {
+  padding: 14px;
+  border-radius: 10px;
+}
+.appointments-page > .master-toolbar:first-child {
+  margin-bottom: 10px;
+  padding-bottom: 9px;
+}
+.appointments-page > .master-toolbar:first-child .master-actions { gap: 6px; }
+.appointments-page > .master-toolbar:first-child button {
+  min-height: 30px;
+  padding: 5px 10px;
+}
+.appointments-page > .master-toolbar:nth-child(2) {
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 180px) auto;
+  gap: 7px;
+  margin-bottom: 5px;
+  padding: 8px;
+  border-radius: 7px;
+}
+.appointments-page > .master-toolbar:nth-child(2) :is(input, select) {
+  min-height: 32px;
+  padding: 5px 9px;
+}
+.appointments-page > .master-toolbar:nth-child(2) .app-search-control {
+  width: 100%;
+  max-width: 440px;
+  align-self: center;
+}
+.appointments-page .app-search-control > .app-search {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  line-height: 0;
+}
+.appointments-page .app-search-control > .app-search input[type="search"] {
+  display: block;
+  margin: 0 !important;
+}
+.appointments-page .app-search-control > .app-search-submit {
+  align-self: center;
+}
+.appointments-page .intake-view-toggle button {
+  min-height: 28px;
+  padding: 4px 10px;
+}
+.appointments-page [data-calendar-panel] > .master-toolbar {
+  min-height: 36px;
+  padding: 3px 0 7px;
+}
+.appointments-page [data-calendar-panel] > .master-toolbar .master-actions { gap: 6px; }
+.appointments-page [data-calendar-panel] > .master-toolbar button,
+.appointments-page [data-calendar-panel] > .master-toolbar input,
+.appointments-page [data-calendar-panel] > .master-toolbar select {
+  min-height: 30px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.appointments-page .intake-calendar-wrap { margin-top: 0; }
+.appointments-page .intake-day {
+  min-height: clamp(110px, 15vh, 170px);
+  padding: 9px;
+}
+.appointments-page .intake-day h3 { margin-bottom: 9px; }
+@media (max-width: 760px) {
+  .appointments-page { padding: 12px; }
+}
+
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog {
+  max-height: min(90dvh, 760px);
+}
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog .master-fields {
+  gap: 6px 8px;
+  padding: 12px 18px;
+}
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog .master-fields label {
+  gap: 5px;
+}
+
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog .vehicle-field-hint {
+  color: #687589;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog .master-fields :is(input, select, textarea) {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 12px 26px 18px;
+  background: #fff;
+  box-shadow: 0 -1px 0 #e5eaf0;
+}
+body.app-shell-body dialog.master-dialog.vehicle-register-dialog footer button {
+  min-width: 112px;
+  min-height: 48px;
+  border-radius: 9px;
+}
+
+body.app-shell-body .vehicle-records-page .vehicle-record-search {
+  width: 100%;
+  max-width: none;
+}
+
+body.app-shell-body .vehicle-records-page .vehicle-record-search-box {
+  flex: 1 1 360px;
+}
+
+body.app-shell-body .vehicle-records-page .vehicle-record-search > .vehicle-add-button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  body.app-shell-body .vehicle-records-page .vehicle-record-search {
+    flex-wrap: wrap;
+  }
+
+  body.app-shell-body .vehicle-records-page .vehicle-record-search-box {
+    flex: 1 1 100%;
+  }
+}
+@media (max-width: 600px) {
+  body.app-shell-body dialog.master-dialog.vehicle-register-dialog .master-fields { padding: 12px 18px; }
+  body.app-shell-body dialog.master-dialog.vehicle-register-dialog footer { padding: 10px 18px 14px; }
+}

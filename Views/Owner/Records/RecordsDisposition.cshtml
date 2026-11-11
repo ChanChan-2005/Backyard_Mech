@@ -58,7 +58,10 @@
     </section>
 
     <div class="records-filter-card">
-        <label class="records-search-box"><span>Q</span><input type="search" placeholder="Search disposition records..." /></label>
+        <div class="app-search-control records-search-control">
+            <label class="records-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="disposition-records-table" placeholder="Search disposition records..." /></label>
+            <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        </div>
         <a class="records-button" href="/Owner/ArchiveRecords">Open Archive</a>
     </div>
 
@@ -70,7 +73,7 @@
             </div>
         </header>
 
-        <table class="records-table">
+        <table class="records-table" id="disposition-records-table">
             <thead>
                 <tr>
                     <th>Record</th>

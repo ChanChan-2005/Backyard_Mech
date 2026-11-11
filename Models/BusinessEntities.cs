@@ -17,6 +17,8 @@ namespace Backyard_Mech.Models
         public string? UserId { get; set; }
         public string? EmployeeNumber { get; set; }
         public string? JobTitle { get; set; }
+        public string? EmploymentType { get; set; }
+        public string? SkillsAndQualifications { get; set; }
         public decimal? HourlyRate { get; set; }
         public DateOnly? HireDate { get; set; }
         public string? Phone { get; set; }

@@ -50,6 +50,8 @@ public partial class OwnerController
 
     [HttpPost,ValidateAntiForgeryToken]
     public Task<IActionResult> CreateStaffAccount(StaffAccountForm form) => SaveWorkflow(async () => {
+        Require(form.Password.Length>=12,"Use a password with at least 12 characters.");
+        Require(form.Password==form.ConfirmPassword,"Passwords do not match.");
         var profile=await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
         Require(profile is not null && profile.IsActive && !profile.IsArchived && !profile.IsDeleted,"Choose an active staff profile.");
         Require(string.IsNullOrWhiteSpace(profile.UserId),"This profile already has an account link.");
@@ -59,12 +61,24 @@ public partial class OwnerController
             "Use at least 12 characters with uppercase, lowercase, a number and a symbol.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
         Require(role is not null,"Choose an active role.");
-        await ValidateDelegation(role,await _permissionService.GetRolePermissionCodesAsync(role.RoleKey));
+        Require(!role.IsSystemProtected,"Choose a staff role.");
+        var available=await AssignablePermissions();
+        Require(form.Permissions.Count==available.Count && form.Permissions.Select(x=>x.PermissionId).Distinct().Count()==available.Count &&
+            form.Permissions.All(x=>available.Any(p=>p.PermissionId==x.PermissionId)),"Permission list changed. Refresh and try again.");
+        var effective=new HashSet<string>(await _permissionService.GetRolePermissionCodesAsync(role.RoleKey),StringComparer.OrdinalIgnoreCase);
+        foreach(var choice in form.Permissions)
+        {
+            var code=available.Single(x=>x.PermissionId==choice.PermissionId).PermissionCode!;
+            if(choice.Mode=="Allow") effective.Add(code); else if(choice.Mode=="Deny") effective.Remove(code);
+        }
+        await ValidateDelegation(role,effective);
         var user=new AppUser {Email=email,UserName=name,Role=role.RoleKey,PasswordHash=PasswordHasher.Hash(form.Password),IsActive=true};
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
         profile.UserId=user.Id.ToString();
-        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role});
-        return RedirectToAction(nameof(StaffAccounts),new{userId=user.Id});
+        foreach(var choice in form.Permissions.Where(x=>x.Mode!="Inherit"))
+            _dbContext.UserPermissionOverrides.Add(new UserPermissionOverride {UserId=user.Id,PermissionId=choice.PermissionId,IsAllowed=choice.Mode=="Allow"});
+        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role,form.Permissions});
+        return RedirectToAction(nameof(StaffAccounts));
     },nameof(StaffAccounts));
 
     [HttpPost,ValidateAntiForgeryToken]

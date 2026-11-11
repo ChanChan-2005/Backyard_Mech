@@ -9,6 +9,11 @@
 
     var pageModel = Model ?? new ToolTrackingViewModel();
     var tools = pageModel.Tools;
+    var filteredTools = tools.Where(tool =>
+        (!pageModel.SelectedCategoryId.HasValue || tool.ToolCategoryId == pageModel.SelectedCategoryId.Value) &&
+        (string.IsNullOrWhiteSpace(pageModel.SelectedStatus) || string.Equals(tool.Status, pageModel.SelectedStatus, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+    var statuses = tools.Select(tool => tool.Status).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(status => status).ToList();
 }
 
 @section TopbarActions {
@@ -30,10 +35,25 @@
     </div>
 
     <div class="tools-filter-card">
-        <div class="tools-filter-left">
-            <button class="tools-filter-button" type="button">Category: All V</button>
-            <button class="tools-filter-button" type="button">Status: All V</button>
-        </div>
+        <form method="get" asp-controller="Owner" asp-action="ToolTracking" class="tools-filter-left" aria-label="Filter tools">
+            <label for="tools-category-filter">Category</label>
+            <select id="tools-category-filter" class="tools-filter-select" name="categoryId" onchange="this.form.requestSubmit()">
+                <option value="">All categories</option>
+                @foreach (var category in pageModel.ToolCategoryOptions)
+                {
+                    <option value="@category.Id" selected="@(pageModel.SelectedCategoryId == category.Id)">@category.Label</option>
+                }
+            </select>
+            <label for="tools-status-filter">Status</label>
+            <select id="tools-status-filter" class="tools-filter-select" name="status" onchange="this.form.requestSubmit()">
+                <option value="">All statuses</option>
+                @foreach (var status in statuses)
+                {
+                    <option value="@status" selected="@(string.Equals(pageModel.SelectedStatus, status, StringComparison.OrdinalIgnoreCase))">@status</option>
+                }
+            </select>
+            <button class="tools-filter-apply" type="submit">Apply</button>
+        </form>
         <div class="tools-filter-right">
             <div class="tools-view-switch">
                 <button class="active" type="button">Table</button>
@@ -57,7 +77,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var tool in tools)
+                @foreach (var tool in filteredTools)
                 {
                     var toolSlug = tool.ToolId.ToString();
                     <tr>
@@ -115,11 +135,15 @@
                         </td>
                     </tr>
                 }
+                @if (filteredTools.Count == 0)
+                {
+                    <tr><td colspan="8" class="tools-empty">No tools match these filters.</td></tr>
+                }
             </tbody>
         </table>
 
         <footer class="tools-panel-footer">
-            <span>Showing @tools.Count tool@(tools.Count == 1 ? "" : "s")</span>
+            <span>Showing @filteredTools.Count of @tools.Count tools</span>
             <nav class="tools-pagination">
                 <button type="button">Previous</button>
                 <button class="active" type="button">1</button>

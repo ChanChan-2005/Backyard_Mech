@@ -854,6 +854,45 @@
   padding-top: 16px;
 }
 
+body.app-shell-body .wo-modal-card .wo-modal-section {
+  padding: 10px 18px;
+}
+
+body.app-shell-body .wo-modal-card .wo-modal-section:first-of-type {
+  padding-top: 18px;
+}
+
+body.app-shell-body .wo-modal-card .wo-modal-section .wo-form-section-header {
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+}
+
+body.app-shell-body .wo-modal-card .wo-form-grid {
+  gap: 7px 10px;
+}
+
+body.app-shell-body .wo-modal-card .wo-modal-section :is(input, select, textarea) {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+body.app-shell-body .wo-modal-card .wo-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 10px 22px 12px;
+  background: #fff;
+  box-shadow: 0 -1px 0 #e5eaf0;
+}
+
+@media (max-width: 600px) {
+  body.app-shell-body .wo-modal-card .wo-modal-section { padding: 10px 18px; }
+  body.app-shell-body .wo-modal-card .wo-modal-actions { padding: 12px 18px 16px; }
+}
+
 @media (max-width: 1100px) {
   .wo-stats,
   .wo-summary-grid,

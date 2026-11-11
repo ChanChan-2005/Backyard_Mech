@@ -3,8 +3,8 @@
     <label>Type<select data-field="LineType"><option selected="@(Model.Line.LineType == "Labour")">Labour</option><option selected="@(Model.Line.LineType == "Part")">Part</option></select></label>
     <label data-part-select>Part<select data-field="PartId"><option value="">Select part</option>@foreach(var item in Model.Options.Parts) { <option value="@item.PartId" selected="@(item.PartId == Model.Line.PartId)" data-price="@((item.UnitPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@item.Name</option> }</select></label>
     <label data-service-select>Service<select data-field="ServiceId"><option value="">Custom labour</option>@foreach(var item in Model.Options.Services) { <option value="@item.ServiceId" selected="@(item.ServiceId == Model.Line.ServiceId)" data-price="@((item.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@item.ServiceName</option> }</select></label>
-    <label>Qty / hours<input data-field="Quantity" type="number" min="0.01" max="100000" step=".01" value="@Model.Line.Quantity" required /></label>
-    <label>Price / rate<input data-field="UnitPrice" type="number" min="0" max="1000000" step=".01" value="@Model.Line.UnitPrice" required /></label>
+    <label><span>Qty / hours <span class="modal-required-indicator" aria-hidden="true">*</span></span><input data-field="Quantity" type="number" min="0.01" max="100000" step=".01" value="@Model.Line.Quantity" required /></label>
+    <label><span>Price / rate <span class="modal-required-indicator" aria-hidden="true">*</span></span><input data-field="UnitPrice" type="number" min="0" max="1000000" step=".01" value="@Model.Line.UnitPrice" required /></label>
     <button type="button" data-remove-line title="Remove line" aria-label="Remove line">&#215;</button>
-    <label class="line-description">Description<input data-field="Description" value="@Model.Line.Description" maxlength="500" required /></label>
+    <label class="line-description"><span>Description <span class="modal-required-indicator" aria-hidden="true">*</span></span><input data-field="Description" value="@Model.Line.Description" maxlength="500" required /></label>
 </div>

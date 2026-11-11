@@ -38,7 +38,7 @@
     <div class="users-alert">Archived employees are hidden from active views but retain all historical work records. They can be restored at any time.</div>
 
     <div class="users-filter-card">
-        <label class="users-search-box"><span>Q</span><input type="search" placeholder="Search by name, role, email..." /></label>
+        <label class="users-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="archived-employees-table" placeholder="Search by name, role, email..." /></label>
         <div class="users-filter-right">
             <button class="users-button" type="button">Role: All V</button>
             <button class="users-button" type="button">Sort By: Name V</button>
@@ -46,7 +46,7 @@
     </div>
 
     <section class="users-panel">
-        <table class="users-table">
+        <table class="users-table" id="archived-employees-table">
             <thead><tr><th>Employee Name</th><th>Role</th><th>Date Archived</th><th>Archived By</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
                 @foreach (var employee in archived)

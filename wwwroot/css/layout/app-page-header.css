@@ -1,0 +1,62 @@
+/* Keep the shared page header consistent across module shells. */
+body.app-shell-body .app-topbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 64px;
+  height: auto;
+  padding: 10px 22px;
+  background: #fff;
+  border-bottom: 1px solid #dde2e9;
+}
+
+body.app-shell-body .app-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+body.app-shell-body .app-title time {
+  display: block;
+  order: 0;
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+body.app-shell-body .app-title h1 {
+  order: 0;
+  margin: 0;
+  color: #17243a;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+body.app-shell-body .app-actions {
+  gap: 10px;
+}
+
+body.app-shell-body .app-bell {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f2f4f7;
+}
+
+@media (max-width: 760px) {
+  body.app-shell-body .app-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 10px 13px;
+  }
+}
+
+@media (max-width: 470px) {
+  body.app-shell-body .app-title h1 {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,146 @@
+/* Application-wide typography and table rhythm. */
+/* Keep page, form, and modal text at the same 10px scale as the side navigation. */
+body.app-shell-body .app-main,
+body.app-shell-body .app-main *,
+body.app-shell-body :is(
+  .customer-modal-card,
+  .bay-modal-card,
+  .parts-modal-card,
+  .tools-modal-card,
+  .estimate-modal-card,
+  .wo-modal-card,
+  .appointment-modal-card,
+  .users-modal,
+  .queue-modal-card,
+  .settings-role-modal-card,
+  dialog.master-dialog,
+  dialog.repair-dialog
+),
+body.app-shell-body :is(
+  .customer-modal-card,
+  .bay-modal-card,
+  .parts-modal-card,
+  .tools-modal-card,
+  .estimate-modal-card,
+  .wo-modal-card,
+  .appointment-modal-card,
+  .users-modal,
+  .queue-modal-card,
+  .settings-role-modal-card,
+  dialog.master-dialog,
+  dialog.repair-dialog
+) * {
+  font-size: 10px !important;
+}
+
+body.app-shell-body {
+  color: #202b38;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+body.app-shell-body .dashboard-content {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+body.app-shell-body .dashboard-content table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: #344256;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+body.app-shell-body .dashboard-content table thead {
+  background: #f4f6f9;
+}
+
+body.app-shell-body .dashboard-content table th {
+  padding: 12px 14px;
+  border-bottom: 1px solid #dfe5ec;
+  color: #53647a;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .035em;
+  line-height: 1.35;
+  text-align: left;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+body.app-shell-body .dashboard-content table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e7ebf0;
+  color: #344256;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+body.app-shell-body .dashboard-content table tbody tr {
+  background-color: #fff;
+}
+
+body.app-shell-body .dashboard-content table tbody tr:hover {
+  background-color: #f7f9fc;
+}
+
+body.app-shell-body .dashboard-content table :is(input, select, textarea, button) {
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body.app-shell-body .dashboard-content table :is(input, select) {
+  font-size: 10px;
+}
+
+body.app-shell-body .dashboard-content .queue-panel {
+  overflow-x: auto;
+}
+
+body.app-shell-body .dashboard-content .queue-panel .queue-table {
+  width: 100%;
+  min-width: 820px;
+  table-layout: fixed;
+}
+
+body.app-shell-body .dashboard-content .queue-panel .queue-table th,
+body.app-shell-body .dashboard-content .queue-panel .queue-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(1),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(1) { width: 6%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(2),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(2) { width: 15%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(3),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(3) { width: 15%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(4),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(4) { width: 13%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(5),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(5) { width: 18%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(6),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(6) { width: 12%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(7),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(7) { width: 9%; }
+body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(8),
+body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(8) {
+  width: 12%;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  body.app-shell-body .dashboard-content table th,
+  body.app-shell-body .dashboard-content table td {
+    padding: 10px 11px;
+  }
+}

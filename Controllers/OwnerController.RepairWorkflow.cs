@@ -14,14 +14,23 @@ public partial class OwnerController
         if (!condition) throw new WorkflowValidationException(message);
     }
 
+    private string FormValidationMessage(string fallback)
+    {
+        var errors = ModelState.Values.SelectMany(value => value.Errors)
+            .Select(error => error.ErrorMessage)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .Distinct()
+            .ToArray();
+        return errors.Length == 0 ? fallback : string.Join(" ", errors);
+    }
+
     // Stock, revisions and billing share a transaction lock so competing requests cannot
     // both spend the same balance, consume the same stock, or convert the same estimate.
     private async Task<IActionResult> SaveWorkflow(Func<Task<IActionResult>> save, string fallback, object? route = null)
     {
         if (!ModelState.IsValid)
         {
-            TempData["OwnerMessage"] = string.Join(" ", ModelState.Values.SelectMany(x => x.Errors)
-                .Select(x => string.IsNullOrWhiteSpace(x.ErrorMessage) ? "Check the entered values." : x.ErrorMessage).Distinct());
+            TempData["OwnerMessage"] = FormValidationMessage("Check the entered values.");
             TempData["OwnerMessageTone"] = "error";
             return RedirectToAction(fallback, route);
         }

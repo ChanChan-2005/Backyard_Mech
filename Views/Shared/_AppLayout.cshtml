@@ -1,13 +1,26 @@
 @inject Backyard_Mech.Services.PermissionService PermissionService
+@inject Backyard_Mech.Data.ApplicationDbContext AppDb
+@inject IWebHostEnvironment HostEnvironment
+@inject IConfiguration Configuration
+@using Microsoft.EntityFrameworkCore
+@using System.Globalization
 @{
     var pageTitle = ViewData["PageTitle"]?.ToString() ?? ViewData["Title"]?.ToString() ?? "Dashboard";
-    var pageSubtitle = ViewData["PageSubtitle"]?.ToString() ?? DateTime.Now.ToString("dddd, MMMM dd, yyyy");
     var activeNav = ViewData["ActiveNav"]?.ToString() ?? "Dashboard";
+    var garageZone = TimeZoneInfo.FindSystemTimeZoneById(Configuration["GarageTimeZone"] ?? "Asia/Manila");
+    var garageDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, garageZone).Date;
+    var pageDateLabel = garageDate.ToString("dddd, MMMM d, yyyy", CultureInfo.InvariantCulture);
     var sessionUserName = Context.Session.GetString("UserName") ?? "Owner";
     var sessionUserRole = Context.Session.GetString("UserRole") ?? "Owner";
+    var currentUserId = int.TryParse(Context.Session.GetString("UserId"), out var parsedUserId) ? parsedUserId : 0;
+    var employeeProfile = currentUserId > 0
+        ? await AppDb.EmployeeProfiles.AsNoTracking().FirstOrDefaultAsync(profile => profile.UserId == currentUserId.ToString())
+        : null;
+    var employeeName = string.Join(" ", new[] { employeeProfile?.FirstName, employeeProfile?.LastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    var hasProfilePhoto = currentUserId > 0 && Backyard_Mech.Services.ProfilePhotoStore.Find(HostEnvironment.ContentRootPath, currentUserId) is not null;
     var permissionCodes = await PermissionService.GetPermissionCodesAsync(sessionUserRole);
     bool CanViewModule(string module) => permissionCodes.Contains("*") || permissionCodes.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, "View"));
-    var userName = ViewData["ShellUserName"]?.ToString() ?? sessionUserName;
+    var userName = ViewData["ShellUserName"]?.ToString() ?? (string.IsNullOrWhiteSpace(employeeName) ? sessionUserName : employeeName);
     var userRole = ViewData["ShellUserRole"]?.ToString() ?? await PermissionService.GetRoleNameAsync(sessionUserRole);
     var initials = ViewData["ShellUserInitials"]?.ToString() ?? string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
     if (string.IsNullOrWhiteSpace(initials))
@@ -31,6 +44,9 @@
     var isUserManagement = string.Equals(activeNav, "User Management", StringComparison.OrdinalIgnoreCase);
     var isReports = string.Equals(activeNav, "Reports", StringComparison.OrdinalIgnoreCase);
     var isSettings = string.Equals(activeNav, "Settings", StringComparison.OrdinalIgnoreCase);
+    var showPageSearch = !isBayManagement && !isReports && !isSettings
+        && !shellClass.Contains("customer-detail-shell", StringComparison.OrdinalIgnoreCase)
+        && !shellClass.Contains("profile-settings-shell", StringComparison.OrdinalIgnoreCase);
 
     var navItems = new[]
     {
@@ -55,6 +71,7 @@
         new { Icon = "users", Label = "User Management", Href = "/Owner/Employees", Module = "Employees", AlternateModule = "" },
         new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings", Module = "Settings", AlternateModule = "" },
         new { Icon = "users", Label = "Account Access", Href = "/Owner/StaffAccounts", Module = "User Access", AlternateModule = "" },
+        new { Icon = "users", Label = "My Profile", Href = "/Account/Profile", Module = "", AlternateModule = "" },
         new { Icon = "logout", Label = "Logout", Href = "/Account/Logout", Module = "", AlternateModule = "" }
     };
 
@@ -87,7 +104,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Backyard Mech</title>
+    <title>@ViewData["Title"] - Bakyard Mech</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
@@ -114,14 +131,22 @@
     <link rel="stylesheet" href="~/css/owner/settings/owner-settings.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/owner-modal-fields.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Backyard_Mech.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/modal-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/app-typography-tables.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/app-button-colors.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/app-page-header.css" asp-append-version="true" />
 </head>
-<body class="app-shell-body @shellClass">
+<body class="app-shell-body @shellClass"
+      data-session-idle-timeout-ms="@(Backyard_Mech.Services.AccountSecurityService.SessionIdleTimeoutMinutes * 60 * 1000)"
+      data-session-maximum-age-ms="@(Backyard_Mech.Services.AccountSecurityService.MaximumSessionHours * 60 * 60 * 1000)"
+      data-session-authenticated-at="@Context.Session.GetString("AuthenticatedAt")"
+      data-session-timeout-url="@Url.Action("Login", "Account", new { sessionExpired = true })">
     @await Html.PartialAsync("_AppNotificationModal")
 
     <div class="app-shell">
         <aside class="app-sidebar" aria-label="Application navigation">
             <div class="app-brand">
-                <span>Backyard Mech</span>
+                <span>Bakyard Mech</span>
             </div>
 
             <nav class="app-nav">
@@ -133,45 +158,39 @@
                         continue;
                     }
                     var isActive = string.Equals(activeNav, item.Label, StringComparison.OrdinalIgnoreCase);
-                    <a class="@(isActive ? "active" : "")" href="@item.Href">
+                    <a class="@(isActive ? "active" : "")" href="@item.Href" title="@item.Label">
                         <span class="nav-icon" aria-hidden="true">@Html.Raw(NavIconSvg(item.Icon))</span>
                         <span>@item.Label</span>
                     </a>
                 }
             </nav>
 
-            <div class="app-profile">
-                <span class="avatar">@initials</span>
+            <a class="app-profile" href="@Url.Action("Profile", "Account")" title="My Profile">
+                <span class="avatar">
+                    @if (hasProfilePhoto)
+                    {
+                        <img src="@Url.Action("ProfilePhoto", "Account")" alt="" />
+                    }
+                    else
+                    {
+                        @initials
+                    }
+                </span>
                 <div>
                     <strong>@userName</strong>
                     <span>@userRole</span>
                 </div>
-            </div>
+            </a>
         </aside>
 
         <main class="app-main">
             <header class="app-topbar">
                 <div class="app-title">
+                    <time datetime="@garageDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)">@pageDateLabel</time>
                     <h1>@pageTitle</h1>
-                    <p>@pageSubtitle</p>
                 </div>
                 <div class="app-actions">
-                    <button class="app-bell" type="button" aria-label="Notifications">!<b>2</b></button>
-                    @if (!isBayManagement && !isReports && !isSettings)
-                    {
-                        <label class="app-search">
-                            <span>Q</span>
-                            <input type="search" placeholder="@(searchPlaceholderOverride ?? (isEstimates ? "Search estimates..." : isAppointments ? "Search tickets, VIN, plate, customer..." : isServiceQueue ? "Search queue, plate, VIN..." : isQualityControl ? "Search WO#, plate, customer..." : isToolsTracking ? "Search item by name, serial, category..." : isInvoicing ? "Search invoice #, customer..." : isUserManagement ? "Search by name, role, email..." : isWorkOrders || isPartsManagement || isLabourTracking ? "Search plate, customer, phone..." : "Search plate, customer, phone..."))" aria-label="Search plate, customer, phone" />
-                        </label>
-                    }
-                    @await RenderSectionAsync("TopbarActions", required: false)
-                    @if (isServiceQueue)
-                    {
-                        <div class="queue-view-switch" aria-label="Queue view mode">
-                            <button class="active" type="button" data-queue-view-button="board">Board</button>
-                            <button type="button" data-queue-view-button="list">List</button>
-                        </div>
-                    }
+                    @await Component.InvokeAsync("Notifications")
                 </div>
             </header>
 
@@ -179,6 +198,27 @@
                 @if (TempData["OwnerMessage"] is string workflowMessage)
                 {
                     <div class="repair-message @TempData["OwnerMessageTone"]" role="status">@workflowMessage</div>
+                }
+                @if (showPageSearch || IsSectionDefined("TopbarActions"))
+                {
+                    <div class="app-page-toolbar">
+                        @if (showPageSearch)
+                        {
+                            <div class="app-search-control">
+                                <label class="app-search">
+                                    <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                                    <input type="search" data-global-search placeholder="@(searchPlaceholderOverride ?? (isEstimates ? "Search estimates..." : isAppointments ? "Search tickets, VIN, plate, customer..." : isServiceQueue ? "Search queue, plate, VIN..." : isQualityControl ? "Search WO#, plate, customer..." : isToolsTracking ? "Search item by name, serial, category..." : isInvoicing ? "Search invoice #, customer..." : isUserManagement ? "Search by name, role, email..." : isWorkOrders || isPartsManagement || isLabourTracking ? "Search plate, customer, phone..." : "Search plate, customer, phone..."))" aria-label="Search this page" />
+                                </label>
+                                <button type="button" class="app-search-submit" data-search-submit>Search</button>
+                            </div>
+                        }
+                        @if (IsSectionDefined("TopbarActions"))
+                        {
+                            <div class="app-page-actions">
+                                @await RenderSectionAsync("TopbarActions", required: false)
+                            </div>
+                        }
+                    </div>
                 }
                 @RenderBody()
             </section>
@@ -188,6 +228,10 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/search-commit.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/session-timeout.js" asp-append-version="true"></script>
+    <script src="~/js/modal-required-indicators.js" asp-append-version="true"></script>
     <script src="~/js/owner-repair-workflow.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

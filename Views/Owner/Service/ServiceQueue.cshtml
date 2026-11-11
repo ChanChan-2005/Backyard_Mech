@@ -28,6 +28,13 @@
     var typeFilters = allCards.Select(card => card.Type).Distinct().OrderBy(type => type);
 }
 
+@section TopbarActions {
+    <div class="queue-view-switch" aria-label="Queue view mode">
+        <button class="active" type="button" data-queue-view-button="board">Board</button>
+        <button type="button" data-queue-view-button="list">List</button>
+    </div>
+}
+
 <section class="queue-board-module">
     <div class="queue-filter-bar">
         <div class="queue-filters">
@@ -197,6 +204,7 @@
             const boardPanel = document.querySelector(".queue-board");
             const listPanel = document.querySelector("[data-queue-view-panel='list']");
             const listEmpty = document.querySelector("[data-queue-list-empty]");
+            let searchTerm = topbarSearch?.value.trim().toLowerCase() || "";
 
             if (!filters.length || !cards.length || !columns.length) {
                 return;
@@ -209,7 +217,7 @@
 
             const applyFilters = () => {
                 const values = getFilterValues();
-                const query = topbarSearch?.value.trim().toLowerCase() || "";
+                const query = searchTerm;
 
                 const isMatch = item => {
                     const matchesDropdowns =
@@ -276,7 +284,7 @@
             };
 
             filters.forEach(filter => filter.addEventListener("change", applyFilters));
-            topbarSearch?.addEventListener("input", applyFilters);
+            topbarSearch?.addEventListener("searchcommit", event => { searchTerm = event.detail.value.toLowerCase(); applyFilters(); });
             viewButtons.forEach(button => {
                 button.addEventListener("click", () => setView(button.dataset.queueViewButton || "board"));
             });
@@ -287,6 +295,7 @@
 
                 if (topbarSearch) {
                     topbarSearch.value = "";
+                    searchTerm = "";
                 }
 
                 applyFilters();

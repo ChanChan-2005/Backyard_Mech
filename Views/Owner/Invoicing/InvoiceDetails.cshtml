@@ -7,7 +7,7 @@
     var open = Model.Invoice.InvoiceStatus != "Voided";
 }
 <div class="repair-page" data-auto-dialog="@Model.OpenModal">
-<nav class="repair-toolbar"><a href="/Owner/InvoiceRegistry">Invoice Registry</a><div class="repair-actions">
+<nav class="repair-toolbar"><a class="app-action-link" href="/Owner/InvoiceRegistry">Invoice Registry</a><div class="repair-actions">
     <button type="button" data-print-invoice>Print</button>
     @if(open && Can("Create") && Model.Balance > 0) { <button type="button" class="primary" data-dialog-open="payment-new">Record Payment</button> }
     @if(open && Can("Edit")) { <button type="button" data-dialog-open="adjustment-new">Adjust Invoice</button> }

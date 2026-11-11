@@ -1,0 +1,63 @@
+/* Keep primary actions blue across the owner app, even where older page styles
+   still use a dark variant name. Secondary and destructive actions are untouched. */
+body.app-shell-body a.app-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #cbd8e8;
+  border-radius: 5px;
+  background: #fff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+body.app-shell-body a.app-action-link:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+body.app-shell-body a.app-action-link:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+body.app-shell-body :is(button, a)[class*="button-blue"],
+body.app-shell-body :is(button, a)[class*="button-dark"],
+body.app-shell-body :is(
+  .customer-modal-primary,
+  .add-customer-button,
+  .master-primary,
+  .appointment-modal-primary,
+  .primary-estimate-button,
+  .dark-estimate-button,
+  .queue-modal-primary,
+  .settings-role-modal-card button.primary
+) {
+  border-color: #2563eb !important;
+  background-color: #2563eb !important;
+  color: #fff !important;
+}
+
+body.app-shell-body :is(button, a)[class*="button-blue"]:hover,
+body.app-shell-body :is(button, a)[class*="button-dark"]:hover,
+body.app-shell-body :is(
+  .customer-modal-primary,
+  .add-customer-button,
+  .master-primary,
+  .appointment-modal-primary,
+  .primary-estimate-button,
+  .dark-estimate-button,
+  .queue-modal-primary,
+  .settings-role-modal-card button.primary
+):hover {
+  border-color: #1d4ed8 !important;
+  background-color: #1d4ed8 !important;
+}

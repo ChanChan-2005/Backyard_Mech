@@ -19,7 +19,7 @@ public sealed class MasterDataForm
     [StringLength(120)] public string? ContactFirstName { get; set; }
     [StringLength(120)] public string? ContactMiddleName { get; set; }
     [StringLength(120)] public string? ContactLastName { get; set; }
-    [StringLength(40)] public string? Phone { get; set; }
+    [Phone, StringLength(40)] public string? Phone { get; set; }
     [EmailAddress, StringLength(256)] public string? Email { get; set; }
     [StringLength(250)] public string? StreetAddress { get; set; }
     [StringLength(120)] public string? City { get; set; }

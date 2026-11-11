@@ -7,6 +7,7 @@
     ViewData["ActiveNav"] = "Settings";
     ViewData["ShellClass"] = "settings-shell settings-reference-shell";
     ViewData["SettingsTab"] = "Roles";
+    var openPermissions = string.Equals(Context.Request.Query["editPermissions"], "true", StringComparison.OrdinalIgnoreCase);
 }
 
 @await Html.PartialAsync("_SettingsTabs")
@@ -42,6 +43,10 @@
                         {
                             @if (Model.CanEditRole)
                             {
+                                <a class="settings-role-action-button" href="/Owner/SettingsRoles?role=@role.RoleId&amp;editPermissions=true">Permissions</a>
+                            }
+                            @if (Model.CanEditRole)
+                            {
                                 <button type="button" data-settings-role-edit data-id="@role.AppRoleId" data-name="@role.Label" data-description="@role.Description">Edit</button>
                             }
                             @if (Model.CanDeleteRole)
@@ -55,24 +60,21 @@
         </div>
     </section>
 
-    <section class="settings-reference-card settings-permission-matrix">
-        <form asp-controller="Owner" asp-action="SaveRolePermissions" method="post">
+    <div class="settings-role-modal settings-permission-modal @(openPermissions ? "is-open" : "")" data-settings-role-panel="permissions" aria-hidden="@(openPermissions ? "false" : "true")">
+        <div class="settings-role-modal-backdrop" data-settings-role-close></div>
+        <section class="settings-reference-card settings-permission-matrix settings-role-modal-card settings-permission-modal-card" role="dialog" aria-modal="true" aria-labelledby="permissions-modal-title">
+        <form asp-controller="Owner" asp-action="SaveRolePermissions" method="post" data-role-permissions-form data-create-role-action="@Url.Action("CreateRole", "Owner")">
             @Html.AntiForgeryToken()
             <input type="hidden" name="RoleId" value="@Model.SelectedRoleId" />
+            <input type="hidden" name="RoleName" />
+            <input type="hidden" name="Description" />
 
             <header>
                 <div>
-                    <h2>Permissions: @Model.SelectedRoleLabel</h2>
-                    <p>@(Model.IsSystemProtected ? "This role has full system access and cannot be changed." : "View controls sidebar visibility. Other permissions protect the matching server actions.")</p>
+                    <h2 id="permissions-modal-title">Permissions: @Model.SelectedRoleLabel</h2>
+                    <p>Module access and individual actions are both required. Select the exact tasks this role can use.</p>
                 </div>
-                @if (Model.IsSystemProtected)
-                {
-                    <span>System Protected</span>
-                }
-                else if (Model.CanEditRole)
-                {
-                    <button class="settings-button-blue" type="submit">Save Permissions</button>
-                }
+                <div class="settings-role-permission-actions"><button class="settings-button-blue settings-role-permissions-save" type="submit">Save Permissions</button><button class="settings-role-permissions-close" type="button" data-settings-role-close aria-label="Close permissions">&#215;</button></div>
             </header>
 
             <div class="settings-permission-table-wrap">
@@ -98,7 +100,7 @@
                                         @if (cell.Exists && cell.PermissionId.HasValue)
                                         {
                                             <label class="settings-permission-check" title="@row.ModuleName @action">
-                                                <input type="checkbox" name="PermissionIds" value="@cell.PermissionId" checked="@cell.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" />
+                                                <input type="checkbox" name="PermissionIds" value="@cell.PermissionId" checked="@cell.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" data-role-base-module="@row.ModuleName" data-role-base-action="@action" />
                                                 <span aria-hidden="true"></span>
                                             </label>
                                         }
@@ -112,10 +114,31 @@
                         }
                     </tbody>
                 </table>
+                <div class="settings-detailed-permissions">
+                    <h3>Individual actions</h3>
+                    <input type="search" data-settings-action-search placeholder="Find a module or action..." aria-label="Search individual actions" />
+                    @foreach (var module in Model.DetailedPermissions.GroupBy(permission => permission.ModuleName))
+                    {
+                        <details open data-settings-action-group>
+                            <summary>@module.Key <small>@module.Count() actions</small></summary>
+                            <div class="settings-detailed-permission-list">
+                                @foreach (var permission in module)
+                                {
+                                    <label data-settings-action-row data-search="@($"{permission.ModuleName} {permission.Label} {permission.Action}")">
+                                        <input type="checkbox" name="PermissionIds" value="@permission.PermissionId" checked="@permission.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" data-role-action-module="@permission.ModuleName" data-role-action-requires="@permission.Action" />
+                                        <span>@permission.Label</span>
+                                        <small>@permission.Action</small>
+                                    </label>
+                                }
+                            </div>
+                        </details>
+                    }
+                </div>
             </div>
             <footer class="settings-panel-footer"><span>@Model.PermissionRows.Count modules, @Model.TotalPermissionCount available permissions</span></footer>
         </form>
-    </section>
+        </section>
+    </div>
 </section>
 
 @if (Model.CanCreateRole)
@@ -123,14 +146,13 @@
     <div class="settings-role-modal" data-settings-role-panel="add-role" aria-hidden="true">
         <div class="settings-role-modal-backdrop" data-settings-role-close></div>
         <section class="settings-role-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-role-title">
-            <form asp-controller="Owner" asp-action="CreateRole" method="post">
-                @Html.AntiForgeryToken()
-                <header><div><h2 id="add-role-title">Add New Role</h2><p>Create the role first, then configure its permissions.</p></div><button type="button" data-settings-role-close aria-label="Close">x</button></header>
+            <form data-settings-create-role-step>
+                <header><div><h2 id="add-role-title">Add New Role</h2><p>Enter the role details, then choose its permissions in the next step.</p></div><button type="button" data-settings-role-close aria-label="Close">x</button></header>
                 <div class="settings-role-modal-body">
-                    <label><span>Role Name *</span><input name="RoleName" maxlength="120" placeholder="e.g. Front Desk Coordinator" required /></label>
+                    <label><span>Role Name *</span><input name="RoleName" minlength="2" maxlength="120" placeholder="e.g. Front Desk Coordinator" required /></label>
                     <label><span>Description</span><textarea name="Description" maxlength="500" placeholder="Briefly describe what this role is responsible for"></textarea></label>
                 </div>
-                <footer><button type="button" data-settings-role-close>Cancel</button><button class="primary" type="submit">Create Role</button></footer>
+                <footer><button type="button" data-settings-role-close>Cancel</button><button class="primary" type="button" data-settings-role-next>Next</button></footer>
             </form>
         </section>
     </div>

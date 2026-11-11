@@ -64,9 +64,9 @@
         });
         rows.querySelectorAll('[data-estimate-line]').forEach(sync); reindex();
     });
-    document.querySelectorAll('[data-table-search]').forEach(input => input.addEventListener('input', () => {
+    document.querySelectorAll('[data-table-search]').forEach(input => input.addEventListener('searchcommit', event => {
         const table = document.getElementById(input.dataset.tableSearch);
-        table?.querySelectorAll('tbody tr').forEach(row => row.hidden = !row.textContent.toLowerCase().includes(input.value.toLowerCase()));
+        table?.querySelectorAll('tbody tr').forEach(row => row.hidden = !row.textContent.toLowerCase().includes(event.detail.value.toLowerCase()));
     }));
     document.querySelectorAll('dialog.repair-dialog form, .repair-page form').forEach(form => form.addEventListener('submit', () => {
         form.querySelectorAll('button[type="submit"]').forEach(button => { setTimeout(() => button.disabled = true, 0); });

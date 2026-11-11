@@ -1,6 +1,73 @@
 (() => {
   const layer = document.querySelector("[data-users-modal-layer]");
 
+  document.querySelectorAll("[data-canada-province]").forEach(async (provinceSelect) => {
+    const citySelect = provinceSelect.form?.querySelector("[data-canada-municipality]");
+    if (!citySelect) return;
+
+    try {
+      const response = await fetch("/data/canada-sgc-2021.json");
+      if (!response.ok) throw new Error("Canadian geography data is unavailable");
+      const geography = await response.json();
+      const provinces = [...geography.provinces].sort((a, b) => a.name.localeCompare(b.name));
+      const municipalities = geography.municipalities;
+
+      provinces.forEach((province) => {
+        const option = document.createElement("option");
+        option.value = province.name;
+        option.textContent = province.name;
+        option.dataset.code = province.code;
+        provinceSelect.append(option);
+      });
+
+      provinceSelect.addEventListener("change", () => {
+        const selectedProvince = provinces.find(item => item.name === provinceSelect.value);
+        citySelect.replaceChildren();
+        const prompt = document.createElement("option");
+        prompt.value = "";
+        prompt.disabled = true;
+        prompt.selected = true;
+        prompt.textContent = selectedProvince ? "Select city or municipality" : "Select a province or territory first";
+        citySelect.append(prompt);
+        if (!selectedProvince) {
+          citySelect.disabled = true;
+          return;
+        }
+
+        municipalities
+          .filter(item => item.provinceCode === selectedProvince.code)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .forEach((municipality) => {
+            const option = document.createElement("option");
+            option.value = municipality.name;
+            option.textContent = municipality.name;
+            option.dataset.code = municipality.code;
+            citySelect.append(option);
+          });
+        citySelect.disabled = false;
+      });
+    } catch {
+      provinceSelect.innerHTML = '<option value="" selected disabled>Canadian location list unavailable</option>';
+    }
+  });
+
+  document.querySelectorAll("[data-staff-address-form]").forEach((form) => {
+    form.addEventListener("submit", () => {
+      const value = (selector) => form.querySelector(selector)?.value.trim() || "";
+      const unit = value("[data-staff-address-unit]");
+      const street = [
+        value("[data-staff-address-number]"),
+        value("[data-staff-address-street]"),
+        value("[data-staff-address-type]")
+      ].filter(Boolean).join(" ");
+
+      const formattedUnit = unit && /^(unit|apt\.?|apartment|suite|#)\b/i.test(unit) ? unit : (unit ? `Unit ${unit}` : "");
+      form.querySelector("[data-staff-address-value]").value = [formattedUnit, street]
+        .filter(Boolean)
+        .join(", ");
+    });
+  });
+
   const closeModals = () => {
     if (!layer) {
       return;

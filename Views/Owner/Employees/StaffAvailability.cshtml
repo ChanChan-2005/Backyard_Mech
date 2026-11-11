@@ -6,8 +6,8 @@
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/employees/owner-staff-access.css" asp-append-version="true" />
 <section class="master-data staff-access">
-    <header class="master-toolbar"><div><h2>Absences & Special Availability</h2><p>@Model.TimeZone</p></div><div class="master-actions"><a href="/Owner/EmployeeSchedule">Weekly Schedule</a>@if(Model.CanEdit){<button type="button" class="master-primary" data-staff-open="exception-new">+ Add Exception</button>}</div></header>
-    <input type="search" data-staff-search placeholder="Search staff or reason..." aria-label="Search exceptions" />
+    <header class="master-toolbar"><div><h2>Absences & Special Availability</h2><p>@Model.TimeZone</p></div><div class="master-actions"><a class="app-action-link" href="/Owner/EmployeeSchedule">Weekly Schedule</a>@if(Model.CanEdit){<button type="button" class="master-primary" data-staff-open="exception-new">+ Add Exception</button>}</div></header>
+    <input type="search" data-staff-search data-search-managed placeholder="Search staff or reason..." aria-label="Search exceptions" />
     <div class="master-table-wrap"><table><thead><tr><th>Staff</th><th>Type</th><th>Start</th><th>End</th><th>Reason</th><th>Actions</th></tr></thead><tbody>
     @foreach(var row in Model.Rows){<tr data-staff-row><td>@row.Name</td><td>@(row.Record.IsAvailable?"Extra Availability":"Unavailable / Leave")</td><td>@row.Start.ToString("MMM dd, yyyy HH:mm")</td><td>@row.End.ToString("MMM dd, yyyy HH:mm")</td><td>@row.Record.Reason</td><td>@if(Model.CanEdit){<div class="master-actions"><button type="button" data-staff-open="exception-@row.Record.EmployeeAvailabilityExceptionId">Edit</button><button type="button" data-staff-open="delete-exception-@row.Record.EmployeeAvailabilityExceptionId">Delete</button></div>}</td></tr>}
     </tbody></table></div>

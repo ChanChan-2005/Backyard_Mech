@@ -106,7 +106,7 @@ public partial class OwnerController
     }
     private async Task<IActionResult> IntakeAppointments(string view)
     {
-        var page = new IntakeAppointmentsPage { Today = GarageNow().Date, View = view == "list" ? "list" : "calendar",
+        var page = new IntakeAppointmentsPage { Today = GarageNow().Date, View = view == "calendar" ? "calendar" : "list",
             CanCreate = await IntakePermission("Appointments", "Create"), CanEdit = await IntakePermission("Appointments", "Edit"), CanDelete = await IntakePermission("Appointments", "Delete"),
             CanInspect = await IntakePermission("Inspections", "Create"),
             Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),

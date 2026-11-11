@@ -1,11 +1,18 @@
-.repair-page { display: grid; gap: 20px; color: #202b38; font: 14px/1.5 Arial, sans-serif; }
+.repair-page { display: grid; align-content: start; gap: 14px; color: #202b38; font: 14px/1.5 Arial, sans-serif; }
 .repair-page *, .repair-dialog * { box-sizing: border-box; letter-spacing: 0; }
 .repair-page [hidden], .repair-dialog [hidden] { display: none !important; }
 .repair-page h2, .repair-dialog h2 { margin: 0; font: 700 19px/1.35 Arial, sans-serif; }
 .repair-page h3, .repair-dialog h3 { font: 700 16px/1.4 Arial, sans-serif; margin: 16px 0 10px; }
 .repair-section { background: #fff; padding: 22px; border-bottom: 1px solid #dbe1e8; min-width: 0; }
 .repair-toolbar, .repair-section > header, .repair-dialog header, .repair-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.repair-search-control { width: min(100%, 540px); max-width: 100%; gap: 8px; margin: 12px 0 16px; }
+.repair-page .repair-search-box { display: block; position: relative; flex: 1 1 360px; width: 100%; min-width: 0; margin: 0; }
+.repair-search-box > span { position: absolute; top: 50%; left: 10px; color: #7b8796; pointer-events: none; transform: translateY(-50%); }
+.repair-search-box > span svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.repair-page .repair-search-box input[type="search"] { box-sizing: border-box; width: 100% !important; max-width: none !important; min-height: 32px; height: 32px; margin: 0; padding: 5px 10px 5px 30px; font-size: 10px; }
+.repair-search-control > .app-search-submit { flex: 0 0 auto; min-width: 64px; }
 .repair-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.repair-section > form.repair-actions { align-items: flex-end; }
 .repair-page button, .repair-page .repair-button, .repair-dialog button { border: 1px solid #c8d3df; border-radius: 4px; background: #fff; color: #243447; min-height: 38px; padding: 8px 14px; font: 600 14px/1.4 Arial, sans-serif; cursor: pointer; text-decoration: none; }
 .repair-page button.primary, .repair-page .repair-button.primary, .repair-dialog button.primary { background: #246ddd; color: white; border-color: #246ddd; }
 .repair-page button.danger, .repair-dialog button.danger { background: #b82935; color: white; border-color: #b82935; }

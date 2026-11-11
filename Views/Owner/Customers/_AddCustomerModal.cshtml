@@ -14,23 +14,23 @@
             <div class="customer-form-grid">
                 <label>
                     <span data-required-label>First Name</span>
-                    <input name="FirstName" type="text" placeholder="First name" required />
+                    <input name="FirstName" type="text" maxlength="120" placeholder="First name" required />
                 </label>
                 <label>
                     <span data-required-label>Last Name</span>
-                    <input name="LastName" type="text" placeholder="Last name" required />
+                    <input name="LastName" type="text" maxlength="120" placeholder="Last name" required />
                 </label>
                 <label>
                     <span data-required-label>Mobile Phone</span>
-                    <input name="Phone" type="tel" placeholder="(512) 555-0100" required />
+                    <input name="Phone" type="tel" inputmode="tel" maxlength="14" pattern="(?:[0-9]{10}|[+]1[0-9]{10}|[(][0-9]{3}[)] [0-9]{3}-[0-9]{4})" title="Use 4165550123, +14165550123, or (416) 555-0123" placeholder="4165550123" required />
                 </label>
                 <label>
                     <span data-required-label>Email Address</span>
-                    <input name="Email" type="email" placeholder="customer@email.com" required />
+                    <input name="Email" type="email" maxlength="256" placeholder="customer@email.com" required />
                 </label>
                 <label class="customer-form-wide">
                     <span data-required-label>Billing Address</span>
-                    <input name="StreetAddress" type="text" placeholder="Street, city, state" required />
+                    <input name="StreetAddress" type="text" maxlength="250" placeholder="Street, city, state" required />
                 </label>
                 <label class="customer-form-wide">
                     <span>Internal Notes</span>

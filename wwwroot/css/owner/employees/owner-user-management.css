@@ -200,6 +200,23 @@ button.users-button-dark {
   margin: 0;
 }
 
+.users-search-control {
+  width: min(100%, 440px);
+  gap: 8px;
+}
+
+body.app-shell-body .dashboard-content .users-filter-card .users-search-box {
+  flex: 1 1 360px !important;
+  width: min(360px, 100%) !important;
+  max-width: 360px !important;
+  min-width: 0;
+}
+
+body.app-shell-body .dashboard-content .users-filter-card .users-search-box input[type="search"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
 .users-search-box span {
   position: absolute;
   top: 50%;
@@ -971,6 +988,16 @@ button.users-button-dark {
   display: grid;
   gap: 6px;
   margin: 0;
+}
+
+.users-employee-form-grid .users-form-section-title {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #e8edf3;
+  color: #526070;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .users-span-2 {

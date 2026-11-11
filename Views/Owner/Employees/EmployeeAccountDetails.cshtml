@@ -53,17 +53,19 @@
                     <fieldset disabled="@(!canEdit)" class="users-profile-fields">
                     <h2 class="users-panel-title">Profile</h2>
                     <div class="users-form-grid">
-                        <label><span class="users-label">First Name *</span><input class="users-input" name="FirstName" value="@Model.FirstName" required /></label>
-                        <label><span class="users-label">Last Name *</span><input class="users-input" name="LastName" value="@Model.LastName" required /></label>
+                        <label><span class="users-label">First Name *</span><input class="users-input" name="FirstName" maxlength="120" value="@Model.FirstName" required /></label>
+                        <label><span class="users-label">Last Name *</span><input class="users-input" name="LastName" maxlength="120" value="@Model.LastName" required /></label>
                         <label><span class="users-label">Middle Initial</span><input class="users-input" name="MiddleInitial" value="@Model.MiddleName" maxlength="1" /></label>
-                        <label><span class="users-label">Job Title *</span><input class="users-input" name="JobTitle" value="@Model.JobTitle" required /></label>
-                        <label><span class="users-label">Contact Number *</span><input class="users-input" name="Phone" type="tel" value="@Model.Phone" required /></label>
-                        <label><span class="users-label">Contact Email *</span><input class="users-input" name="Email" type="email" value="@Model.Email" required /></label>
-                        <label><span class="users-label">Address *</span><input class="users-input" name="StreetAddress" value="@Model.StreetAddress" required /></label>
-                        <label><span class="users-label">City *</span><input class="users-input" name="City" value="@Model.City" required /></label>
-                        <label><span class="users-label">Province/Territory</span><input class="users-input" name="Province" value="@Model.Province" /></label>
-                        <label><span class="users-label">Postal Code *</span><input class="users-input" name="PostalCode" value="@Model.PostalCode" required /></label>
+                        <label><span class="users-label">Job Title *</span><input class="users-input" name="JobTitle" maxlength="120" value="@Model.JobTitle" required /></label>
+                        <label><span class="users-label">Employment Type *</span><select class="users-select" name="EmploymentType" required><option value="">Select employment type</option><option value="Full-time" selected="@(Model.EmploymentType == "Full-time")">Full-time</option><option value="Part-time" selected="@(Model.EmploymentType == "Part-time")">Part-time</option></select></label>
+                        <label><span class="users-label">Contact Number *</span><input class="users-input" name="Phone" type="tel" maxlength="40" value="@Model.Phone" required /></label>
+                        <label><span class="users-label">Contact Email *</span><input class="users-input" name="Email" type="email" maxlength="256" value="@Model.Email" required /></label>
+                        <label><span class="users-label">Address *</span><input class="users-input" name="StreetAddress" maxlength="250" value="@Model.StreetAddress" required /></label>
+                        <label><span class="users-label">City *</span><input class="users-input" name="City" maxlength="120" value="@Model.City" required /></label>
+                        <label><span class="users-label">Province/Territory</span><input class="users-input" name="Province" maxlength="120" value="@Model.Province" /></label>
+                        <label><span class="users-label">Postal Code *</span><input class="users-input" name="PostalCode" maxlength="20" value="@Model.PostalCode" required /></label>
                         <label><span class="users-label">Hourly Rate *</span><input class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate" required /></label>
+                        <label class="users-span-full"><span class="users-label">Skills and Qualifications</span><textarea class="users-textarea" name="SkillsAndQualifications" maxlength="2000">@Model.SkillsAndQualifications</textarea></label>
                         <div>
                             <span class="users-label">Account Status</span>
                             <p><span class="users-pill @(Model.IsActive ? "active" : "inactive")">@(Model.IsActive ? "Active" : "Inactive")</span></p>

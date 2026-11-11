@@ -711,7 +711,11 @@
 }
 
 .settings-role-item-actions button,
+.settings-role-item-actions .settings-role-action-button,
 .settings-role-protected {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 28px;
   padding: 0 10px;
   border: 1px solid #d6dee8;
@@ -720,6 +724,7 @@
   background: #fff;
   font-size: 9px;
   font-weight: 750;
+  text-decoration: none;
 }
 
 .settings-role-item-actions button.danger {
@@ -738,6 +743,65 @@
 
 .settings-permission-table-wrap {
   overflow-x: auto;
+}
+
+.settings-detailed-permissions {
+  padding: 18px;
+  border-top: 1px solid #e5eaf0;
+}
+
+.settings-detailed-permissions h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.settings-detailed-permissions > input {
+  width: min(420px, 100%);
+  min-height: 36px;
+  margin-bottom: 14px;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.settings-detailed-permissions details {
+  margin-bottom: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+}
+
+.settings-detailed-permissions summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.settings-detailed-permissions summary small {
+  margin-left: 8px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.settings-detailed-permission-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: #e2e8f0;
+}
+
+.settings-detailed-permission-list label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 7px 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.settings-detailed-permission-list label small {
+  margin-left: auto;
+  color: #64748b;
 }
 
 .settings-role-modal-open {
@@ -772,6 +836,47 @@
   border-radius: 6px;
   background: #fff;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+}
+
+.settings-permission-modal-card {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.settings-permission-modal {
+  padding: 6px;
+}
+
+.settings-role-permission-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-role-permission-actions .settings-role-permissions-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d6dee8;
+  border-radius: 50%;
+  color: #526070;
+  background: #fff;
+  font-size: 18px;
+}
+
+.settings-role-permission-actions .settings-role-permissions-save {
+  min-height: 36px;
+  padding: 0 18px;
+}
+
+@media (max-width: 700px) {
+  .settings-permission-modal-card .settings-permission-matrix table {
+    min-width: 760px;
+  }
 }
 
 .settings-role-modal-card header {

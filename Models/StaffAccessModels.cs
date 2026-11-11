@@ -15,7 +15,9 @@ public sealed class StaffAccountForm
     [Required,EmailAddress,StringLength(256)] public string Email { get; set; } = "";
     [Required,StringLength(120)] public string UserName { get; set; } = "";
     [Required,StringLength(128,MinimumLength=12)] public string Password { get; set; } = "";
+    [Required,Compare(nameof(Password),ErrorMessage="Passwords do not match.")] public string ConfirmPassword { get; set; } = "";
     [Required,StringLength(50)] public string RoleKey { get; set; } = "";
+    public List<PermissionChoice> Permissions { get; set; } = new();
 }
 public sealed class UserAccessForm
 {

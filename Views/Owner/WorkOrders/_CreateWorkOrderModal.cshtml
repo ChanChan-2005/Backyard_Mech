@@ -22,7 +22,7 @@
                 </div>
                 <div class="wo-form-grid">
                     <label>
-                        <span class="wo-label">Originating Estimate</span>
+                        <span class="wo-label">Originating Estimate <span class="modal-required-indicator" aria-hidden="true">*</span></span>
                         <select class="wo-select" name="EstimateId" required>
                             <option value="" selected disabled>Select approved estimate</option>
                             @foreach (var estimate in approvedEstimateOptions)
@@ -40,7 +40,7 @@
                 </div>
                 <div class="wo-form-grid">
                     <label>
-                        <span class="wo-label">Assign Primary Lead Mechanic</span>
+                        <span class="wo-label">Assign Primary Lead Mechanic <span class="modal-required-indicator" aria-hidden="true">*</span></span>
                         <select class="wo-select" name="EmployeeProfileId" required>
                             <option value="" selected disabled>Select lead mechanic</option>
                             @foreach (var employee in employeeOptions)
@@ -50,7 +50,7 @@
                         </select>
                     </label>
                     <label>
-                        <span class="wo-label">Assign Service Bay Location</span>
+                        <span class="wo-label">Assign Service Bay Location <span class="modal-required-indicator" aria-hidden="true">*</span></span>
                         <select class="wo-select" name="BayId" required>
                             <option value="" selected disabled>Select service bay</option>
                             @foreach (var bay in bayOptions)
@@ -60,11 +60,11 @@
                         </select>
                     </label>
                     <label>
-                        <span class="wo-label">Expected Job Start</span>
+                        <span class="wo-label">Expected Job Start <span class="modal-required-indicator" aria-hidden="true">*</span></span>
                         <input class="wo-field" type="datetime-local" name="ScheduledStart" required />
                     </label>
                     <label>
-                        <span class="wo-label">Expected Completion Deadline</span>
+                        <span class="wo-label">Expected Completion Deadline <span class="modal-required-indicator" aria-hidden="true">*</span></span>
                         <input class="wo-field" type="datetime-local" name="ScheduledEnd" required />
                     </label>
                 </div>

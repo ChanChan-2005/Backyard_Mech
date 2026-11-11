@@ -15,23 +15,23 @@
             <div class="customer-form-grid">
                 <label>
                     <span data-required-label>Make</span>
-                    <input name="Make" type="text" placeholder="Ford" required />
+                    <input name="Make" type="text" maxlength="100" placeholder="Ford" required />
                 </label>
                 <label>
                     <span data-required-label>Model</span>
-                    <input name="Model" type="text" placeholder="F-150 SuperCrew" required />
+                    <input name="Model" type="text" maxlength="100" placeholder="F-150 SuperCrew" required />
                 </label>
                 <label>
                     <span data-required-label>Year</span>
-                    <input name="Year" type="number" placeholder="2018" required />
+                    <input name="Year" type="number" min="1886" placeholder="2018" required />
                 </label>
                 <label>
                     <span>Color</span>
-                    <input name="Color" type="text" placeholder="Magnetic Gray" />
+                    <input name="Color" type="text" maxlength="50" placeholder="Magnetic Gray" />
                 </label>
                 <label>
                     <span data-required-label>License Plate</span>
-                    <input name="LicensePlate" type="text" placeholder="TX-BB89" required />
+                    <input name="LicensePlate" type="text" maxlength="40" placeholder="TX-BB89" required />
                 </label>
                 <label>
                     <span>Mileage</span>
@@ -39,7 +39,7 @@
                 </label>
                 <label class="customer-form-wide">
                     <span data-required-label>VIN</span>
-                    <input name="VIN" type="text" placeholder="1FTFW1EF5JFA882319" required />
+                    <input name="VIN" type="text" maxlength="40" placeholder="1FTFW1EF5JFA882319" required />
                 </label>
             </div>
 

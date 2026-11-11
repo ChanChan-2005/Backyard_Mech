@@ -75,6 +75,8 @@ CREATE TABLE dbo.EmployeeProfile (
     LastName NVARCHAR(120) NULL,
     Email NVARCHAR(256) NULL,
     JobTitle NVARCHAR(120) NULL,
+    EmploymentType NVARCHAR(30) NULL,
+    SkillsAndQualifications NVARCHAR(2000) NULL,
     HourlyRate DECIMAL(18,2) NULL,
     HireDate DATE NULL,
     Phone NVARCHAR(40) NULL,

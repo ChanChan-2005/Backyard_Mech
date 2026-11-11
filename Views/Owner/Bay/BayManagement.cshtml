@@ -68,10 +68,11 @@
                                     type="button"
                                     data-bay-modal="edit-bay"
                                     data-bay-id="@bay.BayId"
+                                    data-bay-number="@bay.BayNumber"
                                     data-bay-name="@bay.Name"
                                     data-bay-description="@bay.Description"
                                     data-bay-status="@bay.Status">Edit</button>
-                            <button class="bay-small-button" type="button" data-bay-modal="set-maintenance">Set Maintenance</button>
+                            <button class="bay-small-button" type="button" data-bay-modal="set-maintenance" data-bay-id="@bay.BayId" data-bay-number="@bay.BayNumber">Set Maintenance</button>
                         </td>
                     </tr>
                 }

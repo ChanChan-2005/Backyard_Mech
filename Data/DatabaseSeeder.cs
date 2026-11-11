@@ -40,6 +40,26 @@ namespace Backyard_Mech.Data
         private static async Task EnsureBusinessSchemaAsync(ApplicationDbContext dbContext)
         {
             await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.EmployeeProfile', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH(N'dbo.EmployeeProfile', N'EmploymentType') IS NULL
+                        ALTER TABLE dbo.EmployeeProfile ADD EmploymentType NVARCHAR(30) NULL;
+                    IF COL_LENGTH(N'dbo.EmployeeProfile', N'SkillsAndQualifications') IS NULL
+                        ALTER TABLE dbo.EmployeeProfile ADD SkillsAndQualifications NVARCHAR(2000) NULL;
+                END;
+                """);
+
+            // Keep this schema change in its own batch: SQL Server compiles the
+            // following backfill before executing an ALTER TABLE in that batch.
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.Vehicle', N'U') IS NOT NULL
+                   AND COL_LENGTH(N'dbo.Vehicle', N'OwnerFullName') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Vehicle ADD OwnerFullName NVARCHAR(260) NULL;
+                END;
+                """);
+
+            await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.AppRole', N'U') IS NULL
                 BEGIN
                     CREATE TABLE dbo.AppRole (
@@ -68,11 +88,6 @@ namespace Backyard_Mech.Data
 
                 IF OBJECT_ID(N'dbo.Vehicle', N'U') IS NOT NULL
                 BEGIN
-                    IF COL_LENGTH(N'dbo.Vehicle', N'OwnerFullName') IS NULL
-                    BEGIN
-                        ALTER TABLE dbo.Vehicle ADD OwnerFullName NVARCHAR(260) NULL;
-                    END;
-
                     UPDATE vehicle
                     SET OwnerFullName = NULLIF(LTRIM(RTRIM(CONCAT(
                         COALESCE(ownership.OwnerFirstName, N''), N' ',

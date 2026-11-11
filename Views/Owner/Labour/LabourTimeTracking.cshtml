@@ -1,12 +1,15 @@
 @model RepairOperationsViewModel
 @inject Backyard_Mech.Services.PermissionService Permissions
 @{
-    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = "Labour & Time Tracking"; ViewData["ActiveNav"] = "Labour Time Tracking";
+    Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = "Labour & Time Tracking"; ViewData["ActiveNav"] = "Labour Time Tracking"; ViewData["ShellClass"] = "labour-shell";
     var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
     bool Can(string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode("Labour", action));
 }
+@section TopbarActions {
+    @if(Can("Create")) { <button class="labour-topbar-add" type="button" data-dialog-open="labour-0">+ Add Labour / Start Timer</button> }
+}
 <div class="repair-page">
-    <div class="repair-toolbar"><h2>Labour Entries</h2>@if(Can("Create")) { <button class="primary" type="button" data-dialog-open="labour-0">Add Labour / Start Timer</button> }</div>
+    <div class="repair-toolbar"><h2>Labour Entries</h2></div>
     <section class="repair-section"><form method="get" class="repair-actions"><label>Work order<select name="workOrderId"><option value="">All work orders</option>@foreach(var order in Model.Orders) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label><button type="submit">Apply Filter</button></form></section>
     <section class="repair-section"><h2>Tasks and Time Logs</h2><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Mechanic / task</th><th>Elapsed / minutes</th><th>Rate</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
     @foreach(var row in Model.Labour.OrderByDescending(x => x.ServiceEntryId)) {

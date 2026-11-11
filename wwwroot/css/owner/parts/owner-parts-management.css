@@ -246,10 +246,28 @@
   align-items: center;
 }
 
+.parts-filter-left {
+  flex: 1 1 440px;
+  min-width: 0;
+  gap: 8px;
+}
+
 .parts-search-box {
   position: relative;
-  width: 280px;
+  width: min(440px, 100%);
   margin: 0;
+}
+
+body.app-shell-body .dashboard-content .parts-filter-card .parts-search-box {
+  flex: 1 1 360px !important;
+  width: min(440px, 100%) !important;
+  max-width: 440px !important;
+  min-width: 0;
+}
+
+body.app-shell-body .dashboard-content .parts-filter-card .parts-search-box input[type="search"] {
+  width: 100% !important;
+  max-width: none !important;
 }
 
 .parts-search-box span {
@@ -691,5 +709,51 @@
 
   .parts-modal {
     padding: 14px;
+  }
+}
+
+.repair-page .stock-filter-section {
+  padding: 14px 18px;
+}
+
+.repair-page .stock-filter-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0;
+}
+
+.repair-page .stock-filter-form label {
+  gap: 5px;
+  font-size: 12px;
+}
+
+.repair-page .stock-filter-form select,
+.repair-page .stock-filter-form button,
+.repair-page .stock-filter-form .app-action-link {
+  height: 40px;
+  min-height: 40px;
+  font-size: 13px;
+}
+
+.repair-page .stock-filter-form select {
+  padding: 7px 10px;
+}
+
+.repair-page .stock-filter-form button,
+.repair-page .stock-filter-form .app-action-link {
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .repair-page .stock-filter-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .repair-page .stock-filter-form {
+    grid-template-columns: 1fr;
   }
 }

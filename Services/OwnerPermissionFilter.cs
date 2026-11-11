@@ -26,7 +26,11 @@ namespace Backyard_Mech.Services
 
             var actionName = context.ActionDescriptor.RouteValues["action"] ?? "";
             var requirement = OwnerPermissionCatalog.Resolve(actionName);
-            if (requirement is null || !await _permissionService.HasPermissionAsync(role, requirement.Value.Module, requirement.Value.Action))
+            var codes = await _permissionService.GetPermissionCodesAsync(role);
+            if (requirement is null || (!codes.Contains("*") &&
+                (!codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
+                || !codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
+                || !codes.Contains(OwnerPermissionCatalog.ActionPermissionCode(actionName)))))
             {
                 if (HttpMethods.IsPost(context.HttpContext.Request.Method))
                 {
@@ -45,6 +49,26 @@ namespace Backyard_Mech.Services
 
     public static class OwnerPermissionCatalog
     {
+        public static string ActionPermissionCode(string actionName) => $"owneraction.{actionName.ToLowerInvariant()}";
+
+        public static IReadOnlyList<(string Name, string Module, string Action)> DetailedActions { get; } =
+            typeof(Backyard_Mech.Controllers.OwnerController)
+                .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
+                .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType)
+                    || method.ReturnType == typeof(Task<IActionResult>))
+                .Select(method => (method.Name, Requirement: Resolve(method.Name)))
+                .Where(item => item.Requirement.HasValue)
+                .Select(item => (item.Name, item.Requirement!.Value.Module, item.Requirement.Value.Action))
+                .Distinct()
+                .OrderBy(item => item.Module)
+                .ThenBy(item => item.Name)
+                .ToArray();
+
+        public static string ActionLabel(string actionName) =>
+            System.Text.RegularExpressions.Regex.Replace(
+                System.Text.RegularExpressions.Regex.Replace(actionName, "([A-Z])([A-Z][a-z])", "$1 $2"),
+                "([a-z0-9])([A-Z])", "$1 $2");
+
         public static (string Module, string Action)? Resolve(string actionName)
         {
             return actionName switch
@@ -176,7 +200,9 @@ namespace Backyard_Mech.Services
 
         public static bool IsSupportedPermission(string module, string action)
         {
-            return SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action));
+            return SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action))
+                || DetailedActions.Any(item => item.Module.Equals(module, StringComparison.OrdinalIgnoreCase)
+                    && item.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

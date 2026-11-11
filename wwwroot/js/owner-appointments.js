@@ -4,6 +4,8 @@
     if (!page) return;
     const find = selector => page.querySelector(selector);
     const rows = [...page.querySelectorAll('[data-appointment-row]')];
+    const search = find('[data-appointment-search]');
+    let searchTerm = search.value.trim().toLowerCase();
     const dateInput = find('[data-calendar-date]');
     const mode = find('[data-calendar-mode]');
     let view = page.dataset.view;
@@ -11,9 +13,8 @@
     const parse = value => new Date(`${value}T12:00:00`);
     const label = date => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     function render() {
-        const query = find('[data-appointment-search]').value.trim().toLowerCase();
         const status = find('[data-appointment-status]').value;
-        const matching = rows.filter(row => row.textContent.toLowerCase().includes(query) && (!status || row.dataset.status === status));
+        const matching = rows.filter(row => row.textContent.toLowerCase().includes(searchTerm) && (!status || row.dataset.status === status));
         rows.forEach(row => { row.hidden = !matching.includes(row); });
         find('[data-appointment-list]').hidden = view !== 'list';
         find('[data-calendar-panel]').hidden = view !== 'calendar';
@@ -45,13 +46,20 @@
     }
     page.addEventListener('click', event => {
         const toggle = event.target.closest('[data-appointment-view]');
-        if (toggle) { view = toggle.dataset.appointmentView; const url = new URL(location.href); url.searchParams.set('view', view); history.replaceState(null, '', url); }
+        if (toggle) {
+            view = toggle.dataset.appointmentView;
+            document.querySelectorAll('input[name="ViewMode"]').forEach(input => { input.value = view; });
+            const url = new URL(location.href);
+            url.searchParams.set('view', view);
+            history.replaceState(null, '', url);
+        }
         const step = event.target.closest('[data-calendar-step]');
         if (step) { const date = parse(dateInput.value || page.dataset.today); const amount = Number(step.dataset.calendarStep); if (mode.value === 'month') { date.setDate(1); date.setMonth(date.getMonth() + amount); } else date.setDate(date.getDate() + amount * (mode.value === 'week' ? 7 : 1)); dateInput.value = dateValue(date); }
         if (event.target.closest('[data-calendar-today]')) dateInput.value = page.dataset.today;
         if (toggle || step || event.target.closest('[data-calendar-today]')) render();
     });
-    page.addEventListener('input', render);
+    page.addEventListener('input', event => { if (event.target !== search) render(); });
+    search.addEventListener('searchcommit', event => { searchTerm = event.detail.value.toLowerCase(); render(); });
     page.addEventListener('change', render);
     document.querySelectorAll('[data-appointment-form]').forEach(form => {
         const customer = form.elements.CustomerId; const vehicle = form.elements.VehicleId;

@@ -1,5 +1,37 @@
 <script>
     (() => {
+        const limitPhoneInput = (value) => {
+            const first = value.match(/[+(0-9]/)?.[0];
+            const mask = first === "+" ? "+1##########"
+                : first === "(" ? "(###) ###-####"
+                : "##########";
+            let result = "";
+
+            for (const character of value) {
+                const expected = mask[result.length];
+                if (!expected) break;
+                if (expected === "#" ? /[0-9]/.test(character) : character === expected) {
+                    result += character;
+                }
+            }
+
+            return result;
+        };
+
+        const limitPhoneField = (event) => {
+            const field = event.target;
+            if (!(field instanceof HTMLInputElement) ||
+                !field.matches('.customer-modal-form input[name="Phone"]') || event.isComposing) return;
+
+            const original = field.value;
+            const limited = limitPhoneInput(original);
+            if (original === limited) return;
+
+            const cursor = limitPhoneInput(original.slice(0, field.selectionStart ?? original.length)).length;
+            field.value = limited;
+            field.setSelectionRange(cursor, cursor);
+        };
+
         const openModal = (name) => {
             const modal = document.querySelector(`[data-customer-modal-panel="${name}"]`);
             if (!modal) return;
@@ -66,5 +98,8 @@
             if (event.key !== "Escape") return;
             closeModal(document.querySelector(".customer-modal.is-open"));
         });
+
+        document.addEventListener("input", limitPhoneField);
+        document.addEventListener("compositionend", limitPhoneField);
     })();
 </script>

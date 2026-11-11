@@ -12,17 +12,17 @@
 }
 
 <section class="estimates-page">
-    <div class="estimate-top-actions">
+    <div class="estimate-filter-bar">
+        <div class="app-search-control">
+            <label class="estimate-search-box">
+                <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                <input type="search" placeholder="Search client, vehicle or status..." data-table-search="estimates-table" data-search-managed />
+            </label>
+            <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        </div>
         @if (await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Estimates", "Create")) {
             <button class="primary-estimate-button" type="button" data-dialog-open="estimate-editor">New Estimate</button>
         }
-    </div>
-
-    <div class="estimate-filter-bar">
-        <label class="estimate-search-box">
-            <span>Q</span>
-            <input type="search" placeholder="Search client, vehicle or status..." data-table-search="estimates-table" />
-        </label>
     </div>
 
     <section class="estimate-panel">

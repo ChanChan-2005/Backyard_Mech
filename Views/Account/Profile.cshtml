@@ -1,0 +1,87 @@
+@model Backyard_Mech.Models.ProfileSettingsViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = ViewData["PageTitle"] = "My Profile";
+    ViewData["PageSubtitle"] = "ACCOUNT SETTINGS";
+    ViewData["ActiveNav"] = "My Profile";
+    ViewData["ShellClass"] = "profile-settings-shell";
+    var displayName = string.Join(" ", new[] { Model.FirstName, Model.LastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    var initials = string.Join("", (string.IsNullOrWhiteSpace(displayName) ? Model.UserName : displayName)
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+}
+<link rel="stylesheet" href="~/css/account/profile.css" asp-append-version="true" />
+
+<div class="profile-settings">
+    <section class="profile-card profile-intro">
+        <div class="profile-picture" aria-hidden="true">
+            @if (Model.HasPhoto)
+            {
+                <img src="@Url.Action("ProfilePhoto", "Account")" alt="" />
+            }
+            else
+            {
+                <span>@initials</span>
+            }
+        </div>
+        <div>
+            <h2>@(string.IsNullOrWhiteSpace(displayName) ? Model.UserName : displayName)</h2>
+            <p>@Model.RoleName</p>
+            <p>Login username: @Model.UserName</p>
+        </div>
+    </section>
+
+    <div class="profile-grid">
+        <section class="profile-card">
+            <h2>Profile picture</h2>
+            <p>Upload a JPG, PNG, or WebP image up to 2 MB.</p>
+            <form asp-controller="Account" asp-action="UploadProfilePhoto" method="post" enctype="multipart/form-data" class="profile-form">
+                @Html.AntiForgeryToken()
+                <label for="profile-photo">Choose a picture</label>
+                <input id="profile-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+                <button type="submit">Upload picture</button>
+            </form>
+            @if (Model.HasPhoto)
+            {
+                <form asp-controller="Account" asp-action="RemoveProfilePhoto" method="post" class="profile-remove-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit">Remove picture</button>
+                </form>
+            }
+        </section>
+
+        <section class="profile-card">
+            <h2>Account</h2>
+            <p>Your login email and username identify your account.</p>
+            <div class="profile-readonly"><span>Login email</span><strong>@Model.LoginEmail</strong></div>
+            <div class="profile-readonly"><span>Username</span><strong>@Model.UserName</strong></div>
+        </section>
+
+        @if (Model.HasEmployeeProfile)
+        {
+            <section class="profile-card">
+                <h2>Contact details</h2>
+                <p>Keep your name and contact information up to date.</p>
+                <form asp-controller="Account" asp-action="UpdateProfile" method="post" class="profile-form profile-details-form">
+                    @Html.AntiForgeryToken()
+                    <label><span>First name <span class="profile-required" aria-hidden="true">*</span></span><input name="FirstName" value="@Model.FirstName" maxlength="120" required /></label>
+                    <label><span>Last name <span class="profile-required" aria-hidden="true">*</span></span><input name="LastName" value="@Model.LastName" maxlength="120" required /></label>
+                    <label><span>Phone</span><input name="Phone" type="tel" value="@Model.Phone" maxlength="40" /></label>
+                    <label><span>Contact email</span><input name="ContactEmail" type="email" value="@Model.ContactEmail" maxlength="256" /></label>
+                    <button type="submit">Save details</button>
+                </form>
+            </section>
+        }
+
+        <section class="profile-card">
+            <h2>Change password</h2>
+            <p>Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
+            <form asp-controller="Account" asp-action="ChangePassword" method="post" class="profile-form" autocomplete="off">
+                @Html.AntiForgeryToken()
+                <label><span>Current password <span class="profile-required" aria-hidden="true">*</span></span><input name="CurrentPassword" type="password" required autocomplete="current-password" /></label>
+                <label><span>New password <span class="profile-required" aria-hidden="true">*</span></span><input name="NewPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password" /></label>
+                <label><span>Confirm new password <span class="profile-required" aria-hidden="true">*</span></span><input name="ConfirmPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password" /></label>
+                <button type="submit">Change password</button>
+            </form>
+        </section>
+    </div>
+</div>

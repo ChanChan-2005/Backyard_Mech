@@ -10,9 +10,10 @@
     const rows = [...root.querySelectorAll('[data-master-row]')];
     const search = root.querySelector('[data-master-search]');
     const status = root.querySelector('[data-master-status]');
+    let searchTerm = search.value.trim().toLowerCase();
     let page = 0;
     function render() {
-        const matches = rows.filter(row => row.textContent.toLowerCase().includes(search.value.trim().toLowerCase()) && (!status.value || row.dataset.status === status.value));
+        const matches = rows.filter(row => row.textContent.toLowerCase().includes(searchTerm) && (!status.value || row.dataset.status === status.value));
         const pages = Math.max(1, Math.ceil(matches.length / 10));
         page = Math.min(page, pages - 1);
         rows.forEach(row => { row.hidden = true; });
@@ -23,7 +24,7 @@
         root.querySelector('[data-master-next]').disabled = page === pages - 1;
         root.querySelector('[data-master-empty]').hidden = matches.length > 0;
     }
-    search.addEventListener('input', () => { page = 0; render(); });
+    search.addEventListener('searchcommit', event => { searchTerm = event.detail.value.toLowerCase(); page = 0; render(); });
     status.addEventListener('change', () => { page = 0; render(); });
     root.querySelector('[data-master-prev]').addEventListener('click', () => { page--; render(); });
     root.querySelector('[data-master-next]').addEventListener('click', () => { page++; render(); });

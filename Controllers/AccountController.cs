@@ -11,19 +11,21 @@ using OtpNet;
 
 namespace Backyard_Mech.Controllers
 {
-    public class AccountController : Controller
+    public partial class AccountController : Controller
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly PermissionService _permissionService;
         private readonly AccountSecurityService _security;
         private readonly IDataProtector _protector;
+        private readonly IWebHostEnvironment _environment;
 
-        public AccountController(ApplicationDbContext dbContext, PermissionService permissionService, AccountSecurityService security, IDataProtectionProvider protection)
+        public AccountController(ApplicationDbContext dbContext, PermissionService permissionService, AccountSecurityService security, IDataProtectionProvider protection, IWebHostEnvironment environment)
         {
             _dbContext = dbContext;
             _permissionService = permissionService;
             _security = security;
             _protector = protection.CreateProtector("BackyardMech.Authenticator.v1");
+            _environment = environment;
         }
 
         [HttpGet]
@@ -92,6 +94,7 @@ namespace Backyard_Mech.Controllers
         private void CompleteLogin(AppUser user, bool mfa)
         {
             HttpContext.Session.Clear();
+            Response.Cookies.Delete("DevelopmentAuthenticationSignedOut");
             HttpContext.Session.SetString("UserRole", user.Role);
             HttpContext.Session.SetString("UserName", user.UserName);
             HttpContext.Session.SetString("UserId", user.Id.ToString());
@@ -179,6 +182,18 @@ namespace Backyard_Mech.Controllers
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
+            if (HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() &&
+                HttpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue<bool>("DevelopmentAuthentication:Bypass"))
+            {
+                Response.Cookies.Append("DevelopmentAuthenticationSignedOut", "true", new CookieOptions
+                {
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Lax,
+                    Secure = Request.IsHttps,
+                    IsEssential = true,
+                    Expires = DateTimeOffset.UtcNow.AddDays(30)
+                });
+            }
             return RedirectToAction(nameof(Login));
         }
 

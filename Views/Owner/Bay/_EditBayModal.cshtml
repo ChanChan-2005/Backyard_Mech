@@ -15,20 +15,21 @@
             <div class="bay-form-body">
                 <label>
                     <span class="bay-label">Bay Number *</span>
-                    <input class="bay-input" id="edit-bay-number" type="text" name="BayNumber" value="" required />
+                    <input class="bay-input" id="edit-bay-number" type="text" name="BayNumber" maxlength="50" value="" required />
                 </label>
                 <label>
                     <span class="bay-label">Bay Name *</span>
-                    <input class="bay-input" id="edit-bay-name" type="text" name="Name" value="" required />
+                    <input class="bay-input" id="edit-bay-name" type="text" name="Name" maxlength="120" value="" required />
                 </label>
                 <label>
                     <span class="bay-label">Description *</span>
-                    <textarea class="bay-textarea" id="edit-bay-description" name="Description" required></textarea>
+                    <textarea class="bay-textarea" id="edit-bay-description" name="Description" maxlength="500" required></textarea>
                 </label>
                 <label>
                     <span class="bay-label">Status *</span>
                     <select class="bay-select" id="edit-bay-status" name="Status" required>
                         <option value="Available">Available</option>
+                        <option value="In Use">In Use</option>
                         <option value="Maintenance">Maintenance</option>
                     </select>
                 </label>

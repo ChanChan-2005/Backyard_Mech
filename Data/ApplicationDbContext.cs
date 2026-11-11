@@ -92,7 +92,12 @@ namespace Backyard_Mech.Data
                 entity.Property(role => role.IsActive).HasDefaultValue(true);
             });
 
-            modelBuilder.Entity<EmployeeProfile>().ToTable("EmployeeProfile");
+            modelBuilder.Entity<EmployeeProfile>(entity =>
+            {
+                entity.ToTable("EmployeeProfile");
+                entity.Property(profile => profile.EmploymentType).HasMaxLength(30);
+                entity.Property(profile => profile.SkillsAndQualifications).HasMaxLength(2000);
+            });
             modelBuilder.Entity<EmployeeRateHistory>().ToTable("EmployeeRateHistory");
             modelBuilder.Entity<EmployeeAvailability>().ToTable("EmployeeAvailability");
             modelBuilder.Entity<EmployeeAvailabilityException>().ToTable("EmployeeAvailabilityException");

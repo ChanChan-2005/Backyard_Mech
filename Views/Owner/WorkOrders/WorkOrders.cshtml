@@ -46,10 +46,13 @@
 
     <div class="wo-filter-card">
         <div class="wo-filter-left">
-            <label class="wo-search-box">
-                <span>Q</span>
-                <input id="workOrderSearch" type="search" placeholder="Search WO #, Customer, VIN..." />
-            </label>
+            <div class="app-search-control">
+                <label class="wo-search-box">
+                    <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                    <input id="workOrderSearch" type="search" data-search-managed placeholder="Search WO #, Customer, VIN..." />
+                </label>
+                <button type="button" class="app-search-submit" data-search-submit>Search</button>
+            </div>
             <label class="wo-filter-select">
                 <span>Status</span>
                 <select id="workOrderStatusFilter" class="wo-select" aria-label="Filter work orders by status">
@@ -158,11 +161,11 @@
 
             const rows = Array.from(tableBody.querySelectorAll("[data-work-order-row]"));
             const priorityRank = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+            let searchTerm = searchInput.value.trim().toLowerCase();
 
             const compareText = (left, right) => left.localeCompare(right, undefined, { sensitivity: "base" });
 
             const applyFilters = () => {
-                const query = searchInput.value.trim().toLowerCase();
                 const selectedStatus = statusFilter.value;
                 const selectedMechanic = mechanicFilter.value;
                 const sortMode = sortSelect.value;
@@ -185,7 +188,7 @@
                         return Number(left.dataset.sortOrder || 0) - Number(right.dataset.sortOrder || 0);
                     })
                     .forEach(row => {
-                        const matchesSearch = !query || (row.dataset.search || "").includes(query);
+                        const matchesSearch = !searchTerm || (row.dataset.search || "").includes(searchTerm);
                         const matchesStatus = !selectedStatus || row.dataset.status === selectedStatus;
                         const matchesMechanic = !selectedMechanic || row.dataset.mechanic === selectedMechanic;
                         const isVisible = matchesSearch && matchesStatus && matchesMechanic;
@@ -201,8 +204,8 @@
                 resultCount.textContent = `Showing ${visibleCount} of ${rows.length} work orders`;
             };
 
-            [searchInput, statusFilter, mechanicFilter, sortSelect].forEach(control => {
-                control.addEventListener("input", applyFilters);
+            searchInput.addEventListener("searchcommit", event => { searchTerm = event.detail.value.toLowerCase(); applyFilters(); });
+            [statusFilter, mechanicFilter, sortSelect].forEach(control => {
                 control.addEventListener("change", applyFilters);
             });
 

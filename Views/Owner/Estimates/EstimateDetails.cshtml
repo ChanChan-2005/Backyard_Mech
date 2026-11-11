@@ -9,7 +9,7 @@
     var open = Model.Revision.EstimateStatus != "Cancelled";
 }
 <div class="repair-page">
-    <nav class="repair-toolbar"><a href="/Owner/EstimateApprovals">Back to Estimates</a><div class="repair-actions">
+    <nav class="repair-toolbar"><a class="app-action-link" href="/Owner/EstimateApprovals">Back to Estimates</a><div class="repair-actions">
         @if (open && Can("Estimates", "Edit")) { <button type="button" data-dialog-open="estimate-editor">Edit Estimate</button> }
         @if (open && !Model.WorkOrderId.HasValue && Can("Estimates", "Delete")) { <button type="button" data-dialog-open="cancel-estimate">Cancel Estimate</button> }
         @if (Model.WorkOrderId.HasValue && Can("Work Orders", "View")) { <a class="repair-button" href="/Owner/WorkOrderDetails/@Model.WorkOrderId">View Work Order</a> }

@@ -6,7 +6,7 @@
 }
 <div class="repair-page">
     <section class="repair-section"><header><h2>Inspection Queue</h2><span class="repair-status">@Model.Orders.Count(x => x.WorkOrderStatus == "Pending QC") awaiting inspection</span></header>
-        <label>Search<input type="search" data-table-search="qc-queue" placeholder="Work order, customer or status" /></label>
+        <div class="app-search-control repair-search-control"><label class="app-search repair-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-table-search="qc-queue" data-search-managed placeholder="Work order, customer or status" aria-label="Search inspection queue" /></label><button type="button" class="app-search-submit" data-search-submit>Search</button></div>
         <div class="repair-table-wrap"><table id="qc-queue"><thead><tr><th>Work order</th><th>Customer</th><th>Repair status</th><th>Last inspection</th><th>Inspector</th><th>Actions</th></tr></thead><tbody>
         @foreach(var order in Model.Orders.Where(x => x.WorkOrderStatus is "Pending QC" or "Completed" or "In Repair" or "Ready for Pickup")) {
             var latest = Model.Checks.FirstOrDefault(x => x.WorkOrderId == order.WorkOrderId);
@@ -18,7 +18,7 @@
         </tbody></table></div>
     </section>
     <section class="repair-section"><h2>Inspection History</h2><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Inspected (UTC)</th><th>Inspector</th><th>Result</th><th></th></tr></thead><tbody>
-    @foreach(var check in Model.Checks) { <tr><td>WO-@check.WorkOrderId</td><td>@check.PerformedUtc.ToString("g")</td><td>@check.InspectorName</td><td>@(check.Passed == true ? "Passed" : check.Passed == false ? "Failed" : "Voided")</td><td><a href="/Owner/InspectionResult/@check.QualityCheckId">View</a></td></tr> }
+    @foreach(var check in Model.Checks) { <tr><td>WO-@check.WorkOrderId</td><td>@check.PerformedUtc.ToString("g")</td><td>@check.InspectorName</td><td>@(check.Passed == true ? "Passed" : check.Passed == false ? "Failed" : "Voided")</td><td><a class="app-action-link" href="/Owner/InspectionResult/@check.QualityCheckId">View</a></td></tr> }
     @if(Model.Checks.Count == 0) { <tr><td colspan="5">No inspections recorded.</td></tr> }
     </tbody></table></div></section>
 </div>

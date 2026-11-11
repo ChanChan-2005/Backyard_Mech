@@ -158,6 +158,23 @@
   margin: 0;
 }
 
+.records-search-control {
+  width: min(100%, 540px);
+  gap: 8px;
+}
+
+body.app-shell-body .dashboard-content .records-filter-card .records-search-box {
+  flex: 1 1 360px !important;
+  width: min(440px, 100%) !important;
+  max-width: 440px !important;
+  min-width: 0;
+}
+
+body.app-shell-body .dashboard-content .records-filter-card .records-search-box input[type="search"] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
 .records-search-box span {
   position: absolute;
   top: 50%;

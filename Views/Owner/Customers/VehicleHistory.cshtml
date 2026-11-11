@@ -7,13 +7,18 @@
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
-<section class="master-data intake-page">
-    <header class="master-toolbar"><h2>Vehicles</h2>
-        @if(Model.CanCreate){<button class="master-primary" type="button" data-intake-open="register-vehicle">+ Add Vehicle</button>}
-    </header>
-    <label>Find a vehicle <input type="search" data-intake-search placeholder="Plate, VIN, owner or model" /></label>
+<section class="master-data intake-page vehicle-records-page">
+    <header class="master-toolbar"><h2>Vehicles</h2></header>
+    <div class="app-search-control vehicle-record-search">
+        <label class="vehicle-record-search-box">
+            <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+            <input type="search" data-intake-search data-search-managed placeholder="Plate, VIN, owner or model" aria-label="Search vehicles by plate, VIN, owner, or model" />
+        </label>
+        <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        @if(Model.CanCreate){<button class="master-primary vehicle-add-button" type="button" data-intake-open="register-vehicle">+ Add Vehicle</button>}
+    </div>
     <div class="master-table-wrap"><table><thead><tr><th>Vehicle</th><th>Plate / VIN</th><th>Current owner</th><th>Odometer</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-    @foreach(var row in Model.Vehicles){<tr data-intake-row><td>@row.Year @row.Make @row.Model</td><td>@row.LicensePlate<br />@row.VIN</td><td>@row.OwnerFullName</td><td>@row.Odometer?.ToString("N0")</td><td>@(row.IsArchived ? "Archived" : "Active")</td><td><a asp-action="VehicleHistory" asp-route-id="@row.VehicleId">View history</a></td></tr>}
+    @foreach(var row in Model.Vehicles){<tr data-intake-row><td>@row.Year @row.Make @row.Model</td><td>@row.LicensePlate<br />@row.VIN</td><td>@row.OwnerFullName</td><td>@row.Odometer?.ToString("N0")</td><td>@(row.IsArchived ? "Archived" : "Active")</td><td><a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId">View history</a></td></tr>}
     </tbody></table></div>
     @if(Model.Vehicles.Count == 0){<p>No vehicles found.</p>}
     @if(v is not null){
@@ -32,14 +37,14 @@
     }
 </section>
 @if(Model.CanCreate){
-<dialog id="register-vehicle" class="master-dialog" aria-labelledby="register-title"><form asp-action="AddVehicle" method="post">
-    <header class="master-toolbar"><h2 id="register-title">Add Vehicle</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+<dialog id="register-vehicle" class="master-dialog vehicle-register-dialog" aria-labelledby="register-title"><form asp-action="AddVehicle" method="post">
+    <header class="master-toolbar"><div><h2 id="register-title">Add Vehicle</h2><p>Enter the vehicle details and select its owner.</p></div><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <div class="master-fields">
-        <label class="master-wide">Owner<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select></label>
-        <label>Make<input name="Make" required maxlength="100" /></label><label>Model<input name="Model" required maxlength="100" /></label>
-        <label>Model year<input type="number" name="Year" required min="1886" max="@(DateTime.UtcNow.Year+1)" /></label><label>Color<input name="Color" maxlength="50" /></label>
-        <label>License plate<input name="LicensePlate" required maxlength="50" /></label><label>VIN<input name="VIN" required maxlength="50" /></label>
-        <label>Odometer<input type="number" name="Odometer" min="0" max="2147483647" /></label>
+        <label class="master-wide"><span>Owner <span class="modal-required-indicator" aria-hidden="true">*</span></span><select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select><small class="vehicle-field-hint">Choose the customer this vehicle belongs to.</small></label>
+        <label><span>Make <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Make" required maxlength="100" placeholder="e.g., Toyota" /><small class="vehicle-field-hint">Vehicle manufacturer.</small></label><label><span>Model <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Model" required maxlength="100" placeholder="e.g., Corolla" /><small class="vehicle-field-hint">Model name or trim.</small></label>
+        <label><span>Model year <span class="modal-required-indicator" aria-hidden="true">*</span></span><input type="number" name="Year" required min="1886" max="@(DateTime.UtcNow.Year+1)" placeholder="e.g., 2022" /><small class="vehicle-field-hint">The vehicle’s model year.</small></label><label>Color<input name="Color" maxlength="50" placeholder="e.g., Silver" /><small class="vehicle-field-hint">Optional exterior color.</small></label>
+        <label><span>License plate <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="LicensePlate" required maxlength="50" placeholder="Enter plate number" /><small class="vehicle-field-hint">Enter the plate as shown on the vehicle.</small></label><label><span>VIN <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="VIN" required maxlength="50" placeholder="17-character vehicle ID" /><small class="vehicle-field-hint">Find it on the dashboard or driver’s door.</small></label>
+        <label>Odometer<input type="number" name="Odometer" min="0" max="2147483647" placeholder="e.g., 84520" /><small class="vehicle-field-hint">Current mileage; optional.</small></label>
     </div><footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Save Vehicle</button></footer>
 </form></dialog>
 }

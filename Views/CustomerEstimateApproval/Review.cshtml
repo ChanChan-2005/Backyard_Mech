@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="~/css/owner/repair-workflow.css" asp-append-version="true" />
 <main class="repair-page customer-estimate-review">
     <section class="repair-section">
-        <header><div><h2>Backyard Mech</h2><p>Estimate EST-@Model.EstimateNumber.ToString("0000") · Revision @Model.RevisionNumber</p></div></header>
+        <header><div><h2>Bakyard Mech</h2><p>Estimate EST-@Model.EstimateNumber.ToString("0000") · Revision @Model.RevisionNumber</p></div></header>
         <h2>Hi @Model.Customer, please review your estimate</h2>
         <p>@Model.Vehicle</p>
         @if (ViewBag.Error is string error) { <p class="repair-alert error" role="alert">@error</p> }

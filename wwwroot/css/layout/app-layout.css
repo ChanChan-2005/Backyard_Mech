@@ -1,4 +1,4 @@
-body.app-shell-body {
+﻿body.app-shell-body {
   margin: 0;
   margin-bottom: 0;
   height: 100vh;
@@ -23,14 +23,11 @@ body.app-shell-body {
 }
 
 .app-sidebar {
-  position: sticky;
-  top: 0;
   display: flex;
   flex-direction: column;
   height: 100vh;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   background: #fff;
   border-right: 1px solid #d8dde4;
 }
@@ -59,9 +56,13 @@ body.app-shell-body {
 
 .app-nav {
   display: grid;
+  flex: 1 1 0;
+  align-content: start;
   gap: 2px;
   padding: 8px 10px;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .app-nav a {
@@ -104,13 +105,19 @@ body.app-shell-body {
 
 .app-profile {
   display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 8px;
+  flex: 0 0 auto;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  margin-top: auto;
   padding: 10px 13px 17px;
   border-top: 1px solid #edf0f4;
+  background: #fff;
+  color: #1d2939;
+  text-decoration: none;
 }
+
+.app-profile:hover { background: #f6f9fd; color: #1d2939; }
+.app-profile:focus-visible { outline: 2px solid #246ddd; outline-offset: -2px; }
 
 .avatar,
 .mechanic-avatar {
@@ -123,13 +130,20 @@ body.app-shell-body {
 }
 
 .app-profile .avatar {
-  width: 23px;
-  height: 23px;
-  font-size: 8px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  overflow: hidden;
 }
 
+.app-profile .avatar img { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: cover; object-position: center; }
+
 .app-profile strong,
-.app-profile span {
+.app-profile > div span {
   display: block;
   line-height: 1.15;
 }
@@ -138,7 +152,7 @@ body.app-shell-body {
   font-size: 10px;
 }
 
-.app-profile span {
+.app-profile > div span {
   color: #6b7280;
   font-size: 8px;
   text-transform: uppercase;
@@ -193,8 +207,27 @@ body.app-shell-body {
   top: 50%;
   left: 10px;
   color: #7b8491;
-  font-size: 10px;
   transform: translateY(-50%);
+}
+
+.app-search span svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+body.app-shell-body .dashboard-content :is(.customer-search-box, .estimate-search-box, .parts-search-box, .wo-search-box, .users-search-box, .records-search-box) span svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
 }
 
 .app-search input {
@@ -217,6 +250,28 @@ body.app-shell-body {
   color: #3d4653;
   background: transparent;
   font-weight: 900;
+  cursor: pointer;
+}
+
+.app-notifications {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.app-bell svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app-bell:focus-visible {
+  outline: 2px solid #2875d1;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .app-bell b {
@@ -233,14 +288,335 @@ body.app-shell-body {
   font-size: 7px;
 }
 
+.app-notifications-panel {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(340px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid #e1e6ed;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(25, 39, 58, .18);
+  color: #263244;
+}
+
+.app-notifications-panel[hidden] {
+  display: none;
+}
+
+.app-notifications-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf0f4;
+  font-size: 13px;
+}
+
+.app-notifications-panel > header span {
+  color: #69778a;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-notifications-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-notifications-panel li + li {
+  border-top: 1px solid #edf0f4;
+}
+
+.app-notifications-panel li a {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 12px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-notifications-panel li a:hover,
+.app-notifications-panel li a:focus-visible {
+  background: #f5f8fc;
+}
+
+.app-notification-count {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff0ee;
+  color: #c63c32;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.app-notifications-panel li strong,
+.app-notifications-panel li small {
+  display: block;
+}
+
+.app-notifications-panel li strong {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.app-notifications-panel li small {
+  color: #69778a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.app-notification-arrow {
+  color: #8793a2;
+  font-size: 20px;
+}
+
+.app-notifications-empty {
+  margin: 0;
+  padding: 22px 16px;
+  color: #69778a;
+  font-size: 12px;
+  text-align: center;
+}
+
 .dashboard-content {
   display: grid;
-  gap: 14px;
-  padding: 18px 20px;
+  align-content: start;
+  gap: 10px;
+  padding: 14px 16px;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.app-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-page-actions > * {
+  max-width: 100%;
+}
+
+.app-page-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 10px 16px;
+  min-width: 0;
+  min-height: 52px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid #e1e6ed;
+  border-radius: 8px;
+  background: #fff;
+}
+
+body.app-shell-body .app-page-toolbar .app-search {
+  display: block;
+  flex: 0 1 360px;
+  width: min(100%, 360px);
+  min-width: min(180px, 100%);
+}
+
+.app-search-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 440px);
+  min-width: 0;
+}
+
+.app-search-control > :is(input[type="search"], label) {
+  flex: 1 1 360px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.app-page-toolbar > .app-search-control {
+  flex: 0 1 440px;
+}
+
+.app-page-toolbar .app-search {
+  display: block;
+  width: 100%;
+}
+
+.app-search-submit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid #d6dee8;
+  border-radius: 6px;
+  background: #fff;
+  color: #344256;
+  font: 600 10px/1.2 "Segoe UI", Arial, sans-serif;
+  cursor: pointer;
+}
+
+body.app-shell-body .dashboard-content .app-search-submit {
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 5px 11px !important;
+  border: 1px solid #d6dee8 !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: #344256 !important;
+  font: 600 10px/1.2 "Segoe UI", Arial, sans-serif !important;
+}
+
+.app-search-submit:hover {
+  border-color: #b8c5d5;
+  background: #f7f9fc;
+}
+
+.app-search-submit:focus-visible {
+  outline: 2px solid #7395df;
+  outline-offset: 2px;
+}
+
+body.app-shell-body .dashboard-content input[type="search"] {
+  box-sizing: border-box;
+  width: min(100%, 360px) !important;
+  max-width: 360px !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 5px 10px !important;
+  border: 1px solid #e2e6ec !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: #344256;
+  font-size: 10px !important;
+}
+
+body.app-shell-body .dashboard-content :is(.app-search, .estimate-search-box, .parts-search-box, .wo-search-box, .customer-search-box, .users-search-box, .records-search-box) input[type="search"] {
+  padding-left: 30px !important;
+}
+
+body.app-shell-body .dashboard-content :is(.parts-search-box, .wo-search-box, .estimate-search-box, .customer-search-box, .users-search-box, .records-search-box) {
+  flex: 0 1 360px !important;
+  width: min(100%, 360px) !important;
+  min-width: 0;
+  margin: 0;
+}
+
+body.app-shell-body .dashboard-content input[type="search"]:focus-visible {
+  border-color: #8aa8e8 !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(57 115 220 / 13%);
+}
+
+.vehicle-record-search {
+  width: min(100%, 440px);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vehicle-record-search-box {
+  position: relative;
+  display: block;
+  flex: 1 1 360px;
+  min-width: 0;
+  margin: 0;
+}
+
+.vehicle-record-search-box > span {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  display: block;
+  color: #8b95a2;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.vehicle-record-search-box > span svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+body.app-shell-body .dashboard-content .vehicle-record-search-box input[type="search"] {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  margin: 0 !important;
+  padding: 5px 10px 5px 30px !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+}
+
+body.app-shell-body .dashboard-content .vehicle-record-search > .app-search-submit {
+  box-sizing: border-box !important;
+  min-width: 64px !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 5px 11px !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .vehicle-record-search {
+    width: 100%;
+  }
+
+  .vehicle-record-search-box {
+    flex-basis: 100%;
+  }
+}
+
+/* Prefer a page's own search field when one is present, avoiding duplicate inputs. */
+.dashboard-content:has(input[type="search"][data-search-managed], input[type="search"][data-search-target]) > .app-page-toolbar .app-search-control {
+  display: none;
+}
+
+.dashboard-content:has(input[type="search"][data-search-managed], input[type="search"][data-search-target]) > .app-page-toolbar:not(:has(.app-page-actions)) {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .app-page-actions {
+    justify-content: flex-start;
+  }
+
+  .app-page-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+
+  .app-page-toolbar .app-search {
+    flex-basis: 100%;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 1180px) {
@@ -255,14 +631,68 @@ body.app-shell-body {
   }
 
   .app-shell {
-    grid-template-columns: 164px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
     min-height: 0;
     margin: 0;
     box-shadow: none;
   }
 
+  .app-brand {
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  .app-brand span {
+    font-size: 0;
+    transform: none;
+  }
+
+  .app-brand span::after {
+    content: "BM";
+    font-size: 15px;
+  }
+
   .app-nav {
     grid-template-columns: 1fr;
+    padding: 8px 5px;
+  }
+
+  .app-nav a {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 40px;
+    padding: 6px 3px;
+  }
+
+  .app-nav a > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app-profile {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 0;
+    padding: 9px 4px 12px;
+  }
+
+  .app-profile > div {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .app-topbar {
@@ -271,7 +701,16 @@ body.app-shell-body {
     padding: 13px;
   }
 
-  .app-actions,
+  .app-actions {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-search {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   .app-search input {
     width: 100%;
   }
@@ -284,5 +723,17 @@ body.app-shell-body {
 @media (max-width: 470px) {
   .app-nav {
     grid-template-columns: 1fr;
+  }
+
+  .app-topbar {
+    gap: 10px;
+  }
+
+  .app-title h1 {
+    font-size: 16px;
+  }
+
+  .app-actions {
+    gap: 10px;
   }
 }

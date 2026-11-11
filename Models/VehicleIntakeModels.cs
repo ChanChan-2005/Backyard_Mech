@@ -53,6 +53,6 @@ public class IntakeAppointmentsPage
     public bool CanEdit { get; set; }
     public bool CanDelete { get; set; }
     public bool CanInspect { get; set; }
-    public string View { get; set; } = "calendar";
+    public string View { get; set; } = "list";
 }
 public record IntakeEditor(IntakeAppointmentsPage Page, AppointmentFormModel Form, string DialogId, string Title);

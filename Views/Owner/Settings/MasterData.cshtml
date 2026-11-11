@@ -6,6 +6,7 @@
     ViewData["PageSubtitle"] = Model.Module == "Settings" ? "GARAGE CONFIGURATION" : "SHOP DIRECTORY";
     ViewData["ActiveNav"] = Model.Module == "Settings" ? "Settings" : Model.Title;
     ViewData["SettingsTab"] = Model.Kind ?? "Tax";
+    if (Model.Module == "Settings") { ViewData["ShellClass"] = "settings-shell"; }
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 @if (Model.Module == "Settings") { @await Html.PartialAsync("_SettingsTabs") }
@@ -14,8 +15,14 @@
         <h2>@Model.Title</h2>
         @if(Model.CanCreate) { <button class="master-primary" type="button" data-master-open="master-new">+ Add @(Model.Mode == "categories" ? "Category" : Model.Mode == "tax" ? "Tax Rate" : Model.Mode == "services" ? "Service" : "Supplier")</button> }
     </header>
-    <div class="master-toolbar">
-        <input type="search" data-master-search placeholder="Search @Model.Title.ToLowerInvariant()..." aria-label="Search records" />
+    <div class="master-toolbar master-filters">
+        <div class="app-search-control">
+            <label class="app-search">
+                <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                <input type="search" data-master-search data-search-managed placeholder="Search @Model.Title.ToLowerInvariant()..." aria-label="Search records" />
+            </label>
+            <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        </div>
         <select data-master-status aria-label="Filter status"><option value="">All statuses</option><option>Active</option><option>Inactive</option>@if(Model.Mode=="tax"){<option>Scheduled</option>}</select>
     </div>
     <div class="master-table-wrap"><table>

@@ -69,9 +69,10 @@
         <div class="parts-filter-card">
             <div class="parts-filter-left">
                 <label class="parts-search-box">
-                    <span>Q</span>
-                    <input type="search" placeholder="Search listing title, part, service..." />
+                    <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                    <input type="search" data-search-target="product-listings-table" placeholder="Search listing title, part, service..." />
                 </label>
+                <button class="app-search-submit" type="button" data-search-submit>Search</button>
             </div>
             <div class="parts-filter-right">
                 <button class="parts-filter-button" type="button">Type: All V</button>
@@ -87,7 +88,7 @@
                 </div>
             </header>
 
-            <table class="parts-table">
+            <table class="parts-table" id="product-listings-table">
                 <thead>
                     <tr>
                         <th>Type</th>
@@ -176,9 +177,10 @@
         <div class="parts-filter-card">
             <div class="parts-filter-left">
                 <label class="parts-search-box">
-                    <span>Q</span>
-                    <input type="search" placeholder="Search parts by SKU, category, name..." />
+                    <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                    <input type="search" data-search-target="parts-inventory-table" placeholder="Search parts by SKU, category, name..." />
                 </label>
+                <button class="app-search-submit" type="button" data-search-submit>Search</button>
             </div>
             <div class="parts-filter-right">
                 <button class="parts-filter-button" type="button">Category: All V</button>
@@ -187,7 +189,7 @@
         </div>
 
         <section class="parts-panel">
-            <table class="parts-table">
+            <table class="parts-table" id="parts-inventory-table">
                 <thead>
                     <tr>
                         <th>SKU</th>

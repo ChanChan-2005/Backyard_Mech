@@ -33,7 +33,10 @@
     </nav>
 
     <div class="records-filter-card">
-        <label class="records-search-box"><span>Q</span><input type="search" placeholder="Search archived records..." /></label>
+        <div class="app-search-control records-search-control">
+            <label class="records-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="archived-records-table" placeholder="Search archived records..." /></label>
+            <button type="button" class="app-search-submit" data-search-submit>Search</button>
+        </div>
         <a class="records-button" href="/Owner/RecordsDisposition">Open Records Disposition</a>
     </div>
 
@@ -45,7 +48,7 @@
             </div>
         </header>
 
-        <table class="records-table">
+        <table class="records-table" id="archived-records-table">
             <thead>
                 <tr>
                     <th>Record</th>

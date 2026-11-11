@@ -38,7 +38,7 @@ namespace Backyard_Mech.Controllers
 
         private static string FormatRelativeTime(DateTime value)
         {
-            var elapsed = DateTime.UtcNow - value.ToUniversalTime();
+            var elapsed = DateTime.UtcNow - DateTime.SpecifyKind(value, DateTimeKind.Utc);
             if (elapsed.TotalMinutes < 1)
             {
                 return "Just now";
@@ -84,10 +84,14 @@ namespace Backyard_Mech.Controllers
             };
         }
 
-        private async Task<DashboardViewModel> LoadDashboardAsync()
+        private async Task<DashboardViewModel> LoadDashboardAsync(string queueFilter)
         {
-            var today = DateTime.Today;
+            var nowUtc = DateTime.UtcNow;
+            var today = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, GarageZone()).Date;
             var tomorrow = today.AddDays(1);
+            var dayStartUtc = TimeZoneInfo.ConvertTimeToUtc(today, GarageZone());
+            var dayEndUtc = TimeZoneInfo.ConvertTimeToUtc(tomorrow, GarageZone());
+            var yesterdayStartUtc = TimeZoneInfo.ConvertTimeToUtc(today.AddDays(-1), GarageZone());
 
             var invoices = await _dbContext.Invoices.AsNoTracking().OrderByDescending(invoice => invoice.IssuedUtc).ToListAsync();
             var payments = await _dbContext.Payments
@@ -102,9 +106,28 @@ namespace Backyard_Mech.Controllers
             var appointmentServices = await _dbContext.AppointmentServices.AsNoTracking().ToListAsync();
             var estimates = await _dbContext.Estimates.AsNoTracking().ToListAsync();
             var estimateRevisions = await _dbContext.EstimateRevisions.AsNoTracking().ToListAsync();
-            var parts = await _dbContext.Parts.AsNoTracking().Where(part => !part.IsArchived && !part.IsDeleted).ToListAsync();
+            var parts = await _dbContext.Parts.AsNoTracking().Where(part => part.IsActive && !part.IsArchived && !part.IsDeleted).ToListAsync();
             var inspections = await _dbContext.QualityChecks.AsNoTracking().OrderByDescending(check => check.PerformedUtc).ToListAsync();
             var employees = await _dbContext.EmployeeProfiles.AsNoTracking().Where(employee => employee.IsActive && !employee.IsArchived && !employee.IsDeleted).ToListAsync();
+            var labourSegments = await _dbContext.ServiceTimeSegments.AsNoTracking()
+                .Where(segment => segment.ServiceEntryId.HasValue &&
+                    (segment.SegmentEnd == null ||
+                     (segment.SegmentType == "Work" && segment.SegmentStart < dayEndUtc && segment.SegmentEnd > dayStartUtc)))
+                .ToListAsync();
+            var manualEntryIds = (await _dbContext.AuditLogEntries.AsNoTracking()
+                .Where(audit => audit.EntityName == "ServiceEntry" && audit.Action == "Save labour" &&
+                    audit.TimestampUtc >= dayStartUtc && audit.TimestampUtc < dayEndUtc)
+                .Select(audit => audit.EntityId)
+                .ToListAsync())
+                .Select(value => int.TryParse(value, out var id) ? id : 0)
+                .Where(id => id > 0)
+                .ToHashSet();
+            var labourEntryIds = labourSegments.Select(segment => segment.ServiceEntryId!.Value)
+                .Concat(manualEntryIds).Distinct().ToArray();
+            var labourEntries = labourEntryIds.Length == 0
+                ? new List<ServiceEntry>()
+                : await _dbContext.ServiceEntries.AsNoTracking()
+                    .Where(entry => labourEntryIds.Contains(entry.ServiceEntryId)).ToListAsync();
 
             var workOrderByAppointmentId = workOrders
                 .Where(order => order.AppointmentId is not null)
@@ -114,26 +137,43 @@ namespace Backyard_Mech.Controllers
             var workOrderById = workOrders.ToDictionary(order => order.WorkOrderId);
 
             var todaysRevenue = invoices
-                .Where(invoice => invoice.IssuedUtc >= today && invoice.IssuedUtc < tomorrow && invoice.InvoiceStatus != "Voided")
+                .Where(invoice => invoice.IssuedUtc >= dayStartUtc && invoice.IssuedUtc < dayEndUtc && invoice.InvoiceStatus != "Voided")
                 .Sum(invoice => invoice.Total ?? 0);
             var yesterdayRevenue = invoices
-                .Where(invoice => invoice.IssuedUtc >= today.AddDays(-1) && invoice.IssuedUtc < today && invoice.InvoiceStatus != "Voided")
+                .Where(invoice => invoice.IssuedUtc >= yesterdayStartUtc && invoice.IssuedUtc < dayStartUtc && invoice.InvoiceStatus != "Voided")
                 .Sum(invoice => invoice.Total ?? 0);
             var activeWorkOrders = workOrders.Count(order => order.WorkOrderStatus is not ("Completed" or "Cancelled" or "Ready for Pickup" or "Picked Up"));
-            var urgentWorkOrders = appointments.Count(appointment => string.Equals(appointment.AppointmentStatus, "Waiting Approval", StringComparison.OrdinalIgnoreCase));
-            var vehiclesServiced = workOrders.Count(order => (order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up") && (order.ActualEnd ?? order.ScheduledEnd)?.Date == today);
+            var pendingQcWorkOrders = workOrders.Count(order => string.Equals(order.WorkOrderStatus, "Pending QC", StringComparison.OrdinalIgnoreCase));
+            var vehiclesServiced = workOrders
+                .Where(order => (order.WorkOrderStatus is "Completed" or "Ready for Pickup" or "Picked Up")
+                    && order.ActualEnd >= dayStartUtc && order.ActualEnd < dayEndUtc)
+                .Select(order => appointmentById.GetValueOrDefault(order.AppointmentId ?? 0)?.VehicleId)
+                .Where(vehicleId => vehicleId.HasValue)
+                .Distinct()
+                .Count();
             if (vehiclesServiced == 0)
             {
-                vehiclesServiced = appointments.Count(appointment => string.Equals(appointment.AppointmentStatus, "Completed", StringComparison.OrdinalIgnoreCase) && appointment.ScheduledStart?.Date == today);
+                vehiclesServiced = appointments
+                    .Where(appointment => string.Equals(appointment.AppointmentStatus, "Completed", StringComparison.OrdinalIgnoreCase)
+                        && appointment.ScheduledStart?.Date == today)
+                    .Select(appointment => appointment.VehicleId)
+                    .Where(vehicleId => vehicleId.HasValue)
+                    .Distinct()
+                    .Count();
             }
 
             var pendingApprovals = estimateRevisions
-                .Where(revision => string.Equals(revision.EstimateStatus, "Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(revision.EstimateStatus, "Sent", StringComparison.OrdinalIgnoreCase))
+                .Where(revision => revision.EstimateId.HasValue
+                    && string.Equals(revision.EstimateStatus, "Pending", StringComparison.OrdinalIgnoreCase)
+                    && !estimateRevisions.Any(other => other.EstimateId == revision.EstimateId
+                        && (other.RevisionNumber ?? 0) > (revision.RevisionNumber ?? 0)))
                 .OrderByDescending(revision => revision.CreatedUtc)
                 .ToList();
-            var unpaidInvoices = invoices.Count(invoice => !string.Equals(invoice.InvoiceStatus, "Paid", StringComparison.OrdinalIgnoreCase) && !string.Equals(invoice.InvoiceStatus, "Void", StringComparison.OrdinalIgnoreCase) && !string.Equals(invoice.InvoiceStatus, "Voided", StringComparison.OrdinalIgnoreCase));
+            var unpaidInvoices = invoices.Count(invoice => new[] { "Issued", "Partially Paid", "Overdue" }
+                .Contains(invoice.InvoiceStatus, StringComparer.OrdinalIgnoreCase));
             var vehiclesInGarage = appointments
-                .Where(appointment => appointment.ScheduledStart?.Date == today || string.Equals(appointment.AppointmentStatus, "In Bay", StringComparison.OrdinalIgnoreCase) || string.Equals(appointment.AppointmentStatus, "Inspection", StringComparison.OrdinalIgnoreCase))
+                .Where(appointment => appointment.AppointmentStatus is not ("Completed" or "Cancelled" or "No Show")
+                    && (appointment.CheckedInUtc.HasValue || appointment.AppointmentStatus is "In Bay" or "Inspection"))
                 .Select(appointment => appointment.VehicleId)
                 .Where(vehicleId => vehicleId is not null)
                 .Distinct()
@@ -144,7 +184,8 @@ namespace Backyard_Mech.Controllers
                 : $"{((todaysRevenue - yesterdayRevenue) / yesterdayRevenue * 100):+0;-0;0}%";
 
             var queue = appointments
-                .Where(appointment => appointment.ScheduledStart?.Date == today || !string.Equals(appointment.AppointmentStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+                .Where(appointment => appointment.AppointmentStatus is not ("Completed" or "Cancelled" or "No Show"))
+                .Where(appointment => queueFilter == "all" || (queueFilter == "walkins") == string.Equals(appointment.AppointmentType, "Walk-in", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(appointment => appointment.ScheduledStart ?? DateTime.MaxValue)
                 .Take(8)
                 .Select(appointment =>
@@ -180,28 +221,54 @@ namespace Backyard_Mech.Controllers
                 })
                 .ToList();
 
-            var mechanics = employees.Take(4).Select(employee =>
+            var mechanicEmployees = employees.Where(employee =>
             {
                 var name = NormalizeText($"{employee.FirstName} {employee.LastName}".Trim(), employee.EmployeeNumber ?? $"Employee {employee.EmployeeProfileId}");
-                var assignedOrderIds = assignments
-                    .Where(assignment => string.Equals(NormalizeText(assignment.MechanicName, ""), name, StringComparison.OrdinalIgnoreCase))
-                    .Select(assignment => assignment.WorkOrderId ?? 0)
-                    .ToHashSet();
-                var currentOrder = workOrders.FirstOrDefault(order => assignedOrderIds.Contains(order.WorkOrderId) && order.WorkOrderStatus is not ("Completed" or "Ready for Pickup" or "Picked Up" or "Cancelled"));
-                var todayHours = workOrders.Where(order => assignedOrderIds.Contains(order.WorkOrderId) && order.ScheduledStart?.Date == today).Sum(CalculateWorkOrderHours);
-                var productivity = Math.Clamp((int)Math.Round(todayHours / 8m * 100), 0, 100);
-                var workStatus = currentOrder is null ? "Idle" : string.Equals(currentOrder.WorkOrderStatus, "Waiting Approval", StringComparison.OrdinalIgnoreCase) ? "Waiting for approval" : "Busy";
+                return employee.JobTitle?.Contains("mechanic", StringComparison.OrdinalIgnoreCase) == true
+                    || employee.JobTitle?.Contains("technician", StringComparison.OrdinalIgnoreCase) == true
+                    || assignments.Any(assignment =>
+                        (!string.IsNullOrWhiteSpace(employee.UserId) && assignment.MechanicUserId == employee.UserId)
+                        || string.Equals(assignment.MechanicName, name, StringComparison.OrdinalIgnoreCase))
+                    || labourEntries.Any(entry =>
+                        (!string.IsNullOrWhiteSpace(employee.UserId) && entry.MechanicUserId == employee.UserId)
+                        || string.Equals(entry.MechanicName, name, StringComparison.OrdinalIgnoreCase));
+            });
+            var mechanicActivity = mechanicEmployees.Select(employee =>
+            {
+                var name = NormalizeText($"{employee.FirstName} {employee.LastName}".Trim(), employee.EmployeeNumber ?? $"Employee {employee.EmployeeProfileId}");
+                var entryIds = labourEntries
+                    .Where(entry => (!string.IsNullOrWhiteSpace(employee.UserId) && entry.MechanicUserId == employee.UserId)
+                        || string.Equals(entry.MechanicName, name, StringComparison.OrdinalIgnoreCase))
+                    .Select(entry => entry.ServiceEntryId).ToHashSet();
+                var employeeSegments = labourSegments.Where(segment => entryIds.Contains(segment.ServiceEntryId ?? 0)).ToList();
+                var running = employeeSegments.FirstOrDefault(segment => segment.SegmentEnd == null && segment.SegmentType == "Work");
+                var paused = employeeSegments.FirstOrDefault(segment => segment.SegmentEnd == null && segment.SegmentType == "Pause");
+                var currentEntry = labourEntries.FirstOrDefault(entry => entry.ServiceEntryId == (running ?? paused)?.ServiceEntryId);
+                var workedMinutes = employeeSegments.Where(segment => segment.SegmentType == "Work" && segment.SegmentStart.HasValue)
+                    .Sum(segment =>
+                    {
+                        var start = segment.SegmentStart!.Value > dayStartUtc ? segment.SegmentStart.Value : dayStartUtc;
+                        var end = segment.SegmentEnd ?? nowUtc;
+                        if (end > dayEndUtc) end = dayEndUtc;
+                        return Math.Max(0, (end - start).TotalMinutes);
+                    });
+                var manualMinutes = labourEntries.Where(entry => entryIds.Contains(entry.ServiceEntryId) && manualEntryIds.Contains(entry.ServiceEntryId)
+                    && !employeeSegments.Any(segment => segment.ServiceEntryId == entry.ServiceEntryId))
+                    .Sum(entry => Math.Max(0, entry.DurationMinutes ?? 0));
+                var hasActivity = workedMinutes > 0 || manualEntryIds.Overlaps(entryIds) || running is not null;
+                var productivity = Math.Clamp((int)Math.Round((workedMinutes + manualMinutes) / 480d * 100), 0, 100);
 
-                return new DashboardMechanicCard
+                return (Card: new DashboardMechanicCard
                 {
                     Name = name,
                     Avatar = BuildInitials(employee.FirstName, employee.LastName),
-                    Work = workStatus,
-                    Current = currentOrder is null ? "N/A" : $"WO-{currentOrder.WorkOrderId:0000}",
+                    Work = running is not null ? "Busy" : paused is not null ? "Paused" : hasActivity ? "Worked today" : "Idle",
+                    Current = currentEntry?.WorkOrderId is int workOrderId ? $"WO-{workOrderId:0000}" : "N/A",
                     Productivity = $"{productivity}%",
                     Bar = productivity
-                };
+                }, HasActivity: hasActivity);
             }).ToList();
+            var mechanics = mechanicActivity.OrderByDescending(item => item.HasActivity).Take(4).Select(item => item.Card).ToList();
 
             var approvalItems = pendingApprovals.Take(3).Select(revision =>
             {
@@ -211,10 +278,11 @@ namespace Backyard_Mech.Controllers
 
                 return new DashboardApprovalItem
                 {
+                    EstimateId = revision.EstimateId!.Value,
                     Customer = NormalizeText(appointment?.CustomerName, "Unknown customer"),
                     Vehicle = BuildVehicleName(vehicle),
                     Amount = FormatMoney(revision.Total),
-                    Sent = FormatRelativeTime(revision.SentToCustomerUtc ?? revision.CreatedUtc)
+                    Sent = revision.ApprovalTokenExpiresUtc <= nowUtc ? "Link expired" : FormatRelativeTime(revision.SentToCustomerUtc ?? revision.CreatedUtc)
                 };
             }).ToList();
 
@@ -251,6 +319,7 @@ namespace Backyard_Mech.Controllers
             var recentInvoiceRows = invoices.Take(4).Select(invoice =>
             {
                 var status = NormalizeStatus(invoice.InvoiceStatus, "Draft");
+                var issuedLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(invoice.IssuedUtc, DateTimeKind.Utc), GarageZone());
                 return new DashboardInvoiceRow
                 {
                     Invoice = NormalizeText(invoice.InvoiceNumber, $"INV-{invoice.InvoiceId:0000}"),
@@ -258,42 +327,48 @@ namespace Backyard_Mech.Controllers
                     Amount = FormatMoney(invoice.Total),
                     Status = status,
                     Tone = GetDashboardStatusTone(status),
-                    Date = invoice.IssuedUtc.Date == today ? $"Today, {invoice.IssuedUtc:hh:mm tt}" : invoice.IssuedUtc.ToString("MMM dd, hh:mm tt")
+                    Date = issuedLocal.Date == today ? $"Today, {issuedLocal:hh:mm tt}" : issuedLocal.ToString("MMM dd, hh:mm tt")
                 };
             }).ToList();
 
             var collectedToday = payments
-                .Where(payment => (payment.PaidUtc ?? DateTime.MinValue).Date == today)
+                .Where(payment => payment.PaidUtc?.Date == today)
                 .Sum(payment => payment.Amount ?? 0);
 
             var activity = new List<DashboardActivityItem>();
-            activity.AddRange(payments.Take(4).Select(payment =>
+            activity.AddRange(payments.Take(6).Select(payment =>
             {
                 var invoice = invoices.FirstOrDefault(item => item.InvoiceId == payment.InvoiceId);
                 return new DashboardActivityItem
                 {
                     Title = $"Invoice {NormalizeText(invoice?.InvoiceNumber, $"#{payment.InvoiceId}")} paid - {FormatMoney(payment.Amount)}",
-                    Time = FormatRelativeTime(payment.PaidUtc ?? DateTime.UtcNow)
+                    Time = payment.PaidUtc?.ToString("MMM dd, yyyy") ?? "Date unavailable",
+                    TimestampUtc = payment.PaidUtc.HasValue
+                        ? TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(payment.PaidUtc.Value, DateTimeKind.Unspecified), GarageZone())
+                        : DateTime.MinValue
                 };
             }));
-            activity.AddRange(appointments.OrderByDescending(appointment => appointment.CreatedUtc).Take(4).Select(appointment => new DashboardActivityItem
+            activity.AddRange(appointments.OrderByDescending(appointment => appointment.CreatedUtc).Take(6).Select(appointment => new DashboardActivityItem
             {
                 Title = $"{NormalizeText(appointment.AppointmentType, "Appointment")} registered - {appointment.CustomerName}",
-                Time = FormatRelativeTime(appointment.CreatedUtc)
+                Time = FormatRelativeTime(appointment.CreatedUtc),
+                TimestampUtc = appointment.CreatedUtc
             }));
-            activity.AddRange(workOrders.OrderByDescending(order => order.ActualEnd ?? order.ScheduledEnd ?? order.CreatedUtc).Take(4).Select(order => new DashboardActivityItem
+            activity.AddRange(workOrders.OrderByDescending(order => order.ActualEnd ?? order.CreatedUtc).Take(6).Select(order => new DashboardActivityItem
             {
-                Title = $"Work Order #{order.WorkOrderId:0000} marked {NormalizeStatus(order.WorkOrderStatus, "Pending").ToUpperInvariant()}",
-                Time = FormatRelativeTime(order.ActualEnd ?? order.ScheduledEnd ?? order.CreatedUtc)
+                Title = $"Work Order #{order.WorkOrderId:0000} - {NormalizeStatus(order.WorkOrderStatus, "Pending").ToUpperInvariant()}",
+                Time = FormatRelativeTime(order.ActualEnd ?? order.CreatedUtc),
+                TimestampUtc = order.ActualEnd ?? order.CreatedUtc
             }));
 
             return new DashboardViewModel
             {
-                PageDateLabel = DateTime.Today.ToString("dddd, MMMM d, yyyy"),
+                PageDateLabel = today.ToString("dddd, MMMM d, yyyy"),
+                QueueFilter = queueFilter,
                 Metrics = new[]
                 {
                     new DashboardMetricCard { Label = "Today's Revenue", Value = FormatMoney(todaysRevenue), Note = revenueDelta, Tone = todaysRevenue >= yesterdayRevenue ? "good" : "danger" },
-                    new DashboardMetricCard { Label = "Active Work Orders", Value = activeWorkOrders.ToString("N0"), Note = urgentWorkOrders > 0 ? $"{urgentWorkOrders} urgent" : "", Tone = urgentWorkOrders > 0 ? "danger" : "" },
+                    new DashboardMetricCard { Label = "Active Work Orders", Value = activeWorkOrders.ToString("N0"), Note = pendingQcWorkOrders > 0 ? $"{pendingQcWorkOrders} pending QC" : "", Tone = pendingQcWorkOrders > 0 ? "warn" : "" },
                     new DashboardMetricCard { Label = "Vehicles Serviced", Value = vehiclesServiced.ToString("N0") },
                     new DashboardMetricCard { Label = "Pending Approvals", Value = pendingApprovals.Count.ToString("N0"), Note = pendingApprovals.Any() ? "action required" : "", Tone = pendingApprovals.Any() ? "warn" : "" },
                     new DashboardMetricCard { Label = "Unpaid Invoices", Value = unpaidInvoices.ToString("N0") },
@@ -305,21 +380,21 @@ namespace Backyard_Mech.Controllers
                 PartAlerts = partAlerts,
                 Inspections = inspectionItems,
                 RecentInvoices = recentInvoiceRows,
-                RecentActivity = activity.OrderBy(item => item.Time.Contains("m ago") ? 0 : item.Time.Contains("h ago") ? 1 : 2).Take(6).ToList(),
-                ActiveMechanicsLabel = $"{mechanics.Count(mechanic => mechanic.Work != "Idle")} Active Today",
-                PendingInspectionLabel = $"{inspectionItems.Count(item => item.Status != "Passed")} pending review",
+                RecentActivity = activity.OrderByDescending(item => item.TimestampUtc).Take(6).ToList(),
+                ActiveMechanicsLabel = $"{mechanicActivity.Count(item => item.HasActivity)} Active Today",
+                PendingInspectionLabel = $"{inspections.Count(check => check.Passed is null)} pending review",
                 TodayCollected = FormatMoney(collectedToday)
             };
         }
 
-        public async Task<IActionResult> Dashboard()
+        public async Task<IActionResult> Dashboard(string queue = "all")
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return View(await LoadDashboardAsync());
+            return View(await LoadDashboardAsync(queue is "appointments" or "walkins" ? queue : "all"));
         }
 
         public async Task<IActionResult> CustomerVehicle()
@@ -376,7 +451,8 @@ namespace Backyard_Mech.Controllers
 
             if (!ModelState.IsValid)
             {
-                TempData["OwnerMessage"] = "Customer was not saved. Please complete the required fields.";
+                TempData["OwnerMessage"] = FormValidationMessage("Customer was not saved. Check the entered values.");
+                TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(CustomerVehicle));
             }
 
@@ -408,7 +484,8 @@ namespace Backyard_Mech.Controllers
 
             if (!ModelState.IsValid)
             {
-                TempData["OwnerMessage"] = "Customer was not updated. Please complete the required fields.";
+                TempData["OwnerMessage"] = FormValidationMessage("Customer was not updated. Check the entered values.");
+                TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(CustomerVehicle));
             }
 
@@ -1846,7 +1923,7 @@ namespace Backyard_Mech.Controllers
             }, nameof(ServiceQueue));
         }
 
-        public Task<IActionResult> Appointments(string view = "calendar") => IntakeAppointments(view);
+        public Task<IActionResult> Appointments(string view = "list") => IntakeAppointments(view);
 
         private static bool IsAllowedAppointmentStatus(string? status)
         {
@@ -2384,7 +2461,8 @@ namespace Backyard_Mech.Controllers
 
             if (!ModelState.IsValid || string.IsNullOrWhiteSpace(form.Name) || string.IsNullOrWhiteSpace(form.Description))
             {
-                TempData["OwnerMessage"] = "Bay details were not saved. Please complete the required fields.";
+                TempData["OwnerMessage"] = FormValidationMessage("Bay details were not saved. Complete the required fields.");
+                TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(BayManagement));
             }
 
@@ -2414,7 +2492,8 @@ namespace Backyard_Mech.Controllers
 
             if (!ModelState.IsValid || string.IsNullOrWhiteSpace(form.Name) || string.IsNullOrWhiteSpace(form.Description))
             {
-                TempData["OwnerMessage"] = "Bay details were not saved. Please complete the required fields.";
+                TempData["OwnerMessage"] = FormValidationMessage("Bay details were not saved. Complete the required fields.");
+                TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(BayManagement));
             }
 
@@ -2938,7 +3017,7 @@ namespace Backyard_Mech.Controllers
             return RedirectToAction(nameof(QualityControl));
         }
 
-        public async Task<IActionResult> ToolTracking()
+        public async Task<IActionResult> ToolTracking(int? categoryId = null, string? status = null)
         {
             if (!IsOwnerSession())
             {
@@ -2948,6 +3027,8 @@ namespace Backyard_Mech.Controllers
             return View(new ToolTrackingViewModel
             {
                 Tools = await LoadToolRowsAsync(),
+                SelectedCategoryId = categoryId,
+                SelectedStatus = status,
                 ToolCategoryOptions = await LoadToolCategoryOptionsAsync(),
                 Mechanics = await _dbContext.EmployeeProfiles.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
                 OpenWorkOrders = await _dbContext.WorkOrders.AsNoTracking().Where(x => x.WorkOrderStatus != "Cancelled" && x.WorkOrderStatus != "Completed" && x.WorkOrderStatus != "Ready for Pickup" && x.WorkOrderStatus != "Picked Up").OrderByDescending(x => x.CreatedUtc).ToListAsync()
@@ -3509,7 +3590,7 @@ namespace Backyard_Mech.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddEmployee(EmployeeFormModel form)
+        public async Task<IActionResult> AddEmployee(AddEmployeeFormModel form)
         {
             return await SaveWorkflow(async () => {
             if (!IsOwnerSession())
@@ -3537,9 +3618,11 @@ namespace Backyard_Mech.Controllers
                 Phone = form.Phone.Trim(),
                 Email = form.Email.Trim(),
                 JobTitle = form.JobTitle.Trim(),
+                EmploymentType = form.EmploymentType,
+                SkillsAndQualifications = form.SkillsAndQualifications?.Trim(),
                 HourlyRate = form.HourlyRate,
                 HireDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                IsActive = true
+                IsActive = form.EmploymentStatus == "Active"
             };
             _dbContext.EmployeeProfiles.Add(employee);
 
@@ -3584,6 +3667,8 @@ namespace Backyard_Mech.Controllers
             employee.Phone = form.Phone.Trim();
             employee.Email = form.Email.Trim();
             employee.JobTitle = form.JobTitle.Trim();
+            employee.EmploymentType = form.EmploymentType;
+            employee.SkillsAndQualifications = form.SkillsAndQualifications?.Trim();
             employee.HourlyRate = form.HourlyRate;
 
             WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Edit staff profile",new{employee.FirstName,employee.LastName,employee.JobTitle,employee.Email});
@@ -5577,6 +5662,7 @@ namespace Backyard_Mech.Controllers
             var isProtected = selectedRole?.IsSystemProtected == true;
 
             var rows = permissions
+                .Where(permission => SettingsPermissionActions.Contains(permission.ActionName, StringComparer.OrdinalIgnoreCase))
                 .GroupBy(permission => NormalizeText(permission.ModuleName, "General"))
                 .OrderBy(group => group.Key)
                 .Select(group =>
@@ -5602,6 +5688,20 @@ namespace Backyard_Mech.Controllers
                 })
                 .ToList();
 
+            var detailedPermissions = permissions
+                .Where(permission => OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is not null)
+                .Select(permission => new SettingsDetailedPermission
+                {
+                    PermissionId = permission.PermissionId,
+                    ModuleName = permission.ModuleName ?? "General",
+                    Label = OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
+                    Action = OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
+                    IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId)
+                })
+                .OrderBy(permission => permission.ModuleName)
+                .ThenBy(permission => permission.Label)
+                .ToList();
+
             var sessionRole = HttpContext.Session.GetString("UserRole");
             return new SettingsRolesViewModel
             {
@@ -5611,6 +5711,7 @@ namespace Backyard_Mech.Controllers
                 ActionColumns = SettingsPermissionActions,
                 Roles = roles,
                 PermissionRows = rows,
+                DetailedPermissions = detailedPermissions,
                 TotalPermissionCount = permissions.Count,
                 CanCreateRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Create"),
                 CanEditRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Edit"),
@@ -5710,6 +5811,27 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(SettingsRoles));
             }
 
+            var requestedPermissionIds = form.PermissionIds.Distinct().ToList();
+            var validPermissions = await _dbContext.Permissions.AsNoTracking()
+                .Where(permission => permission.IsActive && requestedPermissionIds.Contains(permission.PermissionId))
+                .Select(permission => new { permission.PermissionId, permission.PermissionCode })
+                .ToListAsync();
+            if (validPermissions.Count != requestedPermissionIds.Count)
+            {
+                TempData["OwnerMessage"] = "One or more selected permissions are no longer available. Please choose again.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            var actorCodes = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            var requestedCodes = validPermissions.Select(permission => permission.PermissionCode!).ToList();
+            if (!actorCodes.Contains("*") && !requestedCodes.All(actorCodes.Contains))
+            {
+                TempData["OwnerMessage"] = "You cannot grant role permissions beyond your own access.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
             var nextDisplayOrder = (await _dbContext.AppRoles.MaxAsync(role => (int?)role.DisplayOrder) ?? 0) + 10;
             var role = new AppRole
             {
@@ -5721,6 +5843,11 @@ namespace Backyard_Mech.Controllers
                 IsActive = true
             };
             _dbContext.AppRoles.Add(role);
+            _dbContext.RolePermissions.AddRange(validPermissions.Select(permission => new RolePermission
+            {
+                RoleId = role.RoleKey,
+                PermissionId = permission.PermissionId
+            }));
             _dbContext.AuditLogEntries.Add(new AuditLogEntry
             {
                 UserId = HttpContext.Session.GetString("UserId"),
@@ -5729,11 +5856,12 @@ namespace Backyard_Mech.Controllers
                 EntityName = "AppRole",
                 EntityId = role.RoleKey,
                 TimestampUtc = DateTime.UtcNow,
-                Details = $"Created role {role.RoleName}."
+                Details = System.Text.Json.JsonSerializer.Serialize(new { role.RoleName, PermissionIds = validPermissions.Select(permission => permission.PermissionId).ToArray() })
             });
             await _dbContext.SaveChangesAsync();
+            _permissionService.ClearCache(role.RoleKey);
 
-            TempData["OwnerMessage"] = $"{role.RoleName} created. You can now assign its permissions.";
+            TempData["OwnerMessage"] = $"{role.RoleName} created with its default permissions.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
         }

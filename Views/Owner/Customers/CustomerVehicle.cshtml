@@ -40,10 +40,10 @@
                 <span class="customer-flash">@ownerMessage</span>
             }
             <label class="customer-search-box">
-                <span aria-hidden="true">Q</span>
-                <input data-customer-search type="search" placeholder="Search by name, phone, email, or vehicle..." aria-label="Search customers and vehicles" />
+                <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                <input data-customer-search data-search-managed type="search" placeholder="Search by name, phone, email, or vehicle..." aria-label="Search customers and vehicles" />
             </label>
-            <button class="search-button" type="button" data-customer-search-button>Search</button>
+            <button class="search-button app-search-submit" type="button" data-customer-search-button>Search</button>
             <button class="add-customer-button" type="button" data-customer-modal="add-customer"><span>+</span> Add Customer</button>
         </div>
 
@@ -76,13 +76,13 @@
                             </td>
                             <td>@customer.Phone</td>
                             <td>@customer.Email</td>
-                            <td>@if(canViewVehicles){<a asp-action="VehicleHistory" asp-route-customerId="@customer.CustomerId">@customer.Vehicles vehicles</a>}else{<span class="vehicle-pill">@customer.Vehicles</span>}</td>
+                            <td>@if(canViewVehicles){<a class="customer-vehicles-button" asp-action="VehicleHistory" asp-route-customerId="@customer.CustomerId">@customer.Vehicles vehicles</a>}else{<span class="vehicle-pill">@customer.Vehicles</span>}</td>
                             <td>@customer.LastVisit</td>
                             <td class="spent-cell">@customer.TotalSpent</td>
                             <td><span class="status-pill @(isActive ? "active" : "inactive")">@customer.Status</span></td>
                             <td>
                                 <div class="customer-actions-cell">
-                                    <a href="/Owner/CustomerDetails/@customerSlug">View</a>
+                                    <a class="app-action-link" href="/Owner/CustomerDetails/@customerSlug">View</a>
                                     <button type="button"
                                             data-customer-modal="edit-customer"
                                             data-customer-id="@customer.CustomerId"
@@ -176,7 +176,7 @@
                 summary.textContent = `Showing ${firstItem}-${lastItem} of ${filteredRows.length} customers`;
             };
 
-            searchInput.addEventListener("input", () => {
+            searchInput.addEventListener("searchcommit", () => {
                 currentPage = 1;
                 renderPagination();
             });
