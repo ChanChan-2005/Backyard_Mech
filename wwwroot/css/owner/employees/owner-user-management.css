@@ -1,5 +1,5 @@
 .users-shell {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 11px;
 }
 
@@ -275,6 +275,53 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
 .users-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.employees-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+#employees-table {
+  table-layout: fixed;
+  min-width: 860px;
+}
+
+#employees-table th,
+#employees-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  padding: 12px 10px;
+}
+
+#employees-table th:nth-child(1) { width: 18%; }
+#employees-table th:nth-child(2) { width: 12%; }
+#employees-table th:nth-child(3) { width: 12%; }
+#employees-table th:nth-child(4) { width: 18%; }
+#employees-table th:nth-child(5) { width: 8%; }
+#employees-table th:nth-child(6) { width: 10%; }
+#employees-table th:nth-child(7) { width: 22%; }
+
+#employees-table .employee-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#employees-table .users-avatar {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+#employees-table .users-table-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#employees-table .users-small-button {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .users-table th,

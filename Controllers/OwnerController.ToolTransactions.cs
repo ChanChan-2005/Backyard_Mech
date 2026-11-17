@@ -11,9 +11,9 @@ public partial class OwnerController
     {
         var tool = await _dbContext.Tools.FindAsync(form.ToolId);
         Require(tool is { IsActive: true, IsArchived: false, IsDeleted: false }, "Choose an available tool.");
-        Require(tool!.Condition is "Excellent" or "Good" or "Fair", "This tool must pass inspection before it can be checked out.");
-        Require(!tool.NextCalibrationDueUtc.HasValue || tool.NextCalibrationDueUtc.Value.Date >= DateTime.UtcNow.Date, "This tool is overdue for calibration and cannot be checked out.");
-        Require(!await _dbContext.ToolCheckouts.AnyAsync(x => x.ToolId == tool.ToolId && x.ReturnedUtc == null), "This tool already has an open checkout.");
+        Require(tool!.Condition is "Excellent" or "Good" or "Fair", "This tool must pass inspection before it can be borrowed.");
+        Require(!tool.NextCalibrationDueUtc.HasValue || tool.NextCalibrationDueUtc.Value.Date >= DateTime.UtcNow.Date, "This tool is overdue for calibration and cannot be borrowed.");
+        Require(!await _dbContext.ToolCheckouts.AnyAsync(x => x.ToolId == tool.ToolId && x.ReturnedUtc == null), "This tool is already borrowed.");
         var employee = await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
         Require(employee is { IsActive: true, IsArchived: false, IsDeleted: false }, "Choose an active mechanic.");
         if (form.WorkOrderId.HasValue)
@@ -22,13 +22,13 @@ public partial class OwnerController
         Require(order is not null && order.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up"), "Choose an active work order.");
             var employeeName = BuildEmployeeName(employee!);
             Require(await _dbContext.WorkOrderAssignments.AnyAsync(x => x.WorkOrderId == order!.WorkOrderId &&
-                (x.MechanicName == employeeName || (employee!.UserId != null && x.MechanicUserId == employee.UserId))), "Assign this mechanic to the work order before checking out a tool.");
+                (x.MechanicName == employeeName || (employee!.UserId != null && x.MechanicUserId == employee.UserId))), "Assign this mechanic to the work order before borrowing a tool.");
         }
         var checkout = new ToolCheckout { ToolId = tool.ToolId, WorkOrderId = form.WorkOrderId, MechanicUserId = employee!.UserId,
             MechanicName = BuildEmployeeName(employee), CheckedOutUtc = DateTime.UtcNow, ConditionAtCheckout = form.ConditionAtCheckout,
-            ToolIssueStatus = "Checked Out", Notes = form.Notes?.Trim() };
+            ToolIssueStatus = "Borrowed", Notes = form.Notes?.Trim() };
         _dbContext.ToolCheckouts.Add(checkout);
-        WorkflowAudit("ToolCheckout", 0, "Checkout", new { tool.Name, checkout.MechanicName, checkout.WorkOrderId, checkout.ConditionAtCheckout });
+        WorkflowAudit("ToolCheckout", 0, "Borrow", new { tool.Name, checkout.MechanicName, checkout.WorkOrderId, checkout.ConditionAtCheckout });
         return RedirectToAction(nameof(ToolTracking));
     }, nameof(ToolTracking));
 
@@ -36,9 +36,9 @@ public partial class OwnerController
     public Task<IActionResult> ReturnEquipment(ToolReturnForm form) => SaveWorkflow(async () =>
     {
         var checkout = await _dbContext.ToolCheckouts.FindAsync(form.ToolCheckoutId);
-        Require(checkout is { ReturnedUtc: null, ToolId: not null }, "This checkout has already been returned or was not found.");
+        Require(checkout is { ReturnedUtc: null, ToolId: not null }, "This borrowed tool has already been returned or was not found.");
         var tool = await _dbContext.Tools.FindAsync(checkout!.ToolId);
-        Require(tool is not null, "The checked-out tool was not found.");
+        Require(tool is not null, "The borrowed tool was not found.");
         var missing = form.ConditionAtReturn == "Missing";
         checkout.ReturnedUtc = DateTime.UtcNow;
         checkout.ConditionAtReturn = form.ConditionAtReturn;

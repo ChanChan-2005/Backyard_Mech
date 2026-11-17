@@ -48,7 +48,7 @@
         </div>
 
         <aside class="tools-card tools-card-blue">
-            <h2>Active Checkout Details</h2>
+            <h2>Current Borrowing Details</h2>
             @if (Model.ActiveCheckout is null)
             {
                 <dl class="tools-detail-list">
@@ -60,7 +60,7 @@
                 <dl class="tools-detail-list">
                     <div><dt>Mechanic Assigned</dt><dd>@Model.ActiveCheckout.Mechanic</dd></div>
                     <div><dt>Work Order Link</dt><dd>@Model.ActiveCheckout.WorkOrder</dd></div>
-                    <div><dt>Checkout Time</dt><dd>@Model.ActiveCheckout.CheckoutTime</dd></div>
+                    <div><dt>Borrowed On</dt><dd>@Model.ActiveCheckout.CheckoutTime</dd></div>
                 </dl>
                 <a class="tools-button-blue" href="/Owner/ReturnEquipment/@Model.ToolId">Log Return & Inspection</a>
             }
@@ -69,7 +69,7 @@
 
     <section class="tools-panel">
         <div class="tools-panel-header">
-            <h2>Usage & Checkout Log</h2>
+            <h2>Borrowing & Return History</h2>
         </div>
         <table class="tools-table">
             <thead>
@@ -78,7 +78,7 @@
                     <th>Mechanic</th>
                     <th>Work Order</th>
                     <th>Action</th>
-                    <th>Cond. At Checkout</th>
+                    <th>Condition When Borrowed</th>
                     <th>Cond. At Return</th>
                     <th>Notes</th>
                 </tr>
@@ -98,12 +98,12 @@
                 }
                 @if (!Model.Logs.Any())
                 {
-                    <tr><td colspan="7">No checkout records yet.</td></tr>
+                    <tr><td colspan="7">No borrowing records yet.</td></tr>
                 }
             </tbody>
         </table>
         <footer class="tools-panel-footer">
-            <span>Showing @Model.Logs.Count of @Model.Logs.Count checkout records</span>
+            <span>Showing @Model.Logs.Count of @Model.Logs.Count borrowing records</span>
         </footer>
     </section>
 </section>

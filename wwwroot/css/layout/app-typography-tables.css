@@ -1,49 +1,36 @@
 /* Application-wide typography and table rhythm. */
-/* Keep page, form, and modal text at the same 10px scale as the side navigation. */
+/* Keep page text at the navigation scale; modal-system.css owns popup typography. */
 body.app-shell-body .app-main,
-body.app-shell-body .app-main *,
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-),
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) * {
+body.app-shell-body .app-main :not(.app-modal, .app-modal *) {
   font-size: 10px !important;
 }
 
 body.app-shell-body {
   color: #202b38;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 13px;
   line-height: 1.45;
 }
 
 body.app-shell-body .dashboard-content {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 10px;
   line-height: 1.45;
+}
+
+html { scroll-padding-top: 12px; }
+
+.notification-target td {
+  animation: notification-target-pulse 1s ease-in-out 4;
+}
+
+@keyframes notification-target-pulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: #cfe3ff; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-target td { animation: none; background-color: #e8f1ff !important; }
 }
 
 body.app-shell-body .dashboard-content table {
@@ -51,7 +38,7 @@ body.app-shell-body .dashboard-content table {
   border-collapse: collapse;
   border-spacing: 0;
   color: #344256;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 10px;
   line-height: 1.4;
 }
@@ -64,7 +51,7 @@ body.app-shell-body .dashboard-content table th {
   padding: 12px 14px;
   border-bottom: 1px solid #dfe5ec;
   color: #53647a;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: .035em;
@@ -78,7 +65,7 @@ body.app-shell-body .dashboard-content table td {
   padding: 12px 14px;
   border-bottom: 1px solid #e7ebf0;
   color: #344256;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 10px;
   font-weight: 400;
   line-height: 1.4;
@@ -94,7 +81,7 @@ body.app-shell-body .dashboard-content table tbody tr:hover {
 }
 
 body.app-shell-body .dashboard-content table :is(input, select, textarea, button) {
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
 }
 
 body.app-shell-body .dashboard-content table :is(input, select) {
@@ -115,6 +102,29 @@ body.app-shell-body .dashboard-content .queue-panel .queue-table th,
 body.app-shell-body .dashboard-content .queue-panel .queue-table td {
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+body.app-shell-body .app-main :is(.parts-item, .inspection-item) .badge,
+body.app-shell-body .app-main table td :is(span, small):is(
+  [class~="badge"],
+  [class$="-badge"], [class*="-badge "],
+  [class$="-pill"], [class*="-pill "],
+  [class$="-status"], [class*="-status "]
+) {
+  display: inline-flex;
+  align-items: center;
+  height: auto !important;
+  min-height: 12px !important;
+  padding: 1px 5px !important;
+  border-radius: 999px;
+  font-size: 8px !important;
+  line-height: 1.25 !important;
+  white-space: nowrap;
+}
+
+body.app-shell-body #parts-inventory-table .parts-pill {
+  padding: 1px 5px;
+  font-size: 8px !important;
 }
 
 body.app-shell-body .dashboard-content .queue-panel .queue-table th:nth-child(1),

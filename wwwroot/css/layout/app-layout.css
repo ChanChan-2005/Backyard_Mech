@@ -1,4 +1,4 @@
-﻿body.app-shell-body {
+body.app-shell-body {
   margin: 0;
   margin-bottom: 0;
   height: 100vh;
@@ -6,7 +6,7 @@
   overflow-x: hidden;
   color: #171b22;
   background: #eef0f3;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 12px;
 }
 
@@ -208,6 +208,7 @@
   left: 10px;
   color: #7b8491;
   transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .app-search span svg {
@@ -470,7 +471,7 @@ body.app-shell-body .app-page-toolbar .app-search {
   border-radius: 6px;
   background: #fff;
   color: #344256;
-  font: 600 10px/1.2 "Segoe UI", Arial, sans-serif;
+  font: 600 10px/1.2 var(--app-font-family, Arial, Helvetica, sans-serif);
   cursor: pointer;
 }
 
@@ -482,7 +483,7 @@ body.app-shell-body .dashboard-content .app-search-submit {
   border-radius: 6px !important;
   background: #fff !important;
   color: #344256 !important;
-  font: 600 10px/1.2 "Segoe UI", Arial, sans-serif !important;
+  font: 600 10px/1.2 var(--app-font-family, Arial, Helvetica, sans-serif) !important;
 }
 
 .app-search-submit:hover {
@@ -495,7 +496,7 @@ body.app-shell-body .dashboard-content .app-search-submit {
   outline-offset: 2px;
 }
 
-body.app-shell-body .dashboard-content input[type="search"] {
+body.app-shell-body .dashboard-content input[type="search"]:not(.app-modal input) {
   box-sizing: border-box;
   width: min(100%, 360px) !important;
   max-width: 360px !important;
@@ -509,7 +510,7 @@ body.app-shell-body .dashboard-content input[type="search"] {
   font-size: 10px !important;
 }
 
-body.app-shell-body .dashboard-content :is(.app-search, .estimate-search-box, .parts-search-box, .wo-search-box, .customer-search-box, .users-search-box, .records-search-box) input[type="search"] {
+body.app-shell-body .dashboard-content :is(.app-search, .estimate-search-box, .parts-search-box, .wo-search-box, .customer-search-box, .users-search-box, .records-search-box) input[type="search"]:not(.app-modal input) {
   padding-left: 30px !important;
 }
 
@@ -560,7 +561,7 @@ body.app-shell-body .dashboard-content input[type="search"]:focus-visible {
   stroke-linecap: round;
 }
 
-body.app-shell-body .dashboard-content .vehicle-record-search-box input[type="search"] {
+body.app-shell-body .dashboard-content .vehicle-record-search-box input[type="search"]:not(.app-modal input) {
   box-sizing: border-box !important;
   width: 100% !important;
   max-width: none !important;
@@ -580,7 +581,7 @@ body.app-shell-body .dashboard-content .vehicle-record-search > .app-search-subm
   padding: 5px 11px !important;
   border-radius: 6px !important;
   font-size: 10px !important;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 @media (max-width: 600px) {

@@ -129,7 +129,7 @@
                 <h2>Shop Allocation</h2>
                 <dl class="wo-detail-list">
                     <div><dt>Primary Bay</dt><dd>@Model.Bay</dd></div>
-                    <div><dt>Primary Technician</dt><dd>@Model.Mechanic</dd></div>
+                    <div><dt>Primary Mechanic</dt><dd>@Model.Mechanic</dd></div>
                     <div><dt>Secondary Helper</dt><dd>@(Model.Mechanic.Contains(",") ? Model.Mechanic.Split(',').Last().Trim() : "None assigned")</dd></div>
                     <div><dt>Odometer Reading</dt><dd>@Model.Odometer</dd></div>
                 </dl>
@@ -161,7 +161,7 @@
     </div>
 </section>
 @if(editable && Can("Work Orders", "Edit")) {
-<dialog class="repair-dialog" id="edit-workorder" aria-labelledby="edit-workorder-title"><form method="post" asp-action="EditWorkOrder">
+<dialog class="repair-dialog app-modal" id="edit-workorder" aria-labelledby="edit-workorder-title" role="dialog" aria-modal="true"><form method="post" asp-action="EditWorkOrder">
 <header><h2 id="edit-workorder-title">Edit Work Order</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
 <input type="hidden" name="WorkOrderId" value="@order.WorkOrderId" /><input type="hidden" name="EstimateId" value="@order.EstimateId" />
 <div class="repair-fields">

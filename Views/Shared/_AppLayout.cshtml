@@ -19,7 +19,6 @@
     var employeeName = string.Join(" ", new[] { employeeProfile?.FirstName, employeeProfile?.LastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
     var hasProfilePhoto = currentUserId > 0 && Backyard_Mech.Services.ProfilePhotoStore.Find(HostEnvironment.ContentRootPath, currentUserId) is not null;
     var permissionCodes = await PermissionService.GetPermissionCodesAsync(sessionUserRole);
-    bool CanViewModule(string module) => permissionCodes.Contains("*") || permissionCodes.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, "View"));
     var userName = ViewData["ShellUserName"]?.ToString() ?? (string.IsNullOrWhiteSpace(employeeName) ? sessionUserName : employeeName);
     var userRole = ViewData["ShellUserRole"]?.ToString() ?? await PermissionService.GetRoleNameAsync(sessionUserRole);
     var initials = ViewData["ShellUserInitials"]?.ToString() ?? string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
@@ -45,6 +44,7 @@
     var isReports = string.Equals(activeNav, "Reports", StringComparison.OrdinalIgnoreCase);
     var isSettings = string.Equals(activeNav, "Settings", StringComparison.OrdinalIgnoreCase);
     var showPageSearch = !isBayManagement && !isReports && !isSettings
+        && !string.Equals(activeNav, "Parts POS", StringComparison.OrdinalIgnoreCase)
         && !shellClass.Contains("customer-detail-shell", StringComparison.OrdinalIgnoreCase)
         && !shellClass.Contains("profile-settings-shell", StringComparison.OrdinalIgnoreCase);
 
@@ -59,6 +59,7 @@
         new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders", Module = "Work Orders", AlternateModule = "" },
         new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement", Module = "Bays", AlternateModule = "" },
         new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement", Module = "Inventory", AlternateModule = "" },
+        new { Icon = "invoice", Label = "Parts POS", Href = "/Owner/PartsPos", Module = "Inventory", AlternateModule = "" },
         new { Icon = "users", Label = "Suppliers", Href = "/Owner/Suppliers", Module = "Suppliers", AlternateModule = "" },
         new { Icon = "estimate", Label = "Service Catalog", Href = "/Owner/ServiceCatalog", Module = "Services", AlternateModule = "" },
         new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking", Module = "Labour", AlternateModule = "" },
@@ -105,9 +106,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Bakyard Mech</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/repair-workflow.css" asp-append-version="true" />
@@ -129,12 +127,15 @@
     <link rel="stylesheet" href="~/css/owner/employees/owner-user-management.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/reports/owner-reports.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/settings/owner-settings.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/owner/owner-modal-fields.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Backyard_Mech.styles.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/owner/modal-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-typography-tables.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/table-pagination.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-button-colors.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-page-header.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/owner/modal-system.css" asp-append-version="true" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
 </head>
 <body class="app-shell-body @shellClass"
       data-session-idle-timeout-ms="@(Backyard_Mech.Services.AccountSecurityService.SessionIdleTimeoutMinutes * 60 * 1000)"
@@ -152,7 +153,8 @@
             <nav class="app-nav">
                 @foreach (var item in navItems)
                 {
-                    var canViewItem = string.IsNullOrWhiteSpace(item.Module) || CanViewModule(item.Module) || (!string.IsNullOrWhiteSpace(item.AlternateModule) && CanViewModule(item.AlternateModule));
+                    var canViewItem = !item.Href.StartsWith("/Owner/", StringComparison.OrdinalIgnoreCase)
+                        || Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, item.Href["/Owner/".Length..]);
                     if (!canViewItem)
                     {
                         continue;
@@ -195,10 +197,8 @@
             </header>
 
             <section class="dashboard-content">
-                @if (TempData["OwnerMessage"] is string workflowMessage)
-                {
-                    <div class="repair-message @TempData["OwnerMessageTone"]" role="status">@workflowMessage</div>
-                }
+
+
                 @if (showPageSearch || IsSectionDefined("TopbarActions"))
                 {
                     <div class="app-page-toolbar">
@@ -207,7 +207,7 @@
                             <div class="app-search-control">
                                 <label class="app-search">
                                     <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
-                                    <input type="search" data-global-search placeholder="@(searchPlaceholderOverride ?? (isEstimates ? "Search estimates..." : isAppointments ? "Search tickets, VIN, plate, customer..." : isServiceQueue ? "Search queue, plate, VIN..." : isQualityControl ? "Search WO#, plate, customer..." : isToolsTracking ? "Search item by name, serial, category..." : isInvoicing ? "Search invoice #, customer..." : isUserManagement ? "Search by name, role, email..." : isWorkOrders || isPartsManagement || isLabourTracking ? "Search plate, customer, phone..." : "Search plate, customer, phone..."))" aria-label="Search this page" />
+                                    <input maxlength="256" type="search" data-global-search placeholder="@(searchPlaceholderOverride ?? (isEstimates ? "Search estimates..." : isAppointments ? "Search tickets, VIN, plate, customer..." : isServiceQueue ? "Search queue, plate, VIN..." : isQualityControl ? "Search WO#, plate, customer..." : isToolsTracking ? "Search item by name, serial, category..." : isInvoicing ? "Search invoice #, customer..." : isUserManagement ? "Search by name, position, email..." : isWorkOrders || isPartsManagement || isLabourTracking ? "Search plate, customer, phone..." : "Search plate, customer, phone..."))" aria-label="Search this page" />
                                 </label>
                                 <button type="button" class="app-search-submit" data-search-submit>Search</button>
                             </div>
@@ -228,11 +228,13 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/canadian-phone.js" asp-append-version="true"></script>
     <script src="~/js/search-commit.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/session-timeout.js" asp-append-version="true"></script>
     <script src="~/js/modal-required-indicators.js" asp-append-version="true"></script>
     <script src="~/js/owner-repair-workflow.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/table-pagination.js" asp-append-version="true"></script>
 </body>
 </html>

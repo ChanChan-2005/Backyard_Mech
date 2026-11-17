@@ -264,6 +264,7 @@ public partial class OwnerController
             ApprovedLines = await _dbContext.EstimateRevisionLineItems.AsNoTracking().Where(x => x.ApprovalStatus == "Approved").ToListAsync(),
             Customers = orders.ToDictionary(x => x.WorkOrderId, x => appointments.GetValueOrDefault(x.AppointmentId ?? 0)?.CustomerName ?? "Customer unavailable"),
             Parts = await _dbContext.Parts.AsNoTracking().OrderBy(x => x.Name).ToListAsync(),
+            Suppliers = await _dbContext.Suppliers.AsNoTracking().OrderBy(x => x.SupplierName).ToListAsync(),
             Employees = await _dbContext.EmployeeProfiles.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).ToListAsync(),
             Movements = await _dbContext.PartTransactions.AsNoTracking().Where(x => (!workOrderId.HasValue || x.WorkOrderId == workOrderId) && (!partId.HasValue || x.PartId == partId)).OrderByDescending(x => x.PerformedUtc).ToListAsync(),
             Labour = labour, Segments = await _dbContext.ServiceTimeSegments.AsNoTracking().Where(x => entryIds.Contains(x.ServiceEntryId ?? 0)).ToListAsync(),

@@ -6,7 +6,7 @@
 
 <div class="parts-modal" data-parts-modal-panel="edit-part" aria-hidden="true">
     <div class="parts-modal-backdrop" data-parts-modal-close></div>
-    <section class="parts-modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-part-title">
+    <section class="parts-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="edit-part-title">
         <form class="parts-form-panel" asp-controller="Owner" asp-action="EditPart" method="post">
             @Html.AntiForgeryToken()
             <input name="PartId" type="hidden" data-edit-part-field="id" />
@@ -42,7 +42,7 @@
                     </label>
                     <label class="parts-wide-label">
                         <span class="parts-label">Description</span>
-                        <textarea class="parts-input parts-textarea" name="Description" data-edit-part-field="description"></textarea>
+                        <textarea maxlength="2000" class="parts-input parts-textarea" name="Description" data-edit-part-field="description"></textarea>
                     </label>
                 </div>
             </section>
@@ -51,20 +51,20 @@
                 <h2>Section 2: Price and Stock</h2>
                 <div class="parts-form-grid">
                     <label>
-                        <span class="parts-label">Cost Price</span>
-                        <input class="parts-input" name="UnitCost" type="number" min="0" step="0.01" data-edit-part-field="cost" />
+                        <span class="parts-label">Cost Price (CA$)</span>
+                        <input max="9999999999999999.99" class="parts-input" name="UnitCost" type="number" min="0" step="0.01" data-edit-part-field="cost" />
                     </label>
                     <label>
-                        <span class="parts-label">Selling Price</span>
-                        <input class="parts-input" name="UnitPrice" type="number" min="0" step="0.01" data-edit-part-field="price" />
+                        <span class="parts-label">Selling Price (CA$)</span>
+                        <input max="9999999999999999.99" class="parts-input" name="UnitPrice" type="number" min="0" step="0.01" data-edit-part-field="price" />
                     </label>
                     <label>
                         <span class="parts-label">Quantity On Hand</span>
-                        <input class="parts-input" name="QuantityOnHand" type="number" min="0" data-edit-part-field="quantity" />
+                        <input max="2147483647" class="parts-input" name="QuantityOnHand" type="number" min="0" data-edit-part-field="quantity" readonly />
                     </label>
                     <label>
                         <span class="parts-label">Reorder Threshold</span>
-                        <input class="parts-input" name="ReorderThreshold" type="number" min="0" data-edit-part-field="threshold" />
+                        <input max="2147483647" class="parts-input" name="ReorderThreshold" type="number" min="0" data-edit-part-field="threshold" />
                     </label>
                 </div>
             </section>
@@ -73,9 +73,9 @@
                 <h2>Section 3: Supplier</h2>
                 <div class="parts-form-grid">
                     <label class="parts-wide-label">
-                        <span class="parts-label">Preferred Supplier</span>
-                        <select class="parts-select" name="SupplierId" data-edit-part-field="supplier">
-                            <option value="">No supplier selected</option>
+                        <span class="parts-label">Preferred Supplier *</span>
+                        <select class="parts-select" name="SupplierId" data-edit-part-field="supplier" required>
+                            <option value="">Select supplier</option>
                             @foreach (var supplier in supplierOptions)
                             {
                                 <option value="@supplier.Id">@supplier.Label</option>

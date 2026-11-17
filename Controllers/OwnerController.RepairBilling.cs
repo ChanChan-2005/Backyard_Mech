@@ -197,7 +197,7 @@ public partial class OwnerController
         Require(payment?.InvoiceId is not null && payment.Amount > 0, "Payment is missing or already voided.");
         var invoice = await OpenInvoice(payment!.InvoiceId!.Value);
         WorkflowAudit("Payment", form.Id, "Void payment", new { Original = payment, form.Reason });
-        payment.Notes = $"Voided payment of {payment.Amount:N2}: {form.Reason}. {payment.Notes}";
+        payment.Notes = $"Voided payment of {CurrencyDisplay.Cad(payment.Amount)}: {form.Reason}. {payment.Notes}";
         payment.Amount = 0;
         await RefreshInvoiceStatus(invoice);
         return RedirectToAction(nameof(InvoiceDetails), new { id = invoice.InvoiceId });
@@ -268,6 +268,25 @@ public partial class OwnerController
     {
         var invoice = await OpenInvoice(form.Id);
         Require(!await _dbContext.Payments.AnyAsync(x => x.InvoiceId == form.Id && x.Amount > 0), "An invoice with payments cannot be voided. Resolve its payments first.");
+        if (invoice.WorkOrderId is null)
+        {
+            var posLines = await _dbContext.InvoiceLineItems.Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync();
+            if (posLines.Any(x => x.SourceType == "POS Part"))
+            {
+                Require(posLines.All(x => x.SourceType == "POS Part" && x.SourceId.HasValue && x.Quantity > 0 && x.Quantity == decimal.Truncate(x.Quantity.Value)), "The POS sale has invalid part lines.");
+                foreach (var line in posLines)
+                {
+                    var part = await _dbContext.Parts.FindAsync(line.SourceId!.Value);
+                    Require(part is not null, "A sold part is missing from inventory.");
+                    var quantity = (int)line.Quantity!.Value;
+                    part!.QuantityOnHand = checked(part.QuantityOnHand + quantity);
+                    _dbContext.PartTransactions.Add(new PartTransaction { PartId = part.PartId, TransactionType = "Adjustment In",
+                        Quantity = quantity, UnitCostAtTransaction = part.UnitCost, PerformedUtc = DateTime.UtcNow,
+                        PerformedByUserId = HttpContext.Session.GetString("UserId"), PerformedByName = HttpContext.Session.GetString("UserName"),
+                        Notes = $"Voided parts POS invoice {invoice.InvoiceNumber}: {form.Reason}" });
+                }
+            }
+        }
         WorkflowAudit("Invoice", form.Id, "Void invoice", new { Original = invoice, form.Reason });
         invoice.InvoiceStatus = "Voided";
         invoice.PaidUtc = null;

@@ -8,13 +8,14 @@
             modal.setAttribute("aria-hidden", "false");
             document.body.classList.add("queue-modal-open");
 
-            const firstField = modal.querySelector("input, textarea, select, button");
+            const firstField = modal.querySelector("[data-mechanic-picker] summary") ?? modal.querySelector("input:not([disabled]), textarea:not([disabled]), select:not([disabled])") ?? modal.querySelector("button");
             firstField?.focus();
         };
 
         const closeModal = (modal) => {
             if (!modal) return;
 
+            modal.querySelectorAll("[data-mechanic-picker]").forEach(picker => picker.open = false);
             modal.classList.remove("is-open");
             modal.setAttribute("aria-hidden", "true");
 
@@ -23,20 +24,16 @@
             }
         };
 
+        document.addEventListener("change", (event) => {
+            const input = event.target.closest("[data-mechanic-name]");
+            if (!input) return;
+            const picker = input.closest("[data-mechanic-picker]");
+            picker.querySelector("#queue-mechanic-value").textContent = input.dataset.mechanicName;
+            picker.open = false;
+            picker.querySelector("summary").focus();
+        });
+
         document.addEventListener("click", (event) => {
-            const mechanicChoice = event.target.closest("[data-queue-mechanic-choice]");
-            if (mechanicChoice) {
-                const modal = mechanicChoice.closest("[data-queue-modal-panel='assign-mechanic']");
-                const input = mechanicChoice.querySelector("input[type='radio']");
-
-                if (modal && input && !input.disabled) {
-                    input.checked = true;
-                    modal.querySelectorAll("[data-queue-mechanic-choice]").forEach(choice => {
-                        choice.classList.toggle("selected", choice === mechanicChoice);
-                    });
-                }
-            }
-
             const bayChoice = event.target.closest("[data-queue-bay-choice]");
             if (bayChoice) {
                 const modal = bayChoice.closest("[data-queue-modal-panel='assign-bay']");

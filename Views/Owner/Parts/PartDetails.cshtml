@@ -1,4 +1,5 @@
 @model PartDetailsViewModel
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = Model.Name;
@@ -6,10 +7,21 @@
     ViewData["PageSubtitle"] = $"INVENTORY > PARTS > {Model.Sku}";
     ViewData["ActiveNav"] = "Parts Management";
     ViewData["ShellClass"] = "parts-shell";
+    var editPart = ViewData["EditPart"] as Part;
+    var canEditPart = editPart is not null && await PermissionService.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inventory", "Edit");
 }
 
 @section TopbarActions {
-    <button class="parts-button" type="button" data-parts-modal="edit-part">Edit Part</button>
+    @if (canEditPart)
+    {
+        <button class="parts-button" type="button" data-parts-modal="edit-part"
+                data-part-id="@editPart!.PartId" data-part-sku="@editPart.SKU" data-part-name="@editPart.Name"
+                data-part-description="@editPart.Description" data-part-category="@editPart.PartCategoryId"
+                data-part-supplier="@editPart.SupplierId"
+                data-part-cost="@(editPart.UnitCost?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                data-part-price="@(editPart.UnitPrice?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                data-part-quantity="@editPart.QuantityOnHand" data-part-threshold="@editPart.ReorderThreshold">Edit Part</button>
+    }
 }
 
 <section class="parts-page">
@@ -81,7 +93,10 @@
     </section>
 </section>
 
-@await Html.PartialAsync("_EditPartModal")
+@if (canEditPart)
+{
+    @await Html.PartialAsync("_EditPartModal", ViewData["EditPartOptions"])
+}
 
 @section Scripts {
     @await Html.PartialAsync("_PartModalScripts")

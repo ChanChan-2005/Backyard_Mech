@@ -20,14 +20,14 @@
         <tr><td>WO-@row.WorkOrderId</td><td><strong>@row.MechanicName</strong><br />@row.ServiceDescription</td><td>
         @if(active is not null) { <strong data-timer-seconds="@seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-timer-start="@(active.SegmentType == "Work" ? DateTime.SpecifyKind(active.SegmentStart ?? DateTime.UtcNow, DateTimeKind.Utc).ToString("O") : "")"></strong><br /><span>@(active.SegmentType == "Work" ? "Running" : "Paused")</span> }
         else { <span>@row.DurationMinutes minutes</span> }
-        </td><td>@row.HourlyRate?.ToString("N2")</td><td>@row.ServiceCost?.ToString("N2")</td><td><div class="repair-actions">
+        </td><td>@CurrencyDisplay.Cad(row.HourlyRate)</td><td>@CurrencyDisplay.Cad(row.ServiceCost)</td><td><div class="repair-actions">
         @if(editable && active is not null && Can("Edit")) { <form method="post" asp-action="ChangeLabourTimer"><input type="hidden" name="ServiceEntryId" value="@row.ServiceEntryId" /><button type="submit" name="Transition" value="@(active.SegmentType == "Work" ? "Pause" : "Resume")">@(active.SegmentType == "Work" ? "Pause" : "Resume")</button><button type="submit" name="Transition" value="Complete">Complete</button></form> }
         @if(editable && active is null && Can("Edit")) { <button type="button" data-dialog-open="labour-@row.ServiceEntryId">Edit</button> }
         @if(editable && active is null && Can("Delete")) { <button type="button" data-dialog-open="delete-labour-@row.ServiceEntryId">Delete</button> }
         </div></td></tr>
     }
     @if(Model.Labour.Count == 0) { <tr><td colspan="6">No labour entries found.</td></tr> }
-    </tbody></table></div><p class="repair-total">Logged labour: @Model.Labour.Sum(x => x.ServiceCost ?? 0).ToString("N2")</p></section>
+    </tbody></table></div><p class="repair-total">Logged labour: @CurrencyDisplay.Cad(Model.Labour.Sum(x => x.ServiceCost ?? 0))</p></section>
 </div>
 @if(Can("Create")) { @await Html.PartialAsync("_LabourEditor", new LabourEditor(new LabourSaveForm { WorkOrderId = Model.WorkOrderId ?? 0 }, Model)) }
 @foreach(var row in Model.Labour) {

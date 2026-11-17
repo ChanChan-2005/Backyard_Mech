@@ -42,7 +42,7 @@
             <input type="hidden" name="tab" value="@activeTab" />
             <label>
                 <span>Length</span>
-                <input name="RetentionValue" type="number" min="1" value="@pageModel.RetentionValue" />
+                <input max="10000" name="RetentionValue" type="number" min="1" value="@pageModel.RetentionValue" />
             </label>
             <label>
                 <span>Unit</span>
@@ -59,7 +59,7 @@
 
     <div class="records-filter-card">
         <div class="app-search-control records-search-control">
-            <label class="records-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="disposition-records-table" placeholder="Search disposition records..." /></label>
+            <label class="records-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input maxlength="256" type="search" data-search-target="disposition-records-table" placeholder="Search disposition records..." /></label>
             <button type="button" class="app-search-submit" data-search-submit>Search</button>
         </div>
         <a class="records-button" href="/Owner/ArchiveRecords">Open Archive</a>
@@ -132,7 +132,7 @@
 
 <div class="records-confirm-modal" data-permanent-delete-modal aria-hidden="true">
     <button class="records-confirm-backdrop" type="button" data-permanent-delete-close aria-label="Close confirmation"></button>
-    <section class="records-confirm-card" role="dialog" aria-modal="true" aria-labelledby="permanent-delete-title">
+    <section class="records-confirm-card app-modal app-modal--compact" role="dialog" aria-modal="true" aria-labelledby="permanent-delete-title">
         <header>
             <span class="records-confirm-icon" aria-hidden="true">!</span>
             <div>

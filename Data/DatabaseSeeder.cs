@@ -10,8 +10,29 @@ namespace Backyard_Mech.Data
         {
             await dbContext.Database.EnsureCreatedAsync();
             await EnsureBusinessSchemaAsync(dbContext);
+            await PartCategoryCatalogSeed.EnsureAsync(dbContext);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF COL_LENGTH('dbo.Supplier', 'UnitNumber') IS NULL ALTER TABLE dbo.Supplier ADD UnitNumber nvarchar(20) NULL;
+                IF COL_LENGTH('dbo.Supplier', 'StreetNumber') IS NULL ALTER TABLE dbo.Supplier ADD StreetNumber nvarchar(20) NULL;
+                IF COL_LENGTH('dbo.Supplier', 'StreetName') IS NULL ALTER TABLE dbo.Supplier ADD StreetName nvarchar(150) NULL;
+                IF COL_LENGTH('dbo.Supplier', 'StreetType') IS NULL ALTER TABLE dbo.Supplier ADD StreetType nvarchar(30) NULL;
+                """);
             await SecuritySchema.EnsureAsync(dbContext);
             await StaffAccessSeed.EnsureAsync(dbContext);
+            await RootAdministratorSeed.EnsureAsync(dbContext, configuration);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.GarageSettings', N'U') IS NULL
+                    CREATE TABLE dbo.GarageSettings (
+                        Id int NOT NULL PRIMARY KEY,
+                        ValuesJson nvarchar(max) NOT NULL,
+                        Logo varbinary(max) NULL,
+                        LogoContentType nvarchar(30) NULL,
+                        Revision uniqueidentifier NOT NULL
+                    );
+                IF NOT EXISTS (SELECT 1 FROM dbo.GarageSettings WHERE Id = 1)
+                    INSERT dbo.GarageSettings (Id, ValuesJson, Revision) VALUES (1, N'{{}}', NEWID());
+                """);
+
 
             if (await dbContext.Users.AnyAsync())
             {
@@ -23,7 +44,7 @@ namespace Backyard_Mech.Data
             var userName = seedSection["UserName"] ?? "Admin";
             var password = seedSection["Password"]
                 ?? throw new InvalidOperationException("Seed admin password is required. Set SeedAdminUser__Password in configuration.");
-            var role = seedSection["Role"] ?? "Owner";
+            var role = "RootAdmin";
 
             dbContext.Users.Add(new AppUser
             {
@@ -39,6 +60,8 @@ namespace Backyard_Mech.Data
 
         private static async Task EnsureBusinessSchemaAsync(ApplicationDbContext dbContext)
         {
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PartTransaction', N'SupplierId') IS NULL ALTER TABLE dbo.PartTransaction ADD SupplierId INT NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_PartTransaction_Supplier') ALTER TABLE dbo.PartTransaction WITH CHECK ADD CONSTRAINT FK_PartTransaction_Supplier FOREIGN KEY (SupplierId) REFERENCES dbo.Supplier(SupplierId);");
             await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.EmployeeProfile', N'U') IS NOT NULL
                 BEGIN
@@ -139,7 +162,8 @@ namespace Backyard_Mech.Data
 
                 MERGE dbo.AppRole AS target
                 USING (VALUES
-                    (N'Owner', N'Garage Owner', N'Full system owner access.', 10, 1, 1),
+                    (N'RootAdmin', N'Root Administrator', N'System-protected root administrator.', 0, 1, 1),
+                    (N'Owner', N'Garage Owner', N'Full garage operations access; permissions are editable.', 10, 0, 1),
                     (N'Administrator', N'Administrator', N'Administrative garage operations access.', 20, 0, 1),
                     (N'Service Advisor', N'Service Advisor', N'Customer intake and service queue access.', 30, 0, 1),
                     (N'Mechanic/Technician', N'Mechanic/Technician', N'Work order and repair workflow access.', 40, 0, 1),
@@ -148,7 +172,7 @@ namespace Backyard_Mech.Data
                     (N'Accounting/Cashier', N'Accounting/Cashier', N'Invoice and payment workflow access.', 70, 0, 1)
                 ) AS source(RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                 ON target.RoleKey = source.RoleKey
-                WHEN MATCHED THEN
+                WHEN MATCHED AND source.RoleKey = N'RootAdmin' THEN
                     UPDATE SET
                         RoleName = source.RoleName,
                         Description = source.Description,
@@ -227,7 +251,7 @@ namespace Backyard_Mech.Data
                     (N'Labour', N'Delete', N'labour.delete', N'Delete labour entries.'),
                     (N'Labour', N'Approve', N'labour.approve', N'Approve labour workflow items.'),
                     (N'Tools', N'View', N'tools.view', N'View tools and equipment.'),
-                    (N'Tools', N'Create', N'tools.create', N'Create tools and checkouts.'),
+                    (N'Tools', N'Create', N'tools.create', N'Create tools and record borrowing.'),
                     (N'Tools', N'Edit', N'tools.edit', N'Edit tools and returns.'),
                     (N'Tools', N'Delete', N'tools.delete', N'Delete tools.'),
                     (N'Tools', N'Approve', N'tools.approve', N'Approve tool workflow items.'),

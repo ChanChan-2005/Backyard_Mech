@@ -42,7 +42,7 @@
             });
             grid.append(day);
         }
-        find('[data-appointment-count]').textContent = `${view === 'list' ? matching.length : visible} appointments`;
+        find('[data-appointment-count]').textContent = `${visible} appointments`;
     }
     page.addEventListener('click', event => {
         const toggle = event.target.closest('[data-appointment-view]');
@@ -63,9 +63,13 @@
     page.addEventListener('change', render);
     document.querySelectorAll('[data-appointment-form]').forEach(form => {
         const customer = form.elements.CustomerId; const vehicle = form.elements.VehicleId;
+        const vehicleWarning = form.querySelector('[data-vehicle-warning]');
         const filter = () => {
+            const hasCustomer = Boolean(customer.value);
+            vehicle.disabled = !hasCustomer;
+            if (vehicleWarning) vehicleWarning.hidden = hasCustomer;
             [...vehicle.options].forEach(option => { if (option.value) option.disabled = option.hidden = option.dataset.customer !== customer.value; });
-            if (vehicle.selectedOptions[0]?.disabled) vehicle.value = '';
+            if (!hasCustomer || vehicle.selectedOptions[0]?.disabled) vehicle.value = '';
         };
         customer.addEventListener('change', filter); filter();
         form.addEventListener('submit', event => {

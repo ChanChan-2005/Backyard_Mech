@@ -22,8 +22,8 @@ function AccessForm($id,$role,$choices){
     $html=(GetPage "/Owner/StaffAccounts?userId=$id").Content
     $stamp=[regex]::Match($html,'name="Expected" value="([^"]+)"').Groups[1].Value
     $body=@{UserId=$id;Expected=$stamp;RoleKey=$role;IsActive='true';Reason=$mark}
-    $matches=[regex]::Matches($html,'name="Permissions\[(\d+)\].PermissionId" value="(\d+)"')
-    foreach($match in $matches){$i=$match.Groups[1].Value;$permission=$match.Groups[2].Value;$code=[string](Sql "SELECT PermissionCode FROM Permission WHERE PermissionId=$permission");$body["Permissions[$i].PermissionId"]=$permission;$body["Permissions[$i].Mode"]=if($choices.ContainsKey($code)){$choices[$code]}else{'Inherit'}}
+    $i=0
+    foreach($code in $choices.Keys){$permission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode=N'$code'";$body["Permissions[$i].PermissionId"]=$permission;$body["Permissions[$i].Mode"]=$choices[$code];$i++}
     return $body
 }
 function ExceptionStamp($id){[regex]::Match((GetPage '/Owner/StaffAvailability').Content,"(?s)id=`"exception-$id`".*?name=`"Expected`" value=`"([^`"]+)`"").Groups[1].Value}
@@ -43,7 +43,7 @@ try {
     Check ($profile -gt 0 -and [DBNull]::Value.Equals((Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile"))) 'Creating a profile does not create an account'
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE Email=N'$mark@example.com'") -eq 0) 'Profile contact email is not a login'
     $null=Sql "INSERT AppRole(RoleKey,RoleName,DisplayOrder,IsSystemProtected,IsActive) VALUES(N'$role',N'$role',999,0,1); INSERT RolePermission(RoleId,PermissionId) SELECT N'$role',PermissionId FROM Permission WHERE PermissionCode IN ('suppliers.view','suppliers.create');"
-    $accountForm=@{EmployeeProfileId=$profile;Email="$mark-login@example.com";UserName=$mark;Password='Test-Only!Password123';RoleKey=$role}
+    $accountForm=@{EmployeeProfileId=$profile;Email="$mark-login@example.com";UserName=$mark;Password='Test-Only!Password123';ConfirmPassword='Test-Only!Password123';RoleKey=$role}
     $null=Post 'CreateStaffAccount' $accountForm
     $account=[int](Sql "SELECT Id FROM Users WHERE UserName=N'$mark'")
     Check ($account -gt 0 -and (Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile") -eq "$account") 'Explicit account creation links selected profile'
@@ -51,35 +51,41 @@ try {
     $null=Post 'CreateStaffAccount' $accountForm
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE UserName=N'$mark'") -eq 1) 'Duplicate account for profile rejected'
     $other=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark-other@example.com',N'$mark-other',PasswordHash,Role,1,GETUTCDATE() FROM Users WHERE Id=$account; SELECT CAST(SCOPE_IDENTITY() AS int);")
-    $defaults=[int](Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId=N'$role'")
     $form=AccessForm $account $role @{'suppliers.view'='Deny';'services.view'='Allow'}
     $null=Post 'SaveUserAccess' $form
-    Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 2) 'Allow and Deny saved per user'
-    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId=N'$role'") -eq $defaults) 'Role defaults unchanged'
+    Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 0) 'Individual permission submissions rejected'
+    $html=(GetPage "/Owner/StaffAccounts?userId=$account").Content
+    Check ($html.Contains('Role Permissions (read-only)') -and !$html.Contains('data-edit-permission-toggle')) 'Account access shows read-only role permissions'
+    $null=Sql "INSERT UserPermissionOverride(UserId,PermissionId,IsAllowed) SELECT $account,PermissionId,CASE WHEN PermissionCode='suppliers.view' THEN 0 ELSE 1 END FROM Permission WHERE PermissionCode IN ('suppliers.view','services.view');"
     $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
     SignIn "$mark-login@example.com" 'Test-Only!Password123'
     $accountSession=$session
-    $page=GetPage '/Owner/ServiceCatalog'
-    Check ($page.Content.Contains('Service Catalog') -and !$page.Content.Contains('href="/Owner/Suppliers"')) 'Allow exposes module; Deny hides sidebar module'
+    Check ((GetPage '/Owner/Suppliers').Content.Contains('id="master-new"')) 'Legacy deny cannot remove role access'
     $status=0
-    try{$null=GetPage '/Owner/Suppliers'}catch{$status=[int]$_.Exception.Response.StatusCode}
-    Check ($status -eq 403) 'Denied module cannot be opened directly'
-    $status=0
-    try{$null=Invoke-WebRequest "$BaseUrl/Owner/CreateSupplier" -Method Post -WebSession $session -Body @{Name=$mark;__RequestVerificationToken=$script:loginToken} -UseBasicParsing}catch{$status=[int]$_.Exception.Response.StatusCode}
-    Check ($status -eq 403) 'Deny module View also blocks inherited mutation'
+    try{$null=GetPage '/Owner/ServiceCatalog'}catch{$status=[int]$_.Exception.Response.StatusCode}
+    Check ($status -eq 403) 'Legacy allow cannot grant access outside role'
     $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
     SignIn "$mark-other@example.com" 'Test-Only!Password123'
-    Check ((GetPage '/Owner/Suppliers').Content.Contains('id="master-new"')) 'Second user with same role remains unaffected'
+    $otherSession=$session
+    Check ((GetPage '/Owner/Suppliers').Content.Contains('id="master-new"')) 'Accounts with same role have same access'
     $session=$ownerSession
+    $servicePermission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode='services.view'"
+    $null=Post 'SaveRolePermissions' @{RoleId=$role;'PermissionIds[0]'=$servicePermission}
+    foreach($staffSession in @($accountSession,$otherSession)){
+        $session=$staffSession
+        Check ((GetPage '/Owner/ServiceCatalog').Content.Contains('Service Catalog')) 'Role permission update reaches existing employee session'
+        $status=0
+        try{$null=GetPage '/Owner/Suppliers'}catch{$status=[int]$_.Exception.Response.StatusCode}
+        Check ($status -eq 403) 'Role permission removal applies to every assigned account'
+    }
+    $session=$ownerSession
+    $stale=AccessForm $account $role @{}
+    $stale.IsActive='false'
+    $null=Post 'SaveUserAccess' $stale
+    $stale.IsActive='true'
+    $null=Post 'SaveUserAccess' $stale
+    Check (!(Sql "SELECT IsActive FROM Users WHERE Id=$account")) 'Stale account access save rejected'
     $null=Post 'SaveUserAccess' (AccessForm $account $role @{})
-    Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 0) 'Inherit removes override rows'
-    $session=$accountSession
-    Check ((GetPage '/Owner/Suppliers').Content.Contains('id="master-new"')) 'Existing session immediately inherits restored role defaults'
-    $session=$ownerSession
-    $stale=AccessForm $account $role @{'services.view'='Allow'}
-    $null=Post 'SaveUserAccess' $stale
-    $null=Post 'SaveUserAccess' $stale
-    Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 1) 'Stale access save rejected without duplication'
     $body.EmployeeProfileId=$profile;$body.RoleId='Owner'
     $null=Post 'EditEmployee' $body
     Check ((Sql "SELECT Role FROM Users WHERE Id=$account") -eq $role) 'Legacy profile form cannot escalate account role'
@@ -116,7 +122,7 @@ try {
     $accountForm.Remove('__RequestVerificationToken')
     try{$null=Invoke-WebRequest "$BaseUrl/Owner/CreateStaffAccount" -Method Post -WebSession $session -Body $accountForm -UseBasicParsing}catch{$status=[int]$_.Exception.Response.StatusCode}
     Check ($status -eq 400) 'Account creation requires antiforgery token'
-    Write-Output 'Staff accounts, overrides and availability checks completed.'
+    Write-Output 'Staff accounts, role permissions and availability checks completed.'
 } finally {
     $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder; DELETE Appointment WHERE AppointmentId=$appointment; DELETE EmployeeAvailabilityException WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeAvailability WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeProfile WHERE EmployeeProfileId IN ($profile,$second); DELETE UserPermissionOverride WHERE UserId IN ($owner,$account,$other); DELETE AccountSecurity WHERE UserId IN ($owner,$account,$other); DELETE Users WHERE Id IN ($owner,$account,$other); DELETE RolePermission WHERE RoleId=N'$role'; DELETE AppRole WHERE RoleKey=N'$role';"
     $db.Dispose()

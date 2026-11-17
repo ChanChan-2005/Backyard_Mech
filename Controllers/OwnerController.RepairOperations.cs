@@ -178,7 +178,7 @@ public partial class OwnerController
     private static int PhysicalDelta(string? type, int quantity) => type switch
     {
         "Received" or "Returned" or "Adjustment In" => quantity,
-        "Installed" or "Wasted" or "Adjustment Out" => -quantity,
+        "Installed" or "Wasted" or "Sold" or "Adjustment Out" => -quantity,
         _ => 0
     };
 
@@ -198,9 +198,18 @@ public partial class OwnerController
 
     private Task<IActionResult> SaveMovement(StockMovementForm form) => SaveWorkflow(async () =>
     {
+        var access = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+        Require(access.Contains("*") || access.Contains("owneraction.managestocktransactions") ||
+            (form.WorkOrderId.HasValue && form.TransactionType is "Installed" or "Returned"),
+            "Your role may record installed or returned parts for a work order. Stock receipts, reservations and adjustments require stock management permission.");
         await UseSubmission(form.SubmissionToken);
         var part = await _dbContext.Parts.FindAsync(form.PartId);
         Require(part is { IsActive: true, IsArchived: false, IsDeleted: false }, "Select an active part.");
+        if (form.TransactionType == "Received")
+            Require(form.SupplierId.HasValue && await _dbContext.Suppliers.AnyAsync(x => x.SupplierId == form.SupplierId && x.IsActive),
+                "Select the supplier that delivered this stock.");
+        else
+            Require(!form.SupplierId.HasValue, "A supplier is recorded only for received stock.");
         var jobMovement = form.TransactionType is "Reserved" or "Installed" or "Returned" or "Released" or "Wasted";
         Require(jobMovement == form.WorkOrderId.HasValue, "Work-order movements need a work order; receipts and adjustments must not be assigned to one.");
         if (jobMovement) await EditableOrder(form.WorkOrderId!.Value);
@@ -210,19 +219,20 @@ public partial class OwnerController
         if (form.PartTransactionId > 0)
         {
             movement = ledger.FirstOrDefault(x => x.PartTransactionId == form.PartTransactionId)!;
-            Require(movement is not null && movement.TransactionType == form.TransactionType && movement.WorkOrderId == form.WorkOrderId, "Only quantity and notes can be edited; reverse an incorrect movement type instead.");
+            Require(movement is not null && movement.TransactionType != "Sold" && movement.TransactionType == form.TransactionType && movement.WorkOrderId == form.WorkOrderId, "POS sales can only be reversed by voiding their invoice.");
             WorkflowAudit("PartTransaction", movement!.PartTransactionId, "Before edit", movement);
             oldDelta = PhysicalDelta(movement.TransactionType, movement.Quantity ?? 0);
         }
         else
         {
-            movement = new PartTransaction { PartId = part!.PartId, WorkOrderId = form.WorkOrderId, TransactionType = form.TransactionType,
+            movement = new PartTransaction { PartId = part!.PartId, SupplierId = form.SupplierId, WorkOrderId = form.WorkOrderId, TransactionType = form.TransactionType,
                 UnitCostAtTransaction = part.UnitCost, PerformedUtc = DateTime.UtcNow,
                 PerformedByUserId = HttpContext.Session.GetString("UserId"), PerformedByName = HttpContext.Session.GetString("UserName") };
             ledger.Add(movement);
             _dbContext.PartTransactions.Add(movement);
         }
         movement.Quantity = form.Quantity;
+        movement.SupplierId = form.SupplierId;
         movement.Notes = form.Notes.Trim();
         part!.QuantityOnHand = checked(part.QuantityOnHand - oldDelta + PhysicalDelta(form.TransactionType, form.Quantity));
         ValidateLedger(part, ledger);
@@ -248,7 +258,7 @@ public partial class OwnerController
     public Task<IActionResult> ReverseStockMovement(WorkflowReasonForm form) => SaveWorkflow(async () =>
     {
         var movement = await _dbContext.PartTransactions.FindAsync(form.Id);
-        Require(movement is not null && movement.TransactionType != "Voided", "Transaction not found or already reversed.");
+        Require(movement is not null && movement.TransactionType is not ("Voided" or "Sold"), "POS sales can only be reversed by voiding their invoice.");
         if (movement!.WorkOrderId.HasValue) await EditableOrder(movement.WorkOrderId.Value);
         var part = await _dbContext.Parts.FindAsync(movement.PartId);
         Require(part is not null, "Part not found.");

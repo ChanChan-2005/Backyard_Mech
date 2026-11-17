@@ -42,7 +42,7 @@ namespace Backyard_Mech.Models
         public string Location { get; set; } = string.Empty;
         public string Condition { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public string StatusTone { get; set; } = "checked";
+        public string StatusTone { get; set; } = "borrowed";
         public string LastCalibration { get; set; } = string.Empty;
         public string NextCalibration { get; set; } = string.Empty;
         public ToolCheckoutDetail? ActiveCheckout { get; set; }

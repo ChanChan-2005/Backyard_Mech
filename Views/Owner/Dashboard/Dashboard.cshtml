@@ -1,5 +1,8 @@
 @model DashboardViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
+    var codes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool CanOpen(string action) => Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(codes, action);
     Layout = "_AppLayout";
     ViewData["Title"] = "Owner Dashboard";
     ViewData["PageTitle"] = "Dashboard";
@@ -7,7 +10,11 @@
     ViewData["SearchPlaceholder"] = "Search dashboard records...";
 }
 
-<div class="metric-grid">
+@if (Model.VisibleSections.Count == 0)
+{
+    <p class="dashboard-panel">No dashboard sections are enabled for your role. Ask an administrator to select sections under Roles &amp; Permissions ? Dashboard.</p>
+}
+<div class="metric-grid" style="--metric-count: @Math.Max(1, Model.Metrics.Count);">
     @foreach (var metric in Model.Metrics)
     {
         <article class="metric-card">
@@ -24,6 +31,8 @@
 </div>
 
 <div class="dashboard-grid">
+    @if (Model.CanSee("DashboardServiceQueue"))
+    {
     <section class="dashboard-panel queue-panel">
         <div class="panel-heading">
             <div class="tab-row">
@@ -67,7 +76,10 @@
             </tbody>
         </table>
     </section>
+    }
 
+    @if (Model.CanSee("DashboardLabourProductivity"))
+    {
     <section class="dashboard-panel">
         <div class="panel-heading">
             <h2>Labour Productivity</h2>
@@ -97,15 +109,18 @@
             }
         </div>
     </section>
+    }
 </div>
 
 <div class="lower-grid">
+    @if (Model.CanSee("DashboardPendingApprovals"))
+    {
     <section class="dashboard-panel">
         <div class="panel-heading"><h2>Pending Customer Approvals</h2></div>
         <div class="compact-list">
             @foreach (var approval in Model.PendingApprovals)
             {
-                <article class="approval-item" data-search="@($"{approval.Customer} {approval.Vehicle} {approval.Amount}")"><div><span class="compact-primary">@approval.Customer</span><span class="compact-secondary">@approval.Vehicle</span></div><div><span class="approval-amount">@approval.Amount</span><span class="approval-sent">@approval.Sent</span></div><a class="mini-btn link" asp-action="EstimateDetails" asp-route-id="@approval.EstimateId">View approval</a></article>
+                <article class="approval-item" data-search="@($"{approval.Customer} {approval.Vehicle} {approval.Amount}")"><div><span class="compact-primary">@approval.Customer</span><span class="compact-secondary">@approval.Vehicle</span></div><div><span class="approval-amount">@approval.Amount</span><span class="approval-sent">@approval.Sent</span></div>@if (CanOpen("EstimateDetails")) { <a class="mini-btn link" asp-action="EstimateDetails" asp-route-id="@approval.EstimateId">View approval</a> }</article>
             }
             @if (!Model.PendingApprovals.Any())
             {
@@ -113,9 +128,12 @@
             }
         </div>
     </section>
+    }
 
+    @if (Model.CanSee("DashboardInventoryAlerts"))
+    {
     <section class="dashboard-panel">
-        <div class="panel-heading"><h2>Parts & Inventory Alerts</h2><a asp-action="LowStockPartsReport">View low stock</a></div>
+        <div class="panel-heading"><h2>Parts & Inventory Alerts</h2>@if (CanOpen("LowStockPartsReport")) { <a asp-action="LowStockPartsReport">View low stock</a> }</div>
         <div class="compact-list">
             @foreach (var part in Model.PartAlerts)
             {
@@ -127,7 +145,10 @@
             }
         </div>
     </section>
+    }
 
+    @if (Model.CanSee("DashboardInspections"))
+    {
     <section class="dashboard-panel">
         <div class="panel-heading"><h2>QC & Inspections</h2><span class="metric-note warn">@Model.PendingInspectionLabel</span></div>
         <div class="compact-list">
@@ -141,9 +162,12 @@
             }
         </div>
     </section>
+    }
 </div>
 
 <div class="bottom-grid">
+    @if (Model.CanSee("DashboardRecentInvoices"))
+    {
     <section class="dashboard-panel invoice-panel">
         <div class="panel-heading"><h2>Recent Invoices</h2><span class="muted">Today's Collected: <span class="collected">@Model.TodayCollected</span></span></div>
         <table class="invoice-table">
@@ -160,7 +184,10 @@
             </tbody>
         </table>
     </section>
+    }
 
+    @if (Model.CanSee("DashboardRecentActivity"))
+    {
     <section class="dashboard-panel">
         <div class="panel-heading"><h2>Recent Shop Activity</h2></div>
         <div class="activity-list">
@@ -174,4 +201,5 @@
             }
         </div>
     </section>
+    }
 </div>

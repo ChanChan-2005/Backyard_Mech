@@ -30,3 +30,44 @@
     root.querySelector('[data-master-next]').addEventListener('click', () => { page++; render(); });
     render();
 })();
+
+// Reuse the local Canadian geography catalog for every supplier editor.
+(async () => {
+    const selectors = [...document.querySelectorAll('[data-supplier-province]')];
+    if (!selectors.length) return;
+    try {
+        const response = await fetch('/data/canada-sgc-2021.json');
+        if (!response.ok) throw new Error('Location data unavailable');
+        const catalog = await response.json();
+        selectors.forEach(province => {
+            const form = province.form;
+            const city = form.querySelector('[data-supplier-city]');
+            const status = form.querySelector('[data-supplier-location-status]');
+            const savedProvince = province.dataset.current || '';
+            const savedCity = city.dataset.current || '';
+            const fill = (select, names, saved, placeholder) => {
+                select.replaceChildren(new Option(placeholder, ''));
+                [...new Set(names)].sort((a, b) => a.localeCompare(b)).forEach(name => select.add(new Option(name, name)));
+                if (saved && !names.includes(saved)) select.add(new Option(saved + ' (saved value)', saved));
+                select.value = saved;
+            };
+            fill(province, catalog.provinces.map(item => item.name), savedProvince, 'Select province / territory');
+            const updateCities = (initial = false) => {
+                const selected = catalog.provinces.find(item => item.name === province.value);
+                const names = selected ? catalog.municipalities.filter(item => item.provinceCode === selected.code).map(item => item.name) : [];
+                fill(city, names, initial ? savedCity : '', selected ? 'Select city / municipality' : 'Select province first');
+                city.disabled = !selected && !(initial && savedCity);
+                status.textContent = selected ? 'Select the supplier municipality in ' + selected.name + '.' : 'Choose a province to see its municipalities.';
+            };
+            updateCities(true);
+            province.addEventListener('change', () => updateCities(false));
+        });
+    } catch {
+        selectors.forEach(province => {
+            province.form.querySelector('[data-supplier-location-status]').textContent = 'Location list could not load. Refresh to retry. Saved locations have been retained.';
+        });
+    }
+})();
+document.addEventListener('input', event => {
+    if (event.target.matches('[data-supplier-postal]')) event.target.value = event.target.value.toUpperCase();
+});

@@ -9,6 +9,7 @@
 
     var pageModel = Model ?? new ToolTrackingViewModel();
     var tools = pageModel.Tools;
+    var calibrationFocus = string.Equals(Context.Request.Query["notification"], "calibration-overdue", StringComparison.OrdinalIgnoreCase);
     var filteredTools = tools.Where(tool =>
         (!pageModel.SelectedCategoryId.HasValue || tool.ToolCategoryId == pageModel.SelectedCategoryId.Value) &&
         (string.IsNullOrWhiteSpace(pageModel.SelectedStatus) || string.Equals(tool.Status, pageModel.SelectedStatus, StringComparison.OrdinalIgnoreCase)))
@@ -29,7 +30,7 @@
     <div class="tools-stats">
         <article class="tools-stat"><span>Total Inventory</span><strong>@tools.Count Tools</strong></article>
         <article class="tools-stat"><header><span>Available Now</span><small class="tools-green">Live</small></header><strong>@tools.Count(tool => tool.Status == "Available")</strong></article>
-        <article class="tools-stat"><header><span>Checked Out</span><small class="tools-blue">Active</small></header><strong>@tools.Count(tool => tool.Status == "Checked Out")</strong></article>
+        <article class="tools-stat"><header><span>Borrowed</span><small class="tools-blue">In Use</small></header><strong>@tools.Count(tool => tool.Status == "Borrowed")</strong></article>
         <article class="tools-stat"><header><span>Under Maintenance</span><small class="tools-orange">Review</small></header><strong>@tools.Count(tool => tool.Status == "Under Maintenance")</strong></article>
         <article class="tools-stat"><header><span>Damaged & Missing</span><small class="tools-red">Alert</small></header><strong>@tools.Count(tool => tool.Tone == "missing")</strong></article>
     </div>
@@ -56,91 +57,98 @@
         </form>
         <div class="tools-filter-right">
             <div class="tools-view-switch">
-                <button class="active" type="button">Table</button>
-                <button type="button">Grid</button>
+                <button class="active" type="button" data-tools-view="table" aria-pressed="true">Table</button>
+                <button type="button" data-tools-view="grid" aria-pressed="false">Grid</button>
             </div>
         </div>
     </div>
 
     <section class="tools-panel">
-        <table class="tools-table">
-            <thead>
-                <tr>
-                    <th>Tool Name</th>
-                    <th>Serial Number</th>
-                    <th>Category</th>
-                    <th>Location</th>
-                    <th>Condition</th>
-                    <th>Calibration Due</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var tool in filteredTools)
-                {
-                    var toolSlug = tool.ToolId.ToString();
+        <div class="tools-table-scroll">
+            <table class="tools-table" id="tools-table">
+                <thead>
                     <tr>
-                        <td><a class="tools-link" href="/Owner/ToolProfile/@toolSlug">@tool.Name</a></td>
-                        <td>@tool.Serial</td>
-                        <td>@tool.Category</td>
-                        <td>@tool.Location</td>
-                        <td>@tool.Condition</td>
-                        <td><strong class="@(tool.Calibration.StartsWith("Overdue") ? "tools-red" : "")">@tool.Calibration</strong></td>
-                        <td><span class="tools-pill @tool.Tone">@tool.Status</span></td>
-                        <td class="tools-row-actions">
-                            <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">View</a>
-                            <button class="tools-small-button" type="button"
-                                    data-tools-modal="edit-tool"
-                                    data-tool-id="@tool.ToolId"
-                                    data-tool-name="@tool.Name"
-                                    data-tool-serial="@tool.Serial"
-                                    data-tool-category="@tool.ToolCategoryId"
-                                    data-tool-location="@tool.RawLocation"
-                                    data-tool-condition="@tool.RawCondition"
-                                    data-tool-last-calibrated="@tool.LastCalibratedDate"
-                                    data-tool-next-calibration="@tool.NextCalibrationDueDate">Edit</button>
-                            @if (tool.Action == "Checkout")
-                            {
-                                <button class="tools-small-button" type="button" data-tools-modal="checkout-tool" data-tool-id="@tool.ToolId">Checkout</button>
-                            }
-                            else if (tool.Action == "Return")
-                            {
-                                <button class="tools-small-button" type="button" data-tools-modal="return-tool" data-tool-id="@tool.ToolId" data-checkout-id="@tool.ActiveCheckoutId">Return</button>
-                            }
-                            else if (tool.Action == "Complete Maintenance")
-                            {
-                                <button class="tools-small-button" type="button" data-tools-modal="complete-maintenance" data-tool-id="@tool.ToolId">Complete Maintenance</button>
-                            }
-                            else
-                            {
-                                <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">@tool.Action</a>
-                            }
-                            @if (tool.Status is "Available" or "Calibration Overdue")
-                            {
-                                <button class="tools-small-button" type="button" data-tools-modal="start-maintenance" data-tool-id="@tool.ToolId">Maintenance</button>
-                            }
-                            <form asp-controller="Owner" asp-action="ArchiveTool" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="ToolId" value="@tool.ToolId" />
-                                <input type="hidden" name="Reason" value="Archived from Tools Tracking" />
-                                <button class="tools-small-button" type="submit">Archive</button>
-                            </form>
-                            <form asp-controller="Owner" asp-action="SoftDeleteTool" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="ToolId" value="@tool.ToolId" />
-                                <input type="hidden" name="Reason" value="Deleted from Tools Tracking" />
-                                <button class="tools-small-button danger" type="submit">Delete</button>
-                            </form>
-                        </td>
+                        <th>Tool Name</th>
+                        <th>Serial Number</th>
+                        <th>Category</th>
+                        <th>Location</th>
+                        <th>Condition</th>
+                        <th>Calibration Due</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
-                }
-                @if (filteredTools.Count == 0)
-                {
-                    <tr><td colspan="8" class="tools-empty">No tools match these filters.</td></tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var tool in filteredTools)
+                    {
+                        var toolSlug = tool.ToolId.ToString();
+                        <tr class="@(calibrationFocus && tool.IsActive && tool.NextCalibrationDueUtc.HasValue && tool.NextCalibrationDueUtc.Value.Date < DateTime.UtcNow.Date ? "notification-target" : "")">
+                            <td data-label="Tool name"><a class="tools-link" href="/Owner/ToolProfile/@toolSlug">@tool.Name</a></td>
+                            <td data-label="Serial number">@tool.Serial</td>
+                            <td data-label="Category">@tool.Category</td>
+                            <td data-label="Location">@tool.Location</td>
+                            <td data-label="Condition">@tool.Condition</td>
+                            <td data-label="Calibration due"><strong class="@(tool.Calibration.StartsWith("Overdue") ? "tools-red" : "")">@tool.Calibration</strong></td>
+                            <td data-label="Status"><span class="tools-pill @tool.Tone">@tool.Status</span></td>
+                            <td class="tools-row-actions" data-label="Actions">
+                                <details class="tools-actions-menu">
+                                    <summary aria-label="Actions for @tool.Name">Actions <span aria-hidden="true">&#9662;</span></summary>
+                                    <div class="tools-actions-list">
+                                        <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">View</a>
+                                        <button class="tools-small-button" type="button"
+                                                data-tools-modal="edit-tool"
+                                                data-tool-id="@tool.ToolId"
+                                                data-tool-name="@tool.Name"
+                                                data-tool-serial="@tool.Serial"
+                                                data-tool-category="@tool.ToolCategoryId"
+                                                data-tool-location="@tool.RawLocation"
+                                                data-tool-condition="@tool.RawCondition"
+                                                data-tool-last-calibrated="@tool.LastCalibratedDate"
+                                                data-tool-next-calibration="@tool.NextCalibrationDueDate">Edit</button>
+                                        @if (tool.Action == "Borrow")
+                                        {
+                                            <button class="tools-small-button" type="button" data-tools-modal="checkout-tool" data-tool-id="@tool.ToolId">Borrow</button>
+                                        }
+                                        else if (tool.Action == "Return")
+                                        {
+                                            <button class="tools-small-button" type="button" data-tools-modal="return-tool" data-tool-id="@tool.ToolId" data-checkout-id="@tool.ActiveCheckoutId">Return</button>
+                                        }
+                                        else if (tool.Action == "Complete Maintenance")
+                                        {
+                                            <button class="tools-small-button" type="button" data-tools-modal="complete-maintenance" data-tool-id="@tool.ToolId">Complete Maintenance</button>
+                                        }
+                                        else
+                                        {
+                                            <a class="tools-small-button" href="/Owner/ToolProfile/@toolSlug">@tool.Action</a>
+                                        }
+                                        @if (tool.Status is "Available" or "Calibration Overdue")
+                                        {
+                                            <button class="tools-small-button" type="button" data-tools-modal="start-maintenance" data-tool-id="@tool.ToolId">Maintenance</button>
+                                        }
+                                        <form asp-controller="Owner" asp-action="ArchiveTool" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="ToolId" value="@tool.ToolId" />
+                                            <input type="hidden" name="Reason" value="Archived from Tools Tracking" />
+                                            <button class="tools-small-button" type="submit">Archive</button>
+                                        </form>
+                                        <form asp-controller="Owner" asp-action="SoftDeleteTool" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="ToolId" value="@tool.ToolId" />
+                                            <input type="hidden" name="Reason" value="Deleted from Tools Tracking" />
+                                            <button class="tools-small-button danger" type="submit">Delete</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                    @if (filteredTools.Count == 0)
+                    {
+                        <tr><td colspan="8" class="tools-empty">No tools match these filters.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
 
         <footer class="tools-panel-footer">
             <span>Showing @filteredTools.Count of @tools.Count tools</span>
@@ -162,4 +170,15 @@
 @section Scripts {
     @await Html.PartialAsync("_ToolModalScripts")
     <script src="~/js/owner-tool-transactions.js" asp-append-version="true"></script>
+    <script>
+      document.querySelectorAll('[data-tools-view]').forEach(button => button.addEventListener('click', () => {
+        const grid = button.dataset.toolsView === 'grid';
+        document.querySelector('.tools-panel')?.classList.toggle('tools-grid-view', grid);
+        document.querySelectorAll('[data-tools-view]').forEach(item => {
+          const selected = item === button;
+          item.classList.toggle('active', selected);
+          item.setAttribute('aria-pressed', String(selected));
+        });
+      }));
+    </script>
 }

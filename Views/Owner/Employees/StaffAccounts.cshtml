@@ -1,66 +1,102 @@
 @model StaffAccountsPage
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout="_AppLayout";
     ViewData["Title"]=ViewData["PageTitle"]="Staff Profiles & Accounts";
     ViewData["PageSubtitle"]="USER MANAGEMENT";
     ViewData["ActiveNav"]="Account Access";
+    ViewData["SearchPlaceholder"]="Search employee, email or role...";
+    var canEditProfile = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Employees", "Edit");
+    var canDeleteProfile = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Employees", "Delete");
     var eligible=Model.Profiles.Where(x=>x.IsActive && string.IsNullOrWhiteSpace(x.UserId)).ToList();
-    var permissionActions=new[]{"View","Create","Edit","Delete","Approve"};
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/employees/owner-staff-access.css" asp-append-version="true" />
 <section class="master-data staff-access">
     <header class="master-toolbar"><h2>Staff Profiles</h2><div class="master-actions"><a class="app-action-link" href="/Owner/Employees">Employee Directory</a>@if(Model.CanCreate){<button class="master-primary" data-staff-open="create-account" type="button" disabled="@(eligible.Count==0)">+ Create Account</button>}</div></header>
-    <div class="master-table-wrap"><table><thead><tr><th>Name</th><th>Job Title</th><th>Staff Status</th><th>Login Account</th><th>Role</th><th>Action</th></tr></thead><tbody>
+    <div class="master-table-wrap staff-profiles-table-wrap" tabindex="0" role="region" aria-label="Staff profiles"><table class="staff-profiles-table"><colgroup><col class="staff-name-column" /><col class="staff-job-column" /><col class="staff-status-column" /><col class="staff-login-column" /><col class="staff-role-column" /><col class="staff-actions-column" /></colgroup><thead><tr><th>Name</th><th>Job Title / Position<small class="app-field-help">Work performed in the shop</small></th><th>Staff Status</th><th>Login Account</th><th>System Access Role<small class="app-field-help">Pages and actions allowed</small></th><th>Action</th></tr></thead><tbody>
     @foreach(var profile in Model.Profiles){
         var account=Model.Accounts.FirstOrDefault(x=>x.Id.ToString()==profile.UserId);
-        <tr><td>@profile.FirstName @profile.LastName</td><td>@profile.JobTitle</td><td>@(profile.IsActive?"Active":"Inactive")</td><td>@(account?.Email??"No account")</td><td>@(account?.Role??"Not assigned")</td><td>@if(account is not null){<a class="app-action-link" href="/Owner/StaffAccounts?userId=@account.Id#access-settings">View Access</a>}</td></tr>
+        <tr><td>@profile.FirstName @profile.LastName</td><td>@profile.JobTitle</td><td>@(profile.IsActive?"Active":"Inactive")</td><td><span class="staff-login-email" title="@(account?.Email)">@(account?.Email??"No account")</span></td><td>@(Model.Roles.FirstOrDefault(r=>r.RoleKey==account?.Role)?.RoleName ?? account?.Role ?? "No login account")</td><td><div class="master-actions staff-row-actions">
+            @if(account is not null){<a class="app-action-link" data-view-account-access="@account.Id" href="/Owner/StaffAccounts?userId=@account.Id#access-settings">@(Model.CanEdit ? "Edit" : "View")</a>}
+            else if(canEditProfile){<a class="app-action-link" href="/Owner/EmployeeAccountDetails/@profile.EmployeeProfileId">Edit</a>}
+            @if(canDeleteProfile && (account is null || (account.Id.ToString()!=Context.Session.GetString("UserId") && !Model.Roles.Any(r=>r.RoleKey==account.Role && r.IsSystemProtected)))){
+                <button type="button" data-staff-open="staff-archive" data-staff-profile-action="@profile.EmployeeProfileId" data-staff-name="@profile.FirstName @profile.LastName">Archive</button>
+                <button type="button" class="staff-delete-action" data-staff-open="staff-soft-delete" data-staff-profile-action="@profile.EmployeeProfileId" data-staff-name="@profile.FirstName @profile.LastName">Soft Delete</button>
+            }
+        </div></td></tr>
     }
     </tbody></table></div>
-    <details><summary>Other Login Accounts</summary><div class="master-table-wrap"><table><thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody>
-    @foreach(var account in Model.Accounts.Where(x=>!Model.Profiles.Any(p=>p.UserId==x.Id.ToString()))){<tr><td>@account.UserName</td><td>@account.Email</td><td>@account.Role</td><td><a class="app-action-link" href="/Owner/StaffAccounts?userId=@account.Id#access-settings">View Access</a></td></tr>}
+    <details><summary>Other Login Accounts</summary><div class="master-table-wrap"><table><thead><tr><th>Username</th><th>Email</th><th>System Access Role<small class="app-field-help">Pages and actions allowed</small></th><th>Action</th></tr></thead><tbody>
+    @foreach(var account in Model.Accounts.Where(x=>!Model.Profiles.Any(p=>p.UserId==x.Id.ToString()))){<tr><td>@account.UserName</td><td>@account.Email</td><td>@account.Role</td><td><a class="app-action-link" data-view-account-access="@account.Id" href="/Owner/StaffAccounts?userId=@account.Id#access-settings">@(Model.CanEdit ? "Edit" : "View")</a></td></tr>}
     </tbody></table></div></details>
 </section>
+@if(canDeleteProfile){
+    @foreach(var action in new[]{new{Id="staff-archive",Endpoint="ArchiveEmployee",Label="Archive"},new{Id="staff-soft-delete",Endpoint="SoftDeleteEmployee",Label="Soft Delete"}}){
+        <dialog id="@action.Id" class="master-dialog app-modal app-modal--compact" role="dialog" aria-modal="true" aria-labelledby="@action.Id-title">
+            <form asp-action="@action.Endpoint" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="EmployeeProfileId" /><input type="hidden" name="FromStaffAccounts" value="true" />
+                <header><h2 id="@action.Id-title">@action.Label Employee</h2><button type="button" data-staff-close aria-label="Close">&#215;</button></header>
+                <div class="app-modal-body">
+                    <p>Are you sure you want to @(action.Label.ToLowerInvariant()) <strong data-staff-action-name></strong>?</p>
+                    <p>Their records will be preserved and any linked login will be blocked. You can restore them from the employee directory.</p>
+                </div>
+                <footer><button type="button" data-staff-close>Cancel</button><button type="submit" class="@(action.Id=="staff-soft-delete" ? "app-modal-danger" : "master-primary")">@action.Label</button></footer>
+            </form>
+        </dialog>
+    }
+}
 @if(Model.Selected is not null){
     var user=Model.Selected;
-    <dialog class="master-dialog staff-access-modal" id="access-settings" aria-labelledby="access-settings-title">
+    <dialog class="master-dialog staff-access-modal app-modal app-modal--wide" id="access-settings" data-account-id="@user.Id" aria-labelledby="access-settings-title" role="dialog" aria-modal="true">
         <form method="post" asp-action="SaveUserAccess" data-user-access data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(Model.RoleDefaults)">
             @Html.AntiForgeryToken()
             <input type="hidden" name="UserId" value="@user.Id" /><input type="hidden" name="Expected" value="@Model.Expected" />
             <header class="master-toolbar"><div><h2 id="access-settings-title">Account Access: @user.UserName</h2><span>@user.Email</span></div><button type="button" data-staff-close aria-label="Close account access settings">&#215;</button></header>
-            @if(!Model.CanEdit){<p class="staff-notice">Read-only access. Your own account and the protected owner cannot be changed here.</p>}
+            @if(!Model.CanEdit){<p class="staff-notice">Read-only access. Your own account and the protected root administrator cannot be changed here.</p>}
             <fieldset disabled="@(!Model.CanEdit)" class="staff-access-fields">
                 <div class="staff-account-controls">
-                    <label>Role<select name="RoleKey" data-account-role>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected || x.RoleKey==user.Role)){<option value="@role.RoleKey" selected="@(role.RoleKey==user.Role)">@role.RoleName</option>}</select></label>
+                    <label>System Access Role<select name="RoleKey" aria-describedby="edit-access-role-help" data-account-role>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected || x.RoleKey==user.Role)){<option value="@role.RoleKey" selected="@(role.RoleKey==user.Role)">@role.RoleName</option>}</select><small id="edit-access-role-help" class="app-field-help">Controls access to system pages and actions. The employee's job title is managed in their profile.</small></label>
                     <label class="staff-check"><input type="checkbox" name="IsActive" value="true" checked="@user.IsActive" />Account enabled</label>
                 </div>
-                <h3>Individual Permissions</h3>
-                <input type="search" data-permission-search data-search-managed placeholder="Search module or action..." aria-label="Search permissions" />
-                <div class="master-table-wrap"><table><thead><tr><th>Module</th><th>Action</th><th>Role Default</th><th>User Setting</th><th>Effective Access</th></tr></thead><tbody>
-                @for(var i=0;i<Model.Permissions.Count;i++){
-                    var permission=Model.Permissions[i];var setting=Model.Overrides.FirstOrDefault(x=>x.PermissionId==permission.PermissionId);var mode=setting is null?"Inherit":setting.IsAllowed?"Allow":"Deny";
-                    <tr data-permission-row data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName" data-search="@($"{permission.ModuleName} {Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")}")" data-required-action="@Backyard_Mech.Services.OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action">
-                        <td>@permission.ModuleName<input type="hidden" name="Permissions[@i].PermissionId" value="@permission.PermissionId" /></td><td>@(Backyard_Mech.Services.OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is null ? permission.ActionName : Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""))</td><td data-default></td>
-                        <td><select name="Permissions[@i].Mode" aria-label="@permission.ModuleName @permission.ActionName permission" data-permission-choice>@foreach(var choice in new[]{"Inherit","Allow","Deny"}){<option selected="@(choice==mode)">@choice</option>}</select></td><td data-effective></td>
-                    </tr>
+                <h3>Role Permissions (read-only)</h3>
+                <p>Permissions come from the selected role. To change access for everyone with this role, edit <a href="/Owner/SettingsRoles">Roles &amp; Permissions</a>.</p>
+                <div class="app-search-control permission-search-control">
+                    <label class="permission-search-field">
+                        <span class="permission-search-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
+                        <input maxlength="256" type="search" data-permission-search data-search-managed placeholder="Search module or action..." aria-label="Search permissions" />
+                    </label>
+                    <button type="button" class="permission-search-button" data-search-submit>Search</button>
+                </div>
+                <p class="app-field-help" data-permission-empty hidden role="status">No matching permissions found.</p>
+                <div class="permission-groups">
+                @foreach(var module in Model.Permissions.GroupBy(p=>p.ModuleName).OrderBy(group=>group.Key)){
+                    <details open class="permission-group"><summary>@module.Key</summary><div class="permission-list">
+                    @foreach(var permission in module){
+                        <div class="permission-item" data-permission-row data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName" data-search="@($"{permission.ModuleName} {Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")}")" data-required-action="@Backyard_Mech.Services.OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action">
+                            <span>@Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")</span><strong data-role-access></strong>
+                        </div>
+                    }
+                    </div></details>
                 }
-                </tbody></table></div>
-                <label>Reason for Change *<textarea name="Reason" maxlength="500" required></textarea></label>
+                </div>
+                <p class="app-field-help">Access changes are recorded automatically in the audit log.</p>
                 @if(Model.CanEdit){<footer class="master-toolbar"><span></span><button class="master-primary" type="submit">Save Account Access</button></footer>}
             </fieldset>
         </form>
     </dialog>
 }
 @if(Model.CanCreate){
-<dialog class="master-dialog staff-account-dialog" id="create-account" aria-labelledby="create-account-title">
+<dialog class="master-dialog staff-account-dialog app-modal" id="create-account" aria-labelledby="create-account-title" role="dialog" aria-modal="true">
     <form id="create-account-form" method="post" asp-action="CreateStaffAccount" data-create-staff-account novalidate>
         @Html.AntiForgeryToken()
-        <header class="master-toolbar"><div><h2 id="create-account-title">Create Staff Account</h2><p>Create login credentials and assign a role to this staff profile.</p></div><button type="button" data-staff-close aria-label="Close">&#215;</button></header>
+        <header class="master-toolbar"><div><h2 id="create-account-title">Create Staff Account</h2><p>Create login credentials and assign the employee's access role.</p></div><button type="button" data-staff-close aria-label="Close">&#215;</button></header>
         <div class="master-fields">
             <div class="master-wide staff-profile-field" data-staff-profile-combobox>
                 <label for="staff-profile-search"><span>Staff Profile <span class="modal-required-indicator" aria-hidden="true">*</span></span></label>
                 <div class="staff-profile-control">
-                    <input id="staff-profile-search" class="staff-profile-search" type="text" role="combobox" aria-autocomplete="list" aria-controls="eligible-staff-profiles" aria-expanded="false" placeholder="Type or choose a staff member" autocomplete="off" required data-staff-profile-search />
+                    <input maxlength="256" id="staff-profile-search" class="staff-profile-search" type="text" role="combobox" aria-autocomplete="list" aria-controls="eligible-staff-profiles" aria-expanded="false" placeholder="Type or choose a staff member" autocomplete="off" required data-staff-profile-search />
                     <button type="button" class="staff-profile-toggle" aria-label="Show staff profiles" data-staff-profile-toggle></button>
                     <div id="eligible-staff-profiles" class="staff-profile-options" role="listbox" hidden>
                         @foreach(var p in eligible){<button type="button" role="option" id="staff-profile-option-@p.EmployeeProfileId" data-profile-id="@p.EmployeeProfileId" data-profile-name="@p.FirstName @p.LastName" aria-selected="false">@p.FirstName @p.LastName</button>}
@@ -74,47 +110,34 @@
             <label><span>Username <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="UserName" maxlength="120" required autocomplete="off" placeholder="e.g., alex.chen" /><small class="master-field-hint">The name they will enter when signing in.</small></label>
             <div class="staff-password-field"><label for="new-staff-password"><span>Password <span class="modal-required-indicator" aria-hidden="true">*</span></span></label><input id="new-staff-password" type="password" name="Password" minlength="12" maxlength="128" required autocomplete="new-password" aria-describedby="password-requirements" data-account-password /><div id="password-requirements" class="staff-password-pointer" data-password-pointer role="status" aria-live="polite" hidden><strong>Password must contain:</strong><ul><li data-password-rule="length"><span data-rule-state class="visually-hidden">Not met: </span>At least 12 characters</li><li data-password-rule="symbol"><span data-rule-state class="visually-hidden">Not met: </span>At least one special character</li><li data-password-rule="number"><span data-rule-state class="visually-hidden">Not met: </span>At least one number</li><li data-password-rule="lowercase"><span data-rule-state class="visually-hidden">Not met: </span>At least one lowercase letter</li><li data-password-rule="uppercase"><span data-rule-state class="visually-hidden">Not met: </span>At least one uppercase letter</li></ul></div></div>
             <label><span>Confirm Password <span class="modal-required-indicator" aria-hidden="true">*</span></span><input type="password" name="ConfirmPassword" minlength="12" maxlength="128" required autocomplete="new-password" data-account-confirm-password /><small class="master-field-hint">Re-enter the password to confirm it matches.</small></label>
-            <label class="master-wide"><span>Role <span class="modal-required-indicator" aria-hidden="true">*</span></span><select name="RoleKey" required data-new-account-role><option value="">Select a role</option>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected)){<option value="@role.RoleKey">@role.RoleName</option>}</select><small class="master-field-hint">Review and customize the role's permissions in the next step.</small></label>
+            <label class="master-wide"><span>System Access Role <span class="modal-required-indicator" aria-hidden="true">*</span></span><select name="RoleKey" aria-describedby="new-access-role-help" required data-new-account-role><option value="">Select an access role</option>@foreach(var role in Model.Roles.Where(x=>!x.IsSystemProtected)){<option value="@role.RoleKey">@role.RoleName</option>}</select><small id="new-access-role-help" class="app-field-help">Controls access to system pages and actions. Review permissions in the next step. The employee's job title stays in their profile.</small></label>
         </div>
         <footer><button type="button" data-staff-close>Cancel</button><button class="master-primary" type="button" data-staff-permissions-open="create-account-permissions">Permissions</button></footer>
     </form>
 </dialog>
-<dialog class="master-dialog staff-account-permissions-modal" id="create-account-permissions" aria-labelledby="create-account-permissions-title" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(Model.RoleDefaults)">
-    @for(var i=0;i<Model.Permissions.Count;i++){
-        var permission=Model.Permissions[i];
-        <input type="hidden" name="Permissions[@i].PermissionId" value="@permission.PermissionId" form="create-account-form" />
-        <input type="hidden" name="Permissions[@i].Mode" value="Inherit" form="create-account-form" data-new-account-permission-mode data-permission-id="@permission.PermissionId" />
-    }
-    <header class="master-toolbar"><div><h2 id="create-account-permissions-title">Account Permissions: <span data-account-permissions-role>Choose a role</span></h2><p>Checked boxes show this account's access. Changes here apply only to this account.</p></div><div class="staff-permission-actions"><button type="button" data-staff-close aria-label="Close permissions">&#215;</button></div></header>
-    <div class="staff-permissions-preview">
-        <div class="master-table-wrap"><table><thead><tr><th scope="col">Module / Feature</th>@foreach(var action in permissionActions){<th scope="col">@(action=="Approve"?"Approve / Dispatch":action)</th>}</tr></thead><tbody>
+<dialog class="master-dialog staff-account-permissions-modal app-modal app-modal--wide" id="create-account-permissions" aria-labelledby="create-account-permissions-title" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(Model.RoleDefaults)" role="dialog" aria-modal="true">
+    <header class="master-toolbar"><div><h2 id="create-account-permissions-title">Role Permissions: <span data-account-permissions-role>Choose an access role</span></h2><p>Read-only preview. Edit Roles &amp; Permissions to change access for all employees with this role.</p></div><div class="staff-permission-actions"><button type="button" data-staff-close aria-label="Close permissions">&#215;</button></div></header>
+    <div class="staff-permissions-preview permission-editor">
+        <input maxlength="256" type="search" data-staff-action-search placeholder="Find a module or action..." aria-label="Search permissions" />
+        <div class="permission-groups">
         @foreach(var module in Model.Permissions.GroupBy(p=>p.ModuleName).OrderBy(group=>group.Key)){
-            <tr><th scope="row">@module.Key</th>
-            @foreach(var action in permissionActions){
-                var permission=module.FirstOrDefault(p=>string.Equals(p.ActionName,action,StringComparison.OrdinalIgnoreCase));
-                <td>
-                    @if(permission is not null){<label class="staff-permission-check" title="@module.Key @action"><input type="checkbox" data-permission-toggle data-permission-id="@permission.PermissionId" data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName" aria-label="@module.Key @action permission" /><span aria-hidden="true"></span></label>}
-                    else{<span class="staff-permission-empty">-</span>}
-                </td>
-            }
-            </tr>
+            <details open class="permission-group">
+                <summary>@module.Key</summary>
+                <div class="permission-list">
+                @foreach(var permission in module){
+                    <div class="permission-item" data-staff-action-row data-search="@($"{permission.ModuleName} {Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")}")">
+                        <label>
+                            <input type="checkbox" disabled data-permission-toggle data-permission-id="@permission.PermissionId" data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName" data-required-action="@Backyard_Mech.Services.OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action" />
+                            <span>@Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")<small data-permission-default-label></small></span>
+                        </label>
+                    </div>
+                }
+                </div>
+            </details>
         }
-        </tbody></table>
-        <div class="staff-detailed-actions">
-            <h3>Individual actions</h3>
-            <input type="search" data-staff-action-search placeholder="Find a module or action..." aria-label="Search individual account actions" />
-            <table><thead><tr><th scope="col">Module</th><th scope="col">Action</th><th scope="col">Allow</th></tr></thead><tbody>
-            @foreach(var permission in Model.Permissions.Where(p=>!permissionActions.Contains(p.ActionName)).OrderBy(p=>p.ModuleName).ThenBy(p=>p.ActionName)){
-                <tr data-staff-action-row data-search="@($"{permission.ModuleName} {Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")}")">
-                    <td>@permission.ModuleName</td>
-                    <td>@Backyard_Mech.Services.OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? "")</td>
-                    <td><label class="staff-permission-check" title="@permission.ModuleName @permission.ActionName"><input type="checkbox" data-permission-toggle data-permission-id="@permission.PermissionId" data-code="@permission.PermissionCode" data-module="@permission.ModuleName" data-action="@permission.ActionName" data-required-action="@Backyard_Mech.Services.OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action" aria-label="@permission.ModuleName @permission.ActionName permission" /><span aria-hidden="true"></span></label></td>
-                </tr>
-            }
-            </tbody></table>
-        </div></div>
+        </div>
     </div>
-    <footer><span>Role defaults are preselected. Tick or untick a box to customize this account.</span><div class="staff-permission-footer-actions"><button type="button" data-staff-close>Back</button><button class="master-primary" type="submit" form="create-account-form">Create Account</button></div></footer>
+    <footer><span>This account will use the selected role's permissions.</span><div class="staff-permission-footer-actions"><button type="button" data-staff-close>Back</button><button class="master-primary" type="submit" form="create-account-form">Create Account</button></div></footer>
 </dialog>
 }
 @section Scripts{<script src="~/js/owner-staff-access.js" asp-append-version="true"></script>}

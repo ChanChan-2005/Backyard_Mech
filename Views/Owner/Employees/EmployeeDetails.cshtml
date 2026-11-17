@@ -10,7 +10,7 @@
 
 @section TopbarActions {
     <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a>
-    <button class="users-icon-button" type="button" aria-label="More actions">...</button>
+    <a class="users-icon-button" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId" aria-label="View employee activity">Activity</a>
 }
 
 <section class="users-reference-page users-employee-detail">
@@ -34,14 +34,14 @@
 
         <article class="users-reference-card users-certifications">
             <header>
-                <h3>Certifications</h3>
-                <small>Verified</small>
+            <h3>Skills &amp; Qualifications</h3>
             </header>
             <ul>
                 @foreach (var certification in Model.Certifications)
                 {
                     <li><span>Cert</span>@certification</li>
                 }
+                @if (Model.Certifications.Count == 0) { <li>No qualifications recorded.</li> }
             </ul>
         </article>
     </div>
@@ -49,9 +49,9 @@
     <div class="users-reference-main">
         <div class="users-reference-kpis">
             <article><span>Jobs Completed</span><small>Top Tech</small><strong>@Model.JobsCompleted</strong></article>
-            <article><span>Avg Job Time</span><strong>@Model.AvgJobTime</strong><small>@Model.TargetJobTime</small></article>
+            <article><span>Avg Job Time</span><strong>@Model.AvgJobTime</strong><small>Recorded completed jobs</small></article>
             <article><span>Rating</span><strong>@Model.Rating</strong><small>@Model.RatingDetail</small></article>
-            <article><span>Utilization</span><strong>@Model.Utilization</strong><small>@Model.UtilizationDetail</small></article>
+            <article><span>Scheduled Hours</span><strong>@Model.Utilization</strong><small>@Model.UtilizationDetail</small></article>
         </div>
 
         <article class="users-reference-card">

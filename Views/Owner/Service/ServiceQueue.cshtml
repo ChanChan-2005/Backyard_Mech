@@ -30,8 +30,8 @@
 
 @section TopbarActions {
     <div class="queue-view-switch" aria-label="Queue view mode">
-        <button class="active" type="button" data-queue-view-button="board">Board</button>
-        <button type="button" data-queue-view-button="list">List</button>
+        <button type="button" data-queue-view-button="board" aria-pressed="false">Board</button>
+        <button class="active" type="button" data-queue-view-button="list" aria-pressed="true">List</button>
     </div>
 }
 
@@ -39,11 +39,11 @@
     <div class="queue-filter-bar">
         <div class="queue-filters">
             <span>Filters:</span>
-            <select data-queue-filter="technician" aria-label="Technician filter">
-                <option value="">Technician: All</option>
+            <select data-queue-filter="technician" aria-label="Mechanic filter">
+                <option value="">Mechanic: All</option>
                 @foreach (var technician in technicianFilters)
                 {
-                    <option value="@technician">Technician: @technician</option>
+                    <option value="@technician">Mechanic: @technician</option>
                 }
             </select>
             <select data-queue-filter="bay" aria-label="Bay filter">
@@ -76,10 +76,10 @@
             </select>
             <button class="queue-clear-filters" type="button" data-queue-clear-filters>Clear</button>
         </div>
-        <span class="queue-hint">Drag and drop cards to change status</span>
+        <span class="queue-hint">Open a queue item to update its status</span>
     </div>
 
-    <div class="queue-board">
+    <div class="queue-board" hidden>
         @foreach (var column in columns)
         {
             <section class="queue-column" data-queue-column="@column.Title">
@@ -143,14 +143,14 @@
         }
     </div>
 
-    <section class="queue-list-panel" data-queue-view-panel="list" hidden>
+    <section class="queue-list-panel" data-queue-view-panel="list">
         <table class="queue-list-table">
             <thead>
                 <tr>
                     <th>Customer</th>
                     <th>Vehicle</th>
                     <th>Status</th>
-                    <th>Technician</th>
+                    <th>Mechanic</th>
                     <th>Bay</th>
                     <th>Priority</th>
                     <th>Time</th>
@@ -302,7 +302,7 @@
             });
 
             applyFilters();
-            setView(new URLSearchParams(window.location.search).get("view") === "list" ? "list" : "board");
+            setView(new URLSearchParams(window.location.search).get("view") === "board" ? "board" : "list");
         })();
     </script>
 }

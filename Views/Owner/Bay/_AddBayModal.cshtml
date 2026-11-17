@@ -1,6 +1,6 @@
 <div class="bay-modal" data-bay-modal-panel="add-bay" aria-hidden="true">
     <div class="bay-modal-backdrop" data-bay-modal-close></div>
-    <section class="bay-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-bay-title">
+    <section class="bay-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-bay-title">
         <form class="bay-form-card" asp-controller="Owner" asp-action="AddBay" method="post">
             @Html.AntiForgeryToken()
             <header class="bay-form-header">
@@ -14,11 +14,13 @@
             <div class="bay-form-body">
                 <label>
                     <span class="bay-label">Bay Number *</span>
-                    <input class="bay-input" type="text" name="BayNumber" maxlength="50" placeholder="Bay Number" required />
+                    <input class="bay-input" type="number" name="BayNumber" min="1" max="2147483647" step="1" inputmode="numeric" placeholder="e.g. 2" required />
+                    <small class="app-field-help">Use a unique number. The label "Bay" is added automatically.</small>
                 </label>
                 <label>
                     <span class="bay-label">Bay Name *</span>
                     <input class="bay-input" type="text" name="Name" maxlength="120" placeholder="Bay Name" required />
+                    <small class="app-field-help">Use a unique bay name.</small>
                 </label>
                 <label>
                     <span class="bay-label">Description *</span>

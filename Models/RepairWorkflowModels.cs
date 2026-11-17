@@ -53,6 +53,7 @@ public sealed class StockMovementForm
     public Guid SubmissionToken { get; set; } = Guid.NewGuid();
     public int PartTransactionId { get; set; }
     [Range(1, int.MaxValue)] public int PartId { get; set; }
+    public int? SupplierId { get; set; }
     public int? WorkOrderId { get; set; }
     [Required, RegularExpression("Received|Reserved|Installed|Returned|Released|Wasted|Adjustment In|Adjustment Out")]
     public string TransactionType { get; set; } = "Received";
@@ -190,6 +191,7 @@ public sealed class EstimateWorkflowViewModel
     public string Vehicle { get; set; } = "";
     public int? WorkOrderId { get; set; }
     public string? ApprovalUrl { get; set; }
+    public string? CustomerEmail { get; set; }
     public EstimateEditorViewModel Editor { get; set; } = new();
 }
 
@@ -200,6 +202,7 @@ public sealed class RepairOperationsViewModel
     public int? PartId { get; set; }
     public List<WorkOrder> Orders { get; set; } = new();
     public List<Part> Parts { get; set; } = new();
+    public List<Supplier> Suppliers { get; set; } = new();
     public List<PartTransaction> Movements { get; set; } = new();
     public List<EmployeeProfile> Employees { get; set; } = new();
     public List<ServiceEntry> Labour { get; set; } = new();

@@ -157,16 +157,12 @@
 .login-card h3 {
   margin: 0;
   color: #dfae6b;
-  font-family: "Russo One", "Arial Black", "Segoe UI", Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: clamp(1.2rem, 1.6vw, 1.6rem);
   line-height: 1.1;
   text-align: center;
-  font-weight: 400;
+  font-weight: 700;
   letter-spacing: 0;
-  transform: skewX(-5deg);
-  text-shadow:
-    0.045rem 0.045rem 0 rgba(68, 42, 19, 0.42),
-    0 0.14rem 0.34rem rgba(0, 0, 0, 0.34);
 }
 
 .login-card p {

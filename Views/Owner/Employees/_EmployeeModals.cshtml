@@ -5,8 +5,11 @@
 <div class="users-modal-layer" data-users-modal-layer>
     @await Html.PartialAsync("_AddEmployeeModal")
 
-    <section class="users-modal" data-modal-id="add-shift">
-        <h2>Add Shift</h2>
+    <section class="users-modal app-modal app-modal--compact" data-modal-id="add-shift" role="dialog" aria-modal="true" aria-labelledby="employee-add-shift-title">
+        <header class="users-modal-header">
+            <h2 id="employee-add-shift-title">Add Shift</h2>
+            <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
+        </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="SetEmployeeShift" method="post">
             @Html.AntiForgeryToken()
             <p>Create or update an employee's weekly availability.</p>
@@ -56,8 +59,11 @@
         </form>
     </section>
 
-    <section class="users-modal" data-modal-id="archive">
-        <h2>Archive Employee?</h2>
+    <section class="users-modal app-modal app-modal--compact" data-modal-id="archive" role="dialog" aria-modal="true" aria-labelledby="employee-archive-title">
+        <header class="users-modal-header">
+            <h2 id="employee-archive-title">Archive Employee?</h2>
+            <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
+        </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="ArchiveEmployee" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
@@ -69,7 +75,7 @@
             </label>
             <label>
                 <span class="users-label">Notes</span>
-                <textarea class="users-textarea" name="Notes" placeholder="Optional archive notes..."></textarea>
+                <textarea maxlength="2000" class="users-textarea" name="Notes" placeholder="Optional archive notes..."></textarea>
             </label>
             <div class="users-modal-actions">
                 <button class="users-button" type="button" data-users-modal-close>Cancel</button>
@@ -78,8 +84,11 @@
         </form>
     </section>
 
-    <section class="users-modal" data-modal-id="restore">
-        <h2>Restore Employee?</h2>
+    <section class="users-modal app-modal app-modal--compact" data-modal-id="restore" role="dialog" aria-modal="true" aria-labelledby="employee-restore-title">
+        <header class="users-modal-header">
+            <h2 id="employee-restore-title">Restore Employee?</h2>
+            <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
+        </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="RestoreEmployee" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
@@ -93,8 +102,11 @@
         </form>
     </section>
 
-    <section class="users-modal" data-modal-id="delete">
-        <h2>Delete Employee?</h2>
+    <section class="users-modal app-modal app-modal--compact" data-modal-id="delete" role="dialog" aria-modal="true" aria-labelledby="employee-delete-title">
+        <header class="users-modal-header">
+            <h2 id="employee-delete-title">Delete Employee?</h2>
+            <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
+        </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="SoftDeleteEmployee" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
@@ -106,7 +118,7 @@
             </label>
             <label>
                 <span class="users-label">Internal Notes</span>
-                <textarea class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
+                <textarea maxlength="2000" class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
             </label>
             <div class="users-modal-warning">Warning: this will move the employee to soft deleted records.</div>
             <label><input type="checkbox" required /> I understand this action will hide this employee.</label>
@@ -117,8 +129,11 @@
         </form>
     </section>
 
-    <section class="users-modal" data-modal-id="soft-delete">
-        <h2>Confirm Soft Delete</h2>
+    <section class="users-modal app-modal app-modal--compact" data-modal-id="soft-delete" role="dialog" aria-modal="true" aria-labelledby="employee-soft-delete-title">
+        <header class="users-modal-header">
+            <h2 id="employee-soft-delete-title">Confirm Soft Delete</h2>
+            <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
+        </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="SoftDeleteEmployee" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
@@ -130,7 +145,7 @@
             </label>
             <label>
                 <span class="users-label">Internal Notes</span>
-                <textarea class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
+                <textarea maxlength="2000" class="users-textarea" name="Notes" placeholder="Add additional details regarding this deletion..."></textarea>
             </label>
             <div class="users-modal-actions">
                 <button class="users-button" type="button" data-users-modal-close>Cancel</button>

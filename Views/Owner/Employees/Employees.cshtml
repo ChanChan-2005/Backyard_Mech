@@ -46,48 +46,50 @@
 
     <div class="users-filter-card">
         <div class="app-search-control users-search-control">
-            <label class="users-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-search-target="employees-table" placeholder="Search by name, role, email..." /></label>
+            <label class="users-search-box"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input maxlength="256" type="search" data-search-target="employees-table" placeholder="Search by name, position, email..." /></label>
             <button type="button" class="app-search-submit" data-search-submit>Search</button>
         </div>
         <div class="users-filter-right">
             <label class="users-role-filter">
-                <span class="visually-hidden">Filter employees by role</span>
-                <select class="users-button" data-employee-role-filter aria-label="Filter employees by role">
-                    <option value="">Role: All</option>
+                <span class="visually-hidden">Filter employees by position</span>
+                <select class="users-button" data-employee-role-filter aria-label="Filter employees by position">
+                    <option value="">Position: All</option>
                     @foreach (var role in employees.Select(employee => employee.Role).Where(role => !string.IsNullOrWhiteSpace(role)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(role => role))
                     {
-                        <option value="@role">Role: @role</option>
+                        <option value="@role">Position: @role</option>
                     }
                 </select>
             </label>
-            <button class="users-button" type="button">Sort By: Name V</button>
+            <button class="users-button" type="button" data-employee-sort aria-label="Sort employees by name ascending">Name A–Z</button>
         </div>
     </div>
 
     <section class="users-panel">
+        <div class="employees-table-scroll" role="region" aria-label="Employees" tabindex="0">
         <table class="users-table" id="employees-table">
-            <thead><tr><th>Employee Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Status</th><th>Utilization</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Employee Name</th><th>Job Title / Position<small class="app-field-help">Work performed in the shop</small></th><th>Phone</th><th>Email</th><th>Status</th><th>Utilization</th><th>Actions</th></tr></thead>
             <tbody>
                 @foreach (var employee in employees)
                 {
                     <tr data-employee-role="@employee.Role">
-                        <td><span class="users-avatar">@employee.Initials</span><a class="users-link" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">@employee.Name</a></td>
+                        <td><div class="employee-name-cell"><span class="users-avatar">@employee.Initials</span><a class="users-link" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">@employee.Name</a></div></td>
                         <td>@employee.Role</td>
                         <td>@employee.Phone</td>
                         <td>@employee.Email</td>
                         <td><span class="users-pill @employee.Tone">@employee.Status</span></td>
                         <td><strong>@employee.Util</strong><span class="users-progress @employee.Progress"><span></span></span></td>
-                        <td class="users-table-actions">
+                        <td><div class="users-table-actions">
                             <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@employee.EmployeeProfileId">@(canEdit ? "Edit" : "View")</a>
                             @if(canDelete){
                             <button class="users-small-button" type="button" data-users-modal="archive" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Archive</button>
                             <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Soft Delete</button>
                             }
-                        </td>
+                        </div></td>
                     </tr>
                 }
             </tbody>
         </table>
+        </div>
         <footer class="users-panel-footer">
             <span>Showing @employees.Count employee@(employees.Count == 1 ? "" : "s")</span>
             <nav class="users-pagination"><button>Previous</button><button class="active">1</button><button>2</button><button>3</button><button>Next</button></nav>
@@ -99,4 +101,22 @@
 
 @section Scripts {
     <script src="~/js/owner-user-management.js" asp-append-version="true"></script>
+    <script>
+      (() => {
+        const button = document.querySelector('[data-employee-sort]');
+        const body = document.querySelector('#employees-table tbody');
+        if (!button || !body) return;
+        let descending = false;
+        button.addEventListener('click', () => {
+          descending = !descending;
+          [...body.rows].sort((a, b) => {
+            const aName = a.querySelector('.users-link')?.textContent.trim() || '';
+            const bName = b.querySelector('.users-link')?.textContent.trim() || '';
+            return aName.localeCompare(bName) * (descending ? -1 : 1);
+          }).forEach(row => body.append(row));
+          button.textContent = descending ? 'Name Z–A' : 'Name A–Z';
+          button.setAttribute('aria-label', `Sort employees by name ${descending ? 'descending' : 'ascending'}`);
+        });
+      })();
+    </script>
 }

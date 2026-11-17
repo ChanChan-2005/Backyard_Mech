@@ -1,6 +1,6 @@
 <div class="customer-modal" data-customer-modal-panel="add-customer" aria-hidden="true">
     <div class="customer-modal-backdrop" data-customer-modal-close></div>
-    <section class="customer-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-customer-title">
+    <section class="customer-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-customer-title">
         <header class="customer-modal-header">
             <div>
                 <h2 id="add-customer-title">Add Customer</h2>
@@ -22,7 +22,7 @@
                 </label>
                 <label>
                     <span data-required-label>Mobile Phone</span>
-                    <input name="Phone" type="tel" inputmode="tel" maxlength="14" pattern="(?:[0-9]{10}|[+]1[0-9]{10}|[(][0-9]{3}[)] [0-9]{3}-[0-9]{4})" title="Use 4165550123, +14165550123, or (416) 555-0123" placeholder="4165550123" required />
+                    <input data-canadian-phone name="Phone" type="tel" inputmode="tel" placeholder="e.g., (416) 555-0123" required />
                 </label>
                 <label>
                     <span data-required-label>Email Address</span>
@@ -34,7 +34,7 @@
                 </label>
                 <label class="customer-form-wide">
                     <span>Internal Notes</span>
-                    <textarea name="Notes" rows="3" placeholder="Preferred contact time, service notes, billing notes"></textarea>
+                    <textarea maxlength="2000" name="Notes" rows="3" placeholder="Preferred contact time, service notes, billing notes"></textarea>
                 </label>
             </div>
 

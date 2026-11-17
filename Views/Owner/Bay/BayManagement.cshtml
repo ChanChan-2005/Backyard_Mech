@@ -47,7 +47,7 @@
                     <th>Bay Name</th>
                     <th>Status</th>
                     <th>Current Vehicle</th>
-                    <th>Assigned Tech</th>
+                    <th>Assigned Mechanic</th>
                     <th>Tools</th>
                     <th>Actions</th>
                 </tr>
@@ -58,7 +58,7 @@
                     var baySlug = bay.BayId.ToString();
                     <tr>
                         <td><a class="bay-name-link" href="/Owner/BayDetails/@baySlug">@bay.No</a></td>
-                        <td><a class="bay-name-link" href="/Owner/BayDetails/@baySlug">@bay.BayNumber</a></td>
+                        <td><a class="bay-name-link" href="/Owner/BayDetails/@baySlug">@bay.Name</a></td>
                         <td><span class="bay-pill @bay.Tone">@bay.Status</span></td>
                         <td>@bay.Vehicle</td>
                         <td>@bay.Tech</td>

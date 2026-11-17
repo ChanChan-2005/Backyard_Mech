@@ -1,6 +1,6 @@
 <div class="customer-modal" data-customer-modal-panel="add-vehicle" aria-hidden="true">
     <div class="customer-modal-backdrop" data-customer-modal-close></div>
-    <section class="customer-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-vehicle-title">
+    <section class="customer-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-vehicle-title">
         <header class="customer-modal-header">
             <div>
                 <h2 id="add-vehicle-title">Add Vehicle</h2>
@@ -23,7 +23,7 @@
                 </label>
                 <label>
                     <span data-required-label>Year</span>
-                    <input name="Year" type="number" min="1886" placeholder="2018" required />
+                    <input max="9999" name="Year" type="number" min="1886" placeholder="2018" required />
                 </label>
                 <label>
                     <span>Color</span>
@@ -35,7 +35,7 @@
                 </label>
                 <label>
                     <span>Mileage</span>
-                    <input name="Odometer" type="number" min="0" placeholder="84520" />
+                    <input max="2147483647" name="Odometer" type="number" min="0" placeholder="84520" />
                 </label>
                 <label class="customer-form-wide">
                     <span data-required-label>VIN</span>

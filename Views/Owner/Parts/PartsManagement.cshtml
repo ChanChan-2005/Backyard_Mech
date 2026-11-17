@@ -9,24 +9,15 @@
     ViewData["ShellClass"] = "parts-shell";
 
     var parts = Model?.Parts ?? Array.Empty<PartListItem>();
+    var lowStockFocus = string.Equals(Context.Request.Query["notification"], "low-stock", StringComparison.OrdinalIgnoreCase);
     var productListings = Model?.ProductListings ?? Array.Empty<ProductListingListItem>();
     var activeTab = Model?.ActiveTab ?? "parts";
+    ViewData["SearchPlaceholder"] = "Search parts by SKU, category, name...";
     var userRole = Context.Session.GetString("UserRole") ?? string.Empty;
     var canCreateInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Create");
     var canEditInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Edit");
     var canDeleteInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Delete");
     var canManageProductListings = canEditInventory || canDeleteInventory;
-}
-
-@section TopbarActions {
-    @if (canCreateInventory && activeTab == "product-listings")
-    {
-        <button class="parts-button-blue" type="button" data-parts-modal="add-product-listing">+ Add Product Listing</button>
-    }
-    else if (canCreateInventory)
-    {
-        <button class="parts-button-blue" type="button" data-parts-modal="add-part">+ Add Part</button>
-    }
 }
 
 <section class="parts-page">
@@ -45,38 +36,42 @@
         <article class="parts-stat clean">
             <span>Total Parts</span>
             <strong>@parts.Count</strong>
-            <p>@parts.Select(part => part.Category).Distinct().Count() Categories</p>
+            <p>@(Model?.RootCategoryCount ?? 0) Categories</p>
         </article>
         <article class="parts-stat clean">
             <span>In Stock</span>
             <strong>@parts.Count(part => part.Status == "In Stock")</strong>
-            <p>90.4% Availability</p>
+            <p>@(parts.Count == 0 ? 0 : Math.Round(100m * parts.Count(part => part.QuantityOnHand > 0) / parts.Count, 1))% Availability</p>
         </article>
         <article class="parts-stat">
             <span>Low Stock Alerts</span>
-            <strong class="alert">@parts.Count(part => part.Status == "Low Stock")</strong>
+            <strong class="is-alert">@parts.Count(part => part.Status == "Low Stock")</strong>
             <small>Reorder Required</small>
         </article>
         <article class="parts-stat">
             <span>Out of Stock</span>
-            <strong class="alert">@parts.Count(part => part.Status == "Out of Stock")</strong>
+            <strong class="is-alert">@parts.Count(part => part.Status == "Out of Stock")</strong>
             <small>Halt Maintenance</small>
         </article>
     </div>
 
     @if (activeTab == "product-listings")
     {
-        <div class="parts-filter-card">
+        <div class="parts-filter-card" data-parts-filters="product-listings-table">
             <div class="parts-filter-left">
                 <label class="parts-search-box">
                     <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
-                    <input type="search" data-search-target="product-listings-table" placeholder="Search listing title, part, service..." />
+                    <input maxlength="256" type="search" data-search-managed placeholder="Search listing title, part, service..." />
                 </label>
-                <button class="app-search-submit" type="button" data-search-submit>Search</button>
+                <button class="app-search-submit" type="button" data-parts-search-submit>Search</button>
             </div>
             <div class="parts-filter-right">
-                <button class="parts-filter-button" type="button">Type: All V</button>
-                <button class="parts-filter-button" type="button">Status: All V</button>
+                <select class="parts-filter-button" data-parts-filter="type" aria-label="Filter listing type"><option value="">All types</option>@foreach (var type in productListings.Select(x => x.ListingType).Distinct().OrderBy(x => x)) { <option value="@type">@type</option> }</select>
+                <select class="parts-filter-button" data-parts-filter="status" aria-label="Filter listing status"><option value="">All statuses</option><option value="Published">Published</option><option value="Draft">Draft</option></select>
+                @if (canCreateInventory)
+                {
+                    <button class="parts-button-blue" type="button" data-parts-modal="add-product-listing">+ Add Product Listing</button>
+                }
             </div>
         </div>
 
@@ -88,7 +83,7 @@
                 </div>
             </header>
 
-            <table class="parts-table" id="product-listings-table">
+            <div class="parts-table-scroll"><table class="parts-table" id="product-listings-table">
                 <thead>
                     <tr>
                         <th>Type</th>
@@ -115,17 +110,18 @@
                     {
                         @foreach (var listing in productListings)
                         {
-                            <tr>
-                                <td><span class="parts-pill neutral">@listing.ListingType</span></td>
-                                <td><strong>@listing.LinkedItem</strong></td>
-                                <td><strong>@listing.ListingTitle</strong></td>
-                                <td class="parts-description-cell">@listing.ListingDescription</td>
-                                <td><strong>@listing.DisplayPrice</strong></td>
-                                <td>@listing.DisplayOrder</td>
-                                <td>@listing.Created</td>
+                            <tr data-parts-row data-type="@listing.ListingType" data-status="@listing.Status">
+                                <td data-label="Type"><span class="parts-pill neutral">@listing.ListingType</span></td>
+                                <td data-label="Linked item"><strong>@listing.LinkedItem</strong></td>
+                                <td data-label="Listing title"><strong>@listing.ListingTitle</strong></td>
+                                <td data-label="Description" class="parts-description-cell">@listing.ListingDescription</td>
+                                <td data-label="Price"><strong>@listing.DisplayPrice</strong></td>
+                                <td data-label="Order">@listing.DisplayOrder</td>
+                                <td data-label="Created">@listing.Created</td>
                                 @if (canManageProductListings)
                                 {
-                                    <td class="parts-row-actions">
+                                    <td data-label="Actions" class="parts-row-actions">
+                                    <div class="parts-actions-group">
                                     @if (canEditInventory)
                                     {
                                         <button class="parts-small-button" type="button"
@@ -152,44 +148,43 @@
                                             data-listing-id="@listing.ProductListingId"
                                             data-listing-name="@listing.ListingTitle">Delete</button>
                                     }
+                                    </div>
                                     </td>
                                 }
                             </tr>
                         }
                     }
                 </tbody>
-            </table>
+            </table></div>
 
             <footer class="parts-panel-footer">
-                <span>Showing @productListings.Count product listing@(productListings.Count == 1 ? "" : "s")</span>
-                <nav class="parts-pagination">
-                    <button type="button">Previous</button>
-                    <button class="active" type="button">1</button>
-                    <button type="button">2</button>
-                    <button type="button">3</button>
-                    <button type="button">Next</button>
-                </nav>
+                <span data-parts-count>Showing @productListings.Count product listing@(productListings.Count == 1 ? "" : "s")</span>
+                <nav class="parts-pagination" aria-label="Product listing pages" data-parts-pagination></nav>
             </footer>
         </section>
     }
     else
     {
-        <div class="parts-filter-card">
+        <div class="parts-filter-card" data-parts-filters="parts-inventory-table">
             <div class="parts-filter-left">
                 <label class="parts-search-box">
                     <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
-                    <input type="search" data-search-target="parts-inventory-table" placeholder="Search parts by SKU, category, name..." />
+                    <input maxlength="256" type="search" data-search-managed placeholder="Search parts by SKU, category, name..." />
                 </label>
-                <button class="app-search-submit" type="button" data-search-submit>Search</button>
+                <button class="app-search-submit" type="button" data-parts-search-submit>Search</button>
             </div>
             <div class="parts-filter-right">
-                <button class="parts-filter-button" type="button">Category: All V</button>
-                <button class="parts-filter-button" type="button">Status: All V</button>
+                <select class="parts-filter-button" data-parts-filter="categoryIds" aria-label="Filter part category"><option value="">All categories</option>@foreach (var category in Model.PartCategoryOptions) { <option value="@category.Id">@category.Label</option> }</select>
+                <select class="parts-filter-button" data-parts-filter="status" aria-label="Filter stock status"><option value="">All statuses</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Out of Stock">Out of Stock</option></select>
+                @if (canCreateInventory)
+                {
+                    <button class="parts-button-blue" type="button" data-parts-modal="add-part">+ Add Part</button>
+                }
             </div>
         </div>
 
         <section class="parts-panel">
-            <table class="parts-table" id="parts-inventory-table">
+            <div class="parts-table-scroll"><table class="parts-table" id="parts-inventory-table">
                 <thead>
                     <tr>
                         <th>SKU</th>
@@ -199,7 +194,7 @@
                         <th>Selling Price</th>
                         <th>Available</th>
                         <th>Reserved</th>
-                        <th>Reorder Thresh</th>
+                        <th>Reorder Level</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -208,17 +203,20 @@
                     @foreach (var part in parts)
                     {
                         var skuSlug = part.PartId.ToString();
-                        <tr>
-                            <td><a class="parts-link" href="/Owner/PartDetails/@skuSlug">@part.Sku</a></td>
-                            <td><strong>@part.Description</strong></td>
-                            <td>@part.Category</td>
-                            <td>@part.Cost</td>
-                            <td><strong>@part.Selling</strong></td>
-                            <td><span class="@part.QuantityClass">@part.Available</span></td>
-                            <td>@part.Reserved</td>
-                            <td>@part.Threshold</td>
-                            <td><span class="parts-pill @part.Tone">@part.Status</span></td>
-                            <td class="parts-row-actions">
+                        var isLowStockTarget = lowStockFocus && part.Status != "Discontinued" &&
+                            part.ReorderThreshold > 0 && part.QuantityOnHand <= part.ReorderThreshold;
+                        <tr class="@(isLowStockTarget ? "notification-target" : "")" data-parts-row data-category-ids="@part.PartCategoryId @part.ParentPartCategoryId" data-status="@part.Status">
+                            <td data-label="SKU"><a class="parts-link" href="/Owner/PartDetails/@skuSlug">@part.Sku</a></td>
+                            <td data-label="Description"><strong>@part.Description</strong></td>
+                            <td data-label="Category">@part.Category</td>
+                            <td data-label="Cost">@part.Cost</td>
+                            <td data-label="Selling price"><strong>@part.Selling</strong></td>
+                            <td data-label="Available"><span class="@part.QuantityClass">@part.Available</span></td>
+                            <td data-label="Reserved">@part.Reserved</td>
+                            <td data-label="Reorder threshold">@part.Threshold</td>
+                            <td data-label="Status"><span class="parts-pill @part.Tone">@part.Status</span></td>
+                            <td data-label="Actions" class="parts-row-actions">
+                                <div class="parts-actions-group">
                                 @if (canEditInventory)
                                 {
                                     <button class="parts-small-button" type="button"
@@ -250,21 +248,16 @@
                                     <button class="parts-small-button danger" type="submit">Delete</button>
                                 </form>
                                 }
+                                </div>
                             </td>
                         </tr>
                     }
                 </tbody>
-            </table>
+            </table></div>
 
             <footer class="parts-panel-footer">
-                <span>Showing @parts.Count part@(parts.Count == 1 ? "" : "s")</span>
-                <nav class="parts-pagination">
-                    <button type="button">Previous</button>
-                    <button class="active" type="button">1</button>
-                    <button type="button">2</button>
-                    <button type="button">3</button>
-                    <button type="button">Next</button>
-                </nav>
+                <span data-parts-count>Showing @parts.Count part@(parts.Count == 1 ? "" : "s")</span>
+                <nav class="parts-pagination" aria-label="Inventory pages" data-parts-pagination></nav>
             </footer>
         </section>
     }
@@ -288,4 +281,5 @@
 @section Scripts {
     @await Html.PartialAsync("_PartModalScripts")
     <script src="~/js/owner-product-listings.js" asp-append-version="true"></script>
+    <script src="~/js/parts-registry-table.js" asp-append-version="true"></script>
 }

@@ -15,18 +15,17 @@ public sealed class StaffAccountForm
     [Required,EmailAddress,StringLength(256)] public string Email { get; set; } = "";
     [Required,StringLength(120)] public string UserName { get; set; } = "";
     [Required,StringLength(128,MinimumLength=12)] public string Password { get; set; } = "";
-    [Required,Compare(nameof(Password),ErrorMessage="Passwords do not match.")] public string ConfirmPassword { get; set; } = "";
+    [Required,Compare(nameof(Password),ErrorMessage="Passwords do not match.")] [StringLength(128)] public string ConfirmPassword { get; set; } = "";
     [Required,StringLength(50)] public string RoleKey { get; set; } = "";
     public List<PermissionChoice> Permissions { get; set; } = new();
 }
 public sealed class UserAccessForm
 {
     [Range(1,int.MaxValue)] public int UserId { get; set; }
-    [Required] public string Expected { get; set; } = "";
+    [Required] [StringLength(100)] public string Expected { get; set; } = "";
     [Required,StringLength(50)] public string RoleKey { get; set; } = "";
     public bool IsActive { get; set; }
     public List<PermissionChoice> Permissions { get; set; } = new();
-    [Required,StringLength(500)] public string Reason { get; set; } = "";
 }
 public sealed class PermissionChoice
 {
@@ -39,7 +38,6 @@ public sealed class StaffAccountsPage
     public List<AppUser> Accounts { get; set; } = new();
     public List<AppRole> Roles { get; set; } = new();
     public List<Permission> Permissions { get; set; } = new();
-    public List<UserPermissionOverride> Overrides { get; set; } = new();
     public HashSet<string> Defaults { get; set; } = new();
     public Dictionary<string,string[]> RoleDefaults { get; set; } = new();
     public AppUser? Selected { get; set; }
@@ -50,7 +48,7 @@ public sealed class StaffAccountsPage
 public sealed class AvailabilityExceptionForm
 {
     public int Id { get; set; }
-    public string? Expected { get; set; }
+    [StringLength(100)] public string? Expected { get; set; }
     [Range(1,int.MaxValue)] public int EmployeeProfileId { get; set; }
     [Required] public DateTime? Start { get; set; }
     [Required] public DateTime? End { get; set; }

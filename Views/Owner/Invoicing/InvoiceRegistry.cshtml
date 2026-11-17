@@ -9,7 +9,7 @@
     ViewData["ShellClass"] = "invoice-shell";
 
     var invoices = Model ?? Array.Empty<InvoiceListItem>();
-    decimal ParseMoney(string value) => decimal.TryParse(value.Replace("$", "").Replace(",", ""), out var amount) ? amount : 0;
+    decimal ParseMoney(string value) => decimal.TryParse(value.Replace("CA$", "").Replace("$", "").Replace(",", ""), out var amount) ? amount : 0;
     var totalInvoiced = invoices.Where(x => x.Status != "Voided").Sum(invoice => ParseMoney(invoice.Amount));
     var totalPaid = invoices.Sum(invoice => ParseMoney(invoice.Paid));
     var overdueBalance = invoices.Where(invoice => invoice.Status == "Overdue").Sum(invoice => ParseMoney(invoice.Balance));
@@ -25,22 +25,22 @@
     <div class="invoice-stats">
         <article class="invoice-stat">
             <span>Total Invoiced (MTD)</span>
-            <strong>$@totalInvoiced.ToString("N2")</strong>
+            <strong>@CurrencyDisplay.Cad(totalInvoiced)</strong>
             <p>@invoices.Count invoices generated</p>
         </article>
         <article class="invoice-stat">
             <span>Paid</span>
-            <strong class="green">$@totalPaid.ToString("N2")</strong>
+            <strong class="green">@CurrencyDisplay.Cad(totalPaid)</strong>
             <p>@invoices.Count(invoice => invoice.Status == "Paid") invoices cleared</p>
         </article>
         <article class="invoice-stat">
             <span>Partially Paid</span>
-            <strong class="orange">$@invoices.Where(invoice => invoice.Status == "Partially Paid").Sum(invoice => ParseMoney(invoice.Balance)).ToString("N2")</strong>
+            <strong class="orange">@CurrencyDisplay.Cad(invoices.Where(invoice => invoice.Status == "Partially Paid").Sum(invoice => ParseMoney(invoice.Balance)))</strong>
             <p>@invoices.Count(invoice => invoice.Status == "Partially Paid") Pending full payment</p>
         </article>
         <article class="invoice-stat">
             <span>Overdue Balance</span>
-            <strong class="red">$@overdueBalance.ToString("N2")</strong>
+            <strong class="red">@CurrencyDisplay.Cad(overdueBalance)</strong>
             <p>@invoices.Count(invoice => invoice.Status == "Overdue") unresolved accounts</p>
         </article>
     </div>
@@ -72,7 +72,7 @@
                         <td>@invoice.WorkOrder</td>
                         <td><strong>@invoice.Amount</strong></td>
                         <td><span class="invoice-money-green">@invoice.Paid</span></td>
-                        <td><span class="@(invoice.Balance == "$0.00" ? "" : "invoice-money-red")">@invoice.Balance</span></td>
+                        <td><span class="@(ParseMoney(invoice.Balance) == 0m ? "" : "invoice-money-red")">@invoice.Balance</span></td>
                         <td><span class="invoice-pill @invoice.Tone">@invoice.Status</span></td>
                         <td>@invoice.Date</td>
                         <td>

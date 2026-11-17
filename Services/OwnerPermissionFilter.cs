@@ -27,10 +27,7 @@ namespace Backyard_Mech.Services
             var actionName = context.ActionDescriptor.RouteValues["action"] ?? "";
             var requirement = OwnerPermissionCatalog.Resolve(actionName);
             var codes = await _permissionService.GetPermissionCodesAsync(role);
-            if (requirement is null || (!codes.Contains("*") &&
-                (!codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
-                || !codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
-                || !codes.Contains(OwnerPermissionCatalog.ActionPermissionCode(actionName)))))
+            if (!OwnerPermissionCatalog.CanAccessAction(codes, actionName))
             {
                 if (HttpMethods.IsPost(context.HttpContext.Request.Method))
                 {
@@ -49,6 +46,25 @@ namespace Backyard_Mech.Services
 
     public static class OwnerPermissionCatalog
     {
+        // Module View opens its navigation pages; other operations retain explicit grants.
+        private static readonly HashSet<string> ModulePages = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Dashboard", "ServiceQueue", "CustomerVehicle", "VehicleHistory", "Appointments",
+            "EstimateApprovals", "WorkOrders", "BayManagement", "PartsManagement", "PartsPos", "Suppliers",
+            "ServiceCatalog", "LabourTimeTracking", "QualityControl", "ToolTracking", "InvoiceRegistry",
+            "ArchiveRecords", "RecordsDisposition", "Reports", "Employees", "StaffAccounts", "Settings"
+        };
+
+        public static bool CanAccessAction(ISet<string> codes, string actionName)
+        {
+            var requirement = Resolve(actionName);
+            if (requirement is null) return false;
+            if (codes.Contains("*")) return true;
+            return codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
+                && codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
+                && (ModulePages.Contains(actionName) || codes.Contains(ActionPermissionCode(actionName)));
+        }
+
         public static string ActionPermissionCode(string actionName) => $"owneraction.{actionName.ToLowerInvariant()}";
 
         public static IReadOnlyList<(string Name, string Module, string Action)> DetailedActions { get; } =
@@ -57,8 +73,10 @@ namespace Backyard_Mech.Services
                 .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType)
                     || method.ReturnType == typeof(Task<IActionResult>))
                 .Select(method => (method.Name, Requirement: Resolve(method.Name)))
-                .Where(item => item.Requirement.HasValue)
+                .Where(item => item.Requirement.HasValue && !ModulePages.Contains(item.Name))
                 .Select(item => (item.Name, item.Requirement!.Value.Module, item.Requirement.Value.Action))
+                .Concat(DashboardPermissions.Sections.Select(name => (Name: name, Module: "Dashboard", Action: "View")))
+                .Concat(new[] { (Name: "ManageStaffRolePermissions", Module: "User Access", Action: "Edit"), (Name: "ManageStockTransactions", Module: "Inventory", Action: "Create") })
                 .Distinct()
                 .OrderBy(item => item.Module)
                 .ThenBy(item => item.Name)
@@ -71,10 +89,13 @@ namespace Backyard_Mech.Services
 
         public static (string Module, string Action)? Resolve(string actionName)
         {
+            if (DashboardPermissions.Sections.Contains(actionName)) return ("Dashboard", "View");
             return actionName switch
             {
                 "Dashboard" => ("Dashboard", "View"),
                 "StaffAccounts" => ("User Access", "View"),
+                "ManageStaffRolePermissions" => ("User Access", "Edit"),
+                "ManageStockTransactions" => ("Inventory", "Create"),
                 "CreateStaffAccount" => ("User Access", "Create"),
                 "SaveUserAccess" => ("User Access", "Edit"),
                 "StaffAvailability" => ("Employees", "View"),
@@ -97,7 +118,7 @@ namespace Backyard_Mech.Services
                 "TransferVehicleOwnership" or "RecordVehicleOdometer" => ("Vehicles", "Edit"),
 
                 "ServiceQueue" or "ServiceQueueDetails" => ("Service Queue", "View"),
-                "AssignQueueBay" => ("Service Queue", "Edit"),
+                "AssignQueueBay" or "AssignQueueMechanic" or "UpdateQueueStatus" => ("Service Queue", "Edit"),
 
                 "Appointments" => ("Appointments", "View"),
                 "CreateAppointment" => ("Appointments", "Create"),
@@ -124,6 +145,8 @@ namespace Backyard_Mech.Services
                 "EditBay" or "SetBayMaintenance" => ("Bays", "Edit"),
 
                 "PartsManagement" or "PartDetails" or "PartAuditLog" or "SparesAllocation" => ("Inventory", "View"),
+                "PartsPos" or "PartsPosReceipt" => ("Inventory", "View"),
+                "CheckoutParts" => ("Inventory", "Create"),
                 "PartEntry" or "AddPart" or "AddProductListing" => ("Inventory", "Create"),
                 "EditPart" or "EditProductListing" => ("Inventory", "Edit"),
                 "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Inventory", "Delete"),
@@ -165,9 +188,9 @@ namespace Backyard_Mech.Services
 
                 "Reports" or "SalesRevenueReport" or "LabourProductivityReport" or "BayUtilizationReport" or "InventoryValueReport" or "LowStockPartsReport" or "ToolLossesReport" or "ProfitabilityReport" or "ExportReport" => ("Reports", "View"),
 
-                "Settings" or "SettingsTax" or "SettingsRoles" or "SettingsSystemPreferences" => ("Settings", "View"),
+                "Settings" or "SettingsLogo" or "SettingsTax" or "SettingsRoles" or "SettingsSystemPreferences" => ("Settings", "View"),
                 "CreateRole" => ("Settings", "Create"),
-                "EditRole" or "SaveRolePermissions" => ("Settings", "Edit"),
+                "EditRole" or "SaveRolePermissions" or "SaveGeneralSettings" => ("Settings", "Edit"),
                 "DeleteRole" => ("Settings", "Delete"),
 
                 _ => null

@@ -2,7 +2,7 @@
 
 <div class="parts-modal" data-parts-modal-panel="add-product-listing" aria-hidden="true">
     <div class="parts-modal-backdrop" data-parts-modal-close></div>
-    <section class="parts-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-product-listing-title">
+    <section class="parts-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-product-listing-title">
         <form class="parts-form-panel" asp-controller="Owner" asp-action="AddProductListing" method="post">
             @Html.AntiForgeryToken()
             <header class="parts-modal-header">
@@ -53,15 +53,15 @@
                 <div class="parts-form-grid">
                     <label class="parts-wide-label">
                         <span class="parts-label">Display Name *</span>
-                        <input class="parts-input" name="ListingTitle" type="text" placeholder="Example: Ceramic Brake Pads Package" required />
+                        <input maxlength="200" class="parts-input" name="ListingTitle" type="text" placeholder="Example: Ceramic Brake Pads Package" required />
                     </label>
                     <label class="parts-wide-label">
                         <span class="parts-label">Short Description</span>
-                        <textarea class="parts-input parts-textarea" name="ListingDescription" placeholder="Example: Durable ceramic front brake pads for smoother and quieter braking."></textarea>
+                        <textarea maxlength="2000" class="parts-input parts-textarea" name="ListingDescription" placeholder="Example: Durable ceramic front brake pads for smoother and quieter braking."></textarea>
                     </label>
                     <label class="parts-wide-label">
                         <span class="parts-label">Image Link</span>
-                        <input class="parts-input" name="ImageUrl" type="url" placeholder="Example: https://example.com/brake-pads.jpg" />
+                        <input maxlength="1000" class="parts-input" name="ImageUrl" type="url" placeholder="Example: https://example.com/brake-pads.jpg" />
                     </label>
                 </div>
             </section>
@@ -70,12 +70,12 @@
                 <h2>Section 3: Price and Order</h2>
                 <div class="parts-form-grid">
                     <label>
-                        <span class="parts-label">Price</span>
-                        <input class="parts-input" name="DisplayPrice" type="number" min="0" step="0.01" placeholder="0.00" />
+                        <span class="parts-label">Price (CA$)</span>
+                        <input max="9999999999999999.99" class="parts-input" name="DisplayPrice" type="number" min="0" step="0.01" placeholder="0.00" />
                     </label>
                     <label>
                         <span class="parts-label">Sort Order</span>
-                        <input class="parts-input" name="DisplayOrder" type="number" min="0" placeholder="Enter sort order" />
+                        <input max="2147483647" class="parts-input" name="DisplayOrder" type="number" min="0" placeholder="Enter sort order" />
                     </label>
                 </div>
             </section>

@@ -5,7 +5,7 @@
 
 <div class="tools-modal" data-tools-modal-panel="add-tool" aria-hidden="true">
     <div class="tools-modal-backdrop" data-tools-modal-close></div>
-    <section class="tools-modal-card" role="dialog" aria-modal="true" aria-labelledby="add-tool-title">
+    <section class="tools-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-tool-title">
         <form class="tools-form-panel" asp-controller="Owner" asp-action="AddTool" method="post">
             @Html.AntiForgeryToken()
             <header class="tools-modal-header">

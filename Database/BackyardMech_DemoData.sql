@@ -182,7 +182,7 @@ BEGIN
     UNION ALL SELECT ToolCategoryId, N'Hunter Wheel Balancer', N'HN-WB-3342', N'Tire & Brake Station', N'Fair', DATEADD(day, -120, SYSUTCDATETIME()), DATEADD(day, -5, SYSUTCDATETIME()), 1 FROM dbo.ToolCategory WHERE CategoryName = N'Heavy Equipment';
 
     INSERT INTO dbo.ToolCheckout (ToolId, MechanicName, CheckedOutUtc, ConditionAtCheckout, ToolIssueStatus, Notes)
-    SELECT ToolId, N'Christian Harold Bandong', DATEADD(hour, -3, SYSUTCDATETIME()), N'Excellent', N'Checked Out', N'Used for drivability diagnostic.'
+    SELECT ToolId, N'Christian Harold Bandong', DATEADD(hour, -3, SYSUTCDATETIME()), N'Excellent', N'Borrowed', N'Used for drivability diagnostic.'
     FROM dbo.Tool WHERE SerialNumber = N'AU-DIAG-0192';
 END
 GO

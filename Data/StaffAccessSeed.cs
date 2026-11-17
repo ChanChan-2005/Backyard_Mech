@@ -78,6 +78,9 @@ public static class StaffAccessSeed
             if (!grantedByRole.TryGetValue(role.RoleKey, out var grants)) continue;
             foreach (var permission in additions)
             {
+                // Section visibility is explicitly assigned by the administrator, never inferred from page access.
+                if (DashboardPermissions.Sections.Contains(permission.ActionName)) continue;
+                if (permission.ActionName == "ManageStaffRolePermissions") continue;
                 var requirement = OwnerPermissionCatalog.Resolve(permission.ActionName!);
                 if (requirement is null || !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
                     || !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))) continue;

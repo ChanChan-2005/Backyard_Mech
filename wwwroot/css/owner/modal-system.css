@@ -1,256 +1,288 @@
-/* Shared modal surfaces across native dialogs and custom overlays. */
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) {
+/* Shared modal design. Every popup surface uses .app-modal and role="dialog".
+   Sizes: default form 500px; --compact 400px; --wide 900px.
+   Keep page-specific behavior in its own scripts; layout belongs here. */
+:root {
+  --modal-space: 12px;
+  --modal-gap: 8px;
+  --modal-border: #dce3ed;
+  --modal-muted: #64748b;
+  --modal-backdrop: rgb(15 23 42 / 54%);
+}
+
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] {
+  --modal-width: 500px;
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
   box-sizing: border-box;
-  border: 1px solid #d9e1eb;
-  border-radius: 10px;
+  width: min(var(--modal-width), calc(100vw - 32px));
+  min-width: 0;
+  max-width: calc(100vw - 32px);
+  height: auto;
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+  border: 1px solid var(--modal-border);
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 20px 56px rgb(15 23 42 / 24%);
-  color: #202b38;
-  font-family: "Segoe UI", Arial, sans-serif;
-  max-height: min(90dvh, 900px);
-  overflow-y: auto;
+  box-shadow: 0 24px 64px rgb(15 23 42 / 24%);
+  color: #243247;
+  font: 11px/1.5 var(--app-font-family, Arial, Helvetica, sans-serif);
+  text-align: left;
 }
-
-body.app-shell-body :is(dialog.master-dialog, dialog.repair-dialog) {
-  padding: 22px;
-}
-
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].app-modal--compact { --modal-width: 400px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].app-modal--wide { --modal-width: 900px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].staff-account-permissions-modal[open] { display: block; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] *, body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] *::before, body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] *::after { box-sizing: border-box; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] [hidden] { display: none !important; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"]::backdrop { background: var(--modal-backdrop); }
 body.app-shell-body :is(
-  .customer-modal-backdrop,
-  .bay-modal-backdrop,
-  .parts-modal-backdrop,
-  .tools-modal-backdrop,
-  .estimate-modal-backdrop,
-  .wo-modal-backdrop,
-  .appointment-modal-backdrop,
-  .users-modal-layer,
-  .queue-modal-backdrop,
-  .settings-role-modal-backdrop
+  .customer-modal-backdrop, .bay-modal-backdrop, .parts-modal-backdrop,
+  .tools-modal-backdrop, .estimate-modal-backdrop, .wo-modal-backdrop,
+  .appointment-modal-backdrop, .queue-modal-backdrop, .settings-role-modal-backdrop,
+  .users-modal-layer, .records-confirm-backdrop, .app-notification-backdrop
+) { background: var(--modal-backdrop); }
+
+/* A single scrolling surface: forms and sections never add a second scrollbar. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(form, .parts-form-panel, .tools-form-panel, .bay-form-card) {
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(header, .app-modal-header) {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--modal-gap);
+  margin: 0;
+  padding: 10px var(--modal-space);
+  border: 0;
+  border-bottom: 1px solid var(--modal-border);
+  background: #fff;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] header > div { min-width: 0; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] h2 {
+  margin: 0;
+  color: #172033;
+  font: 700 15px/1.35 var(--app-font-family, Arial, Helvetica, sans-serif);
+  overflow-wrap: anywhere;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] header p {
+  margin: 5px 0 0;
+  color: var(--modal-muted);
+  font: 400 11px/1.5 var(--app-font-family, Arial, Helvetica, sans-serif);
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(h3, .users-form-section-title) {
+  margin: 0;
+  color: #334155;
+  font: 650 12px/1.5 var(--app-font-family, Arial, Helvetica, sans-serif);
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(p, small, label, span, strong, td, th, dt, dd, li) {
+  font-family: inherit;
+  line-height: 1.5;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(label, .master-field-hint, .users-label, .parts-label, .tools-label, .bay-label, .wo-label, .wo-mini-label) {
+  color: #334155;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  margin: 0;
+  font-weight: 600;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(small, .master-field-hint) {
+  color: var(--modal-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* Consistent form rhythm. Padding is applied once, on the grid or body. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(
+  .app-modal-grid, .customer-form-grid, .parts-form-grid, .tools-form-grid, .wo-form-grid,
+  .appointment-modal-grid, .estimate-modal-grid, .users-employee-form-grid,
+  .users-form-grid, .bay-form-body, .master-fields, .repair-fields, .queue-modal-grid
 ) {
-  background: rgb(15 23 42 / 52%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--modal-gap);
+  margin: 0;
+  padding: var(--modal-space);
+  border: 0;
+  min-width: 0;
 }
-
-body.app-shell-body dialog.master-dialog::backdrop,
-body.app-shell-body dialog.repair-dialog::backdrop {
-  background: rgb(15 23 42 / 52%);
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.app-modal-section, .parts-form-section, .tools-form-section) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--modal-border);
 }
-
-body.app-shell-body :is(
-  .customer-modal-header,
-  .bay-form-header,
-  .parts-modal-header,
-  .tools-modal-header,
-  .estimate-modal-header,
-  .wo-modal-header,
-  .appointment-modal-header,
-  .users-modal-header,
-  .queue-modal-header,
-  .settings-role-modal-card header,
-  dialog.master-dialog form > header,
-  dialog.repair-dialog form > header
-) {
-  color: #17212d;
-  border-color: #e5eaf0;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.app-modal-section, .parts-form-section, .tools-form-section) > h2 {
+  margin: 0;
+  padding: 20px var(--modal-space) 0;
+  font-size: 14px;
+  text-transform: none;
 }
-
-body.app-shell-body :is(
-  .customer-modal-header h2,
-  .bay-form-header h2,
-  .parts-modal-header h2,
-  .tools-modal-header h2,
-  .estimate-modal-header h2,
-  .wo-modal-header h2,
-  .appointment-modal-header h2,
-  .users-modal-header h2,
-  .queue-modal-header h2,
-  .settings-role-modal-card h2,
-  dialog.master-dialog h2,
-  dialog.repair-dialog h2
-) {
-  color: #17212d;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 19px;
-  font-weight: 750;
-  line-height: 1.25;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(
+  .app-modal-field--wide, .customer-form-wide, .parts-wide-label, .tools-wide-label, .wo-wide-label,
+  .appointment-modal-wide, .queue-modal-wide, .users-span-full, .users-span-2,
+  .users-form-section-title, .master-wide, .repair-wide
+) { grid-column: 1 / -1; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.app-modal-body, .settings-role-modal-body, .queue-modal-section, .staff-permissions-preview, .staff-access-fields) {
+  margin: 0;
+  padding: var(--modal-space);
+  border: 0;
+  min-width: 0;
 }
-
-body.app-shell-body :is(
-  .customer-modal-header p,
-  .bay-form-header p,
-  .parts-modal-header p,
-  .tools-modal-header p,
-  .estimate-modal-header p,
-  .wo-modal-header p,
-  .appointment-modal-header p,
-  .queue-modal-header p,
-  .settings-role-modal-card header p
-) {
-  color: #687589;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 12px;
-  line-height: 1.45;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .settings-role-modal-body { display: grid; gap: var(--modal-gap); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-modal-grid { padding: 16px 0 0; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.queue-choice-list, .queue-bay-grid) {
+  margin: 0;
+  padding: var(--modal-space);
+  max-height: none;
+  overflow: visible;
+  gap: 12px;
 }
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) label {
-  color: #273241;
-  font-family: "Segoe UI", Arial, sans-serif;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-bay-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-choice { display: grid; align-items: center; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-bay-option { position: relative; padding: 16px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.queue-warning-banner, .staff-notice, .users-alert, .users-modal-warning) {
+  margin: 16px var(--modal-space);
+  padding: 12px;
+  border-radius: 8px;
   font-size: 13px;
-  line-height: 1.4;
 }
+/* Legacy confirmations with direct children use the same body gutters. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] > :is(p, dl, ul, h3),
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] form > :is(label, p, h3),
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .parts-confirm-message {
+  margin: 16px var(--modal-space);
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] > .master-actions { padding: 0 var(--modal-space) 16px; flex-wrap: wrap; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] form > [data-add-line] { margin: 0 var(--modal-space) 20px; }
 
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
-  box-sizing: border-box;
-  min-height: 40px;
-  padding: 9px 12px;
-  border: 1px solid #c8d2df;
-  border-radius: 6px;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 30px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
   background-color: #fff;
-  color: #202b38;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 13px;
-  line-height: 1.4;
+  color: #243247;
+  font: 400 11px/1.4 var(--app-font-family, Arial, Helvetica, sans-serif);
 }
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) textarea {
-  min-height: 92px;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] select { padding-right: 30px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] textarea { min-height: 60px; resize: vertical; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] select[multiple] { min-height: 132px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] input[type="file"] { padding: 8px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(input[type="checkbox"], input[type="radio"]) {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #2563eb;
 }
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) :is(input, select, textarea, button):focus-visible {
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] label:has(> input:is([type="checkbox"], [type="radio"])):not(.queue-choice, .queue-bay-option, .staff-permission-check, .settings-permission-check) {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+/* Anchor visually hidden permission inputs inside their own scrollable cell. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.staff-permission-check, .settings-permission-check) {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(input, select, textarea):disabled,
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] fieldset:disabled :is(input, select, textarea) {
+  background-color: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(input, textarea)[readonly] { background-color: #f8fafc; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(input, select, textarea, button, a):focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  .settings-role-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) button {
-  min-height: 38px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 650;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] button {
+  min-height: 30px;
+  height: auto;
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font: 600 11px/1.4 var(--app-font-family, Arial, Helvetica, sans-serif);
+  white-space: normal;
+  cursor: pointer;
 }
-
-body.app-shell-body :is(
-  .customer-modal-primary,
-  .master-primary,
-  .primary-estimate-button,
-  .dark-estimate-button,
-  .queue-modal-primary,
-  .settings-role-modal-card button.primary,
-  .parts-modal-card button[class*="blue"],
-  .tools-modal-card button[class*="blue"],
-  .users-modal button[class*="blue"],
-  .wo-modal-card button[class*="primary"]
-) {
-  border-color: #2563eb;
-  background: #2563eb;
-  color: #fff;
-}
-
-body.app-shell-body :is(
-  .customer-modal-secondary,
-  .queue-modal-secondary,
-  .parts-modal-card button:not([class*="blue"]),
-  .tools-modal-card button:not([class*="blue"]),
-  .users-modal button:not([class*="blue"]),
-  dialog.master-dialog footer button:not(.master-primary),
-  dialog.repair-dialog footer button:not(.primary):not(.danger)
-) {
-  border-color: #cbd5e1;
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] button:disabled { cursor: not-allowed; opacity: .6; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(footer, .app-modal-actions, .users-modal-actions, .wo-modal-actions, .estimate-modal-actions, .appointment-modal-actions) {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0;
+  padding: 8px var(--modal-space);
+  border: 0;
+  border-top: 1px solid var(--modal-border);
   background: #fff;
-  color: #273241;
+  box-shadow: none;
 }
-
-body.app-shell-body :is(
-  .customer-modal-close,
-  .bay-close,
-  .parts-modal-close,
-  .tools-modal-close,
-  .estimate-modal-close,
-  .wo-modal-close,
-  .appointment-modal-close,
-  .users-modal-close,
-  .queue-modal-close,
-  .settings-role-modal-card header > button,
-  dialog.master-dialog header button,
-  dialog.repair-dialog header button
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(footer, .app-modal-actions, .users-modal-actions, .wo-modal-actions) button { min-width: 88px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] button:is(.app-modal-primary, .primary, .master-primary, .customer-modal-primary, .queue-modal-primary, .appointment-modal-primary, .primary-estimate-button) {
+  color: #fff;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] button:is(.app-modal-danger, .danger, [class*="button-danger"], .users-button-red) {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] button:is(
+  .app-modal-secondary, .customer-modal-secondary, .queue-modal-secondary, .appointment-modal-secondary,
+  .parts-button, .tools-button, .users-button, .wo-button, .records-button
+),
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] footer button:not([class]) { color: #334155; background: #fff; border-color: #cbd5e1; }
+/* Only actual close buttons get icon dimensions; header Save buttons stay full size. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(header, .app-modal-header) button:is(
+  .app-modal-close, [aria-label^="Close"], [data-modal-close], .customer-modal-close, .bay-close,
+  .parts-modal-close, .tools-modal-close, .estimate-modal-close, .wo-modal-close,
+  .appointment-modal-close, .users-modal-close, .queue-modal-close
 ) {
   display: inline-grid;
   place-items: center;
@@ -259,656 +291,185 @@ body.app-shell-body :is(
   min-width: 28px;
   height: 28px;
   min-height: 28px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body :is(
-  .customer-modal-actions,
-  .bay-form-footer,
-  .parts-modal-actions,
-  .tools-modal-actions,
-  .estimate-modal-actions,
-  .wo-modal-actions,
-  .appointment-modal-actions,
-  .users-modal-actions,
-  .queue-modal-actions,
-  .settings-role-modal-card footer,
-  dialog.master-dialog footer,
-  dialog.repair-dialog footer
-) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  border-color: #e5eaf0;
-}
-
-/* Use the Add Customer modal as the shared layout for data-entry dialogs. */
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal),
-  dialog.repair-dialog:not(.repair-dialog-small)
-) {
-  position: fixed;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  height: auto;
   margin: 0;
   padding: 0;
-  width: min(640px, calc(100vw - 32px));
-  max-width: calc(100vw - 32px);
-  max-height: min(90dvh, 900px);
-  border-radius: 14px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-header,
-  .bay-form-header,
-  .parts-modal-header,
-  .tools-modal-header,
-  .estimate-modal-header,
-  .wo-modal-header,
-  .appointment-modal-header,
-  .users-modal-header,
-  .queue-modal-header,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) form > header,
-  dialog.repair-dialog:not(.repair-dialog-small) form > header
-) {
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 13px 18px 12px;
-  border-bottom: 1px solid #e5eaf0;
-}
-
-/* Keep appointment editor headers compact and the close control easy to hit. */
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new) form > header {
-  gap: 8px;
-  margin: 0;
-  padding: 10px 18px;
-}
-
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new) form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 30px;
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
+  border: 1px solid var(--modal-border);
+  border-radius: 8px;
+  color: #475569;
   background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new) {
-  scrollbar-width: thin;
-  scrollbar-color: #9aa3af transparent;
-}
-
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new)::-webkit-scrollbar {
-  width: 12px;
-}
-
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new)::-webkit-scrollbar-track {
-  margin-block: 12px;
-  background: transparent;
-}
-
-body.app-shell-body dialog.master-dialog:is(#appointment-new, #walkin-new)::-webkit-scrollbar-thumb {
-  border: 3px solid #fff;
-  border-radius: 999px;
-  background: #9aa3af;
-}
-
-body.app-shell-body dialog.master-dialog.vehicle-register-dialog > form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog#estimate-editor > form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body .parts-modal-card {
-  scrollbar-width: thin;
-  scrollbar-color: #9aa3af transparent;
-}
-
-body.app-shell-body .parts-modal-card::-webkit-scrollbar {
-  width: 12px;
-}
-
-body.app-shell-body .parts-modal-card::-webkit-scrollbar-track {
-  margin-block: 12px;
-  background: transparent;
-}
-
-body.app-shell-body .parts-modal-card::-webkit-scrollbar-thumb {
-  border: 3px solid #fff;
-  border-radius: 999px;
-  background: #9aa3af;
-}
-
-body.app-shell-body .parts-modal-card .parts-form-section {
-  padding-block: 10px;
-}
-
-body.app-shell-body .parts-modal-card .parts-form-section h2 {
-  margin-bottom: 8px;
-  padding-left: 12px;
-}
-
-body.app-shell-body .parts-modal-card .parts-form-grid {
-  gap: 9px 12px;
-}
-
-body.app-shell-body .parts-modal-card .parts-form-grid label {
-  gap: 4px;
-}
-
-body.app-shell-body dialog.master-dialog {
-  scrollbar-width: thin;
-  scrollbar-color: #9aa3af transparent;
-}
-
-body.app-shell-body dialog.master-dialog::-webkit-scrollbar {
-  width: 12px;
-}
-
-body.app-shell-body dialog.master-dialog::-webkit-scrollbar-track {
-  margin-block: 12px;
-  background: transparent;
-}
-
-body.app-shell-body dialog.master-dialog::-webkit-scrollbar-thumb {
-  border: 3px solid #fff;
-  border-radius: 999px;
-  background: #9aa3af;
-}
-
-body.app-shell-body dialog.master-dialog .master-field-hint {
-  color: #687589;
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.35;
-}
-
-body.app-shell-body dialog#master-new > form > header {
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 10px 18px;
-}
-
-body.app-shell-body dialog#master-new > form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] > form > header {
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 10px 18px;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] > form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] .repair-fields {
-  gap: 8px 10px;
-  margin: 0;
-  padding: 12px 18px;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] .repair-fields label {
-  gap: 4px;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] .repair-fields :is(input, select, textarea) {
-  min-height: 40px;
-  padding: 8px 11px;
-}
-
-body.app-shell-body dialog.repair-dialog[id^="labour-"] .repair-fields textarea {
-  min-height: 64px;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-dialog > form > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-dialog > form > header > button,
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal > header > button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  min-width: 34px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0;
-  border: 1px solid #d5dde7;
-  border-radius: 50%;
-  background: #fff;
-  color: #526174;
-  font-size: 14px;
-  line-height: 1;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal {
-  width: min(780px, calc(100vw - 32px));
-  max-height: min(86dvh, 760px);
-  padding: 0;
-  overflow: auto;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal > header {
-  gap: 10px;
-  margin: 0;
-  padding: 12px 18px;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permissions-preview {
-  padding: 12px 18px;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permissions-preview > p {
-  margin: 0 0 10px;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .master-table-wrap {
-  max-height: min(52dvh, 430px);
-  margin: 0;
-  overflow: auto;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal td,
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal th {
-  padding: 8px 10px;
-}
-
-body.app-shell-body dialog.master-dialog.staff-account-permissions-modal > footer {
-  position: sticky;
-  bottom: 0;
-  margin: 0;
-  padding: 10px 18px;
-  border-top: 1px solid #e5eaf0;
-  background: #fff;
-}
-
-body.app-shell-body :is(
-  .customer-modal-header h2,
-  .bay-form-header h2,
-  .parts-modal-header h2,
-  .tools-modal-header h2,
-  .estimate-modal-header h2,
-  .wo-modal-header h2,
-  .appointment-modal-header h2,
-  .users-modal-header h2,
-  .queue-modal-header h2,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) h2,
-  dialog.repair-dialog:not(.repair-dialog-small) h2
-) {
   font-size: 16px;
-  line-height: 1.35;
-  font-weight: 700;
+  line-height: 1;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.settings-role-permission-actions, .staff-permission-actions) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-body.app-shell-body :is(
-  .customer-modal-header p,
-  .bay-form-header p,
-  .parts-modal-header p,
-  .tools-modal-header p,
-  .estimate-modal-header p,
-  .wo-modal-header p,
-  .appointment-modal-header p,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) form > header p,
-  dialog.repair-dialog:not(.repair-dialog-small) form > header p
-) {
-  margin: 5px 0 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-body.app-shell-body :is(
-  .customer-modal-form,
-  .parts-form-panel,
-  .tools-form-panel,
-  .bay-form-card,
-  .wo-modal-form,
-  .estimate-modal-form,
-  .appointment-modal-form,
-  .users-modal-form,
-  .queue-modal-form,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) form,
-  dialog.repair-dialog:not(.repair-dialog-small) form
-) {
-  padding: 0;
-}
-
-body.app-shell-body :is(
-  .customer-form-grid,
-  .parts-form-grid,
-  .tools-form-grid,
-  .wo-form-grid,
-  .users-employee-form-grid,
-  .bay-form-body,
-  .master-fields
-) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  padding: 14px 18px;
+/* Wide content retains its own horizontal scroll, without widening the popup. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(.master-table-wrap, .settings-permission-table-wrap) {
+  position: relative;
+  max-width: 100%;
+  max-height: none;
   margin: 0;
+  overflow-x: auto;
 }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .settings-permission-table-wrap { margin: 16px var(--modal-space); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .staff-permissions-preview .master-table-wrap { height: auto; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(table, td, th) { font-size: 13px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(th, td) { padding: 10px 12px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .staff-access-fields { display: grid; gap: 16px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .staff-access-fields footer { margin: 0 calc(-1 * var(--modal-space)) calc(-1 * var(--modal-space)); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] [data-estimate-lines] { padding: 0 var(--modal-space) 16px; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .estimate-edit-row {
+  display: grid;
+  grid-template-columns: minmax(100px, .8fr) minmax(160px, 2fr) repeat(2, minmax(90px, 1fr)) 40px;
+  gap: 12px;
+  padding: 16px 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .estimate-edit-row .line-description { grid-column: 1 / -1; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] [data-remove-line] { min-width: 40px; padding: 8px; }
 
-body.app-shell-body :is(
-  .customer-form-grid,
-  .parts-form-grid,
-  .tools-form-grid,
-  .wo-form-grid,
-  .users-employee-form-grid,
-  .master-fields
-) label,
-body.app-shell-body .bay-form-body > label {
-  gap: 3px;
-  font-size: 14px;
-  line-height: 1.4;
+/* Estimate lines need a compact editor, with room for their numeric fields. */
+#estimate-editor.app-modal { --modal-width: 560px; }
+#estimate-editor .estimate-lines-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px var(--modal-space) 4px;
 }
-
-body.app-shell-body :is(
-  .customer-form-grid,
-  .parts-form-grid,
-  .tools-form-grid,
-  .wo-form-grid,
-  .users-employee-form-grid,
-  .bay-form-body,
-  .master-fields
-) :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-  min-height: 56px;
-  padding: 13px 16px;
-  border-radius: 9px;
-  font-size: 14px;
+#estimate-editor .estimate-lines-heading h3 { margin: 0; }
+#estimate-editor [data-estimate-lines] { padding: 0 var(--modal-space) 8px; }
+#estimate-editor .estimate-edit-row {
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 30px;
+  gap: 8px;
+  padding: 8px 0;
 }
-
-body.app-shell-body :is(
-  .customer-form-grid,
-  .parts-form-grid,
-  .tools-form-grid,
-  .wo-form-grid,
-  .users-employee-form-grid,
-  .master-fields
-) textarea,
-body.app-shell-body .bay-form-body textarea {
-  min-height: 96px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-actions,
-  .bay-form-footer,
-  .parts-modal-actions,
-  .tools-modal-actions,
-  .wo-modal-actions,
-  .appointment-modal-actions,
-  .users-modal-actions,
-  .queue-modal-actions,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) footer,
-  dialog.repair-dialog:not(.repair-dialog-small) footer
-) {
-  gap: 6px;
-  padding: 9px 18px 12px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-actions,
-  .bay-form-footer,
-  .parts-modal-actions,
-  .tools-modal-actions,
-  .wo-modal-actions,
-  .appointment-modal-actions,
-  .users-modal-actions,
-  .queue-modal-actions,
-  dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) footer,
-  dialog.repair-dialog:not(.repair-dialog-small) footer
-) button {
-  min-width: 96px;
-  min-height: 36px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 12px;
-}
-
-.modal-required-indicator {
-  margin-left: 3px;
-  color: #dc2626;
-  font-weight: 750;
-}
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
-  min-height: 34px;
-  padding: 6px 10px;
-  font-size: 11px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) textarea {
-  min-height: 58px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) label {
-  font-size: 11px;
-}
-
-body.app-shell-body :is(
-  .customer-modal-card,
-  .bay-modal-card,
-  .parts-modal-card,
-  .tools-modal-card,
-  .estimate-modal-card,
-  .wo-modal-card,
-  .appointment-modal-card,
-  .users-modal,
-  .queue-modal-card,
-  dialog.master-dialog,
-  dialog.repair-dialog
-) button:not(.customer-modal-close):not(.bay-close):not(.parts-modal-close):not(.tools-modal-close):not(.estimate-modal-close):not(.wo-modal-close):not(.appointment-modal-close):not(.users-modal-close) {
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
+#estimate-editor [data-remove-line] { min-width: 30px; width: 30px; padding: 5px; justify-self: end; }
+#estimate-editor .line-description textarea { min-height: 72px; resize: vertical; }
+#estimate-editor .estimate-edit-row :is([data-part-select], [data-service-select]) { grid-column: 2 / -1; }
+/* Notification cards retain their icon, message and close-button layout. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].app-notification-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) 36px; gap: 16px; padding: var(--modal-space); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].app-notification-card footer { grid-column: 1 / -1; padding: 16px 0 0; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].app-notification-card p { margin: 6px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .app-notification-close { position: static; min-width: 36px; width: 36px; min-height: 36px; height: 36px; padding: 0; }
+.modal-required-indicator { margin-left: 3px; color: #dc2626; font-weight: 700; }
 
 @media (max-width: 600px) {
-  body.app-shell-body :is(
-    .customer-modal,
-    .bay-modal,
-    .parts-modal,
-    .tools-modal,
-    .estimate-modal,
-    .wo-modal,
-    .appointment-modal,
-    .queue-modal,
-    .settings-role-modal,
-    .users-modal-layer
-  ) {
-    padding: 12px;
-  }
-
-  body.app-shell-body :is(dialog.master-dialog, dialog.repair-dialog) {
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] {
+    --modal-space: 12px;
+    --modal-gap: 8px;
     width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
     max-height: calc(100dvh - 24px);
-    padding: 16px;
+    border-radius: 12px;
   }
-
-  body.app-shell-body :is(
-    .customer-modal-header,
-    .bay-form-header,
-    .parts-modal-header,
-    .tools-modal-header,
-    .estimate-modal-header,
-    .wo-modal-header,
-    .appointment-modal-header,
-    .users-modal-header,
-    .queue-modal-header,
-    dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) form > header,
-    dialog.repair-dialog:not(.repair-dialog-small) form > header
-  ) { padding: 16px 18px; }
-
-  body.app-shell-body :is(
-    .customer-form-grid,
-    .parts-form-grid,
-    .tools-form-grid,
-    .wo-form-grid,
-    .users-employee-form-grid,
-    .bay-form-body,
-    .master-fields
-  ) { padding: 16px 18px; gap: 12px; }
-
-  body.app-shell-body :is(
-    .customer-modal-actions,
-    .bay-form-footer,
-    .parts-modal-actions,
-    .tools-modal-actions,
-    .wo-modal-actions,
-    .appointment-modal-actions,
-    .users-modal-actions,
-    .queue-modal-actions,
-    dialog.master-dialog:not(.master-confirm):not(.staff-access-modal) footer,
-    dialog.repair-dialog:not(.repair-dialog-small) footer
-  ) { padding: 14px 18px 18px; }
-
-  body.app-shell-body :is(
-    .customer-modal-actions,
-    .bay-form-footer,
-    .parts-modal-actions,
-    .tools-modal-actions,
-    .estimate-modal-actions,
-    .wo-modal-actions,
-    .appointment-modal-actions,
-    .users-modal-actions,
-    .queue-modal-actions,
-    .settings-role-modal-card footer,
-    dialog.master-dialog footer,
-    dialog.repair-dialog footer
-  ) button {
-    flex: 1 1 auto;
-  }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(
+    .app-modal-grid, .customer-form-grid, .parts-form-grid, .tools-form-grid, .wo-form-grid,
+    .appointment-modal-grid, .estimate-modal-grid, .users-employee-form-grid,
+    .users-form-grid, .bay-form-body, .master-fields, .repair-fields, .queue-modal-grid,
+    .queue-bay-grid, .staff-account-controls
+  ) { grid-template-columns: minmax(0, 1fr); }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .estimate-edit-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] :is(footer, .app-modal-actions, .users-modal-actions, .wo-modal-actions) button { flex: 1 1 120px; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] header { padding-block: 10px; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] h2 { font-size: 15px; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .settings-role-permission-actions { flex-direction: column-reverse; align-items: flex-end; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-choice { grid-template-columns: 18px 32px minmax(0, 1fr); }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .queue-choice :is(em, b) { grid-column: 3; }
 }
+
+/* Body-only content and new modules can use these shared primitives directly. */
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .app-modal-body { display: grid; gap: var(--modal-gap); }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .app-modal-body > .app-modal-grid { padding: 0; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] legend { float: none; width: auto; margin: 0; padding: 0 6px; font-size: 14px; font-weight: 650; }
+
+/* Expandable table card for mechanic selection. Native disclosure and radio controls
+   keep keyboard selection available without a custom listbox implementation. */
+body.app-shell-body .app-modal .mechanic-picker {
+  min-width: 0;
+  border: 1px solid var(--modal-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+body.app-shell-body .app-modal .mechanic-picker summary {
+  padding: 12px 14px;
+  cursor: pointer;
+  color: #172033;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+body.app-shell-body .app-modal .mechanic-picker summary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+body.app-shell-body .app-modal .mechanic-table-card { border-top: 1px solid var(--modal-border); }
+body.app-shell-body .app-modal .mechanic-table-card table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+body.app-shell-body .app-modal .mechanic-table-card :is(th, td) {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 13px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  text-align: left;
+}
+body.app-shell-body .app-modal .mechanic-table-card th { background: #f3f6fa; font-weight: 600; }
+body.app-shell-body .app-modal .mechanic-table-card th:first-child { width: 48%; }
+body.app-shell-body .app-modal .mechanic-table-card th:last-child { width: 18%; }
+body.app-shell-body .app-modal .mechanic-table-card tr:last-child td { border-bottom: 0; }
+body.app-shell-body .app-modal .mechanic-table-card tr:has(input:checked) { background: #edf4ff; }
+body.app-shell-body .app-modal .mechanic-table-card tr:hover { background: #f3f6fa; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .mechanic-table-card label {
+  display: flex; flex-direction: row; align-items: center; gap: 8px; cursor: pointer; font-weight: 400;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .mechanic-table-card input[type="radio"] {
+  width: 16px; height: 16px; min-height: 16px; flex: 0 0 16px; margin: 0; padding: 0; accent-color: #2563eb;
+}
+
+/* Shared module cards for role defaults and per-account permission overrides. */
+body.app-shell-body .app-modal .permission-groups { display: grid; gap: 16px; min-width: 0; }
+body.app-shell-body .app-modal .permission-group { border: 1px solid #d8e0eb; border-radius: 8px; overflow: hidden; }
+body.app-shell-body .app-modal .permission-group > summary { padding: 14px 16px; background: #f3f6fa; color: #243447; font-size: 14px; font-weight: 600; cursor: pointer; }
+body.app-shell-body .app-modal .permission-list { display: grid; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-item {
+  display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 12px 16px; margin: 0; border-top: 1px solid #e5eaf0; min-width: 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] label.permission-item { justify-content: flex-start; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-item > label { display: flex; flex-direction: row; align-items: center; gap: 12px; flex: 1; }
+body.app-shell-body .app-modal .permission-item span { min-width: 0; overflow-wrap: anywhere; }
+body.app-shell-body .app-modal .permission-item small { display: block; margin-top: 3px; color: #64748b; font-weight: 400; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-item input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin: 0; accent-color: #2563eb; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-item > select { width: 165px; flex: 0 0 165px; }
+body.app-shell-body .app-modal .permission-editor > input { margin-bottom: 16px; }
+body.app-shell-body .app-modal .permission-groups [hidden] { display: none !important; }
+@media (max-width: 600px) {
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] div.permission-item { flex-wrap: wrap; gap: 10px; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] div.permission-item > label { flex-basis: 100%; }
+  body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-item > select { width: 100%; flex: 1 1 100%; }
+}
+
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-search-control {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-search-field {
+  position: relative; flex: 1 1 0; min-width: 0; margin: 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b;
+}
+.permission-search-icon svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-search-field input[type="search"][data-permission-search] {
+  width: 100%; padding-left: 40px; margin: 0;
+}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .permission-search-button {
+  flex: 0 0 auto; min-height: 42px; padding: 10px 18px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #243447; font-weight: 600; cursor: pointer;
+}
+body.app-shell-body .app-modal .permission-search-button:hover { background: #f1f5f9; }
+body.app-shell-body .app-modal .permission-search-button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+body.app-shell-body .app-modal [data-permission-empty][hidden] { display: none; }

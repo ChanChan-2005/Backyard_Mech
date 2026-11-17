@@ -6,6 +6,7 @@
     ViewData["PageSubtitle"] = $"SERVICE QUEUE > {Model.Customer.ToUpperInvariant()} > DETAILS";
     ViewData["ActiveNav"] = "Service Queue";
     ViewData["ShellClass"] = "service-queue-shell";
+    var linkedWorkOrderId = ViewData["LinkedWorkOrderId"] as int?;
 }
 
 @section TopbarActions {
@@ -23,10 +24,19 @@
             <span class="queue-detail-status">@Model.Status</span>
 
             <div class="queue-detail-actions">
-                <button class="queue-action-blue" type="button" data-queue-modal="update-status">Update Status</button>
-                <button class="queue-action" type="button" data-queue-modal="assign-mechanic">Assign Mechanic</button>
+                @if (linkedWorkOrderId.HasValue)
+                {
+                    <a class="queue-action-blue" asp-controller="Owner" asp-action="WorkOrderStatus" asp-route-id="@linkedWorkOrderId">Update Status</a>
+                    <a class="queue-action" asp-controller="Owner" asp-action="StaffDispatchMatrix" asp-route-id="@linkedWorkOrderId">Assign Mechanic</a>
+                }
+                else
+                {
+                    <button class="queue-action-blue" type="button" data-queue-modal="update-status">Update Status</button>
+                    <button class="queue-action" type="button" data-queue-modal="assign-mechanic">Assign Mechanic</button>
+                }
                 <button class="queue-action" type="button" data-queue-modal="assign-bay">Assign Bay</button>
-                <a class="queue-action" asp-controller="Owner" asp-action="WorkOrders">View Work Order</a>
+                @if (linkedWorkOrderId.HasValue) { <a class="queue-action" asp-controller="Owner" asp-action="WorkOrderDetails" asp-route-id="@linkedWorkOrderId">View Work Order</a> }
+                else { <a class="queue-action" asp-controller="Owner" asp-action="WorkOrders">Create Work Order</a> }
             </div>
         </section>
 
@@ -47,13 +57,13 @@
                 <h3>Service Type & Diagnostic Notes</h3>
                 @if (Model.Services.Count == 0)
                 {
-                    <a class="queue-detail-link" href="#">@Model.Type</a>
+                    <span class="queue-detail-link">@Model.Type</span>
                 }
                 else
                 {
                     @foreach (var service in Model.Services)
                     {
-                        <a class="queue-detail-link" href="#">@service</a><br />
+                        <span class="queue-detail-link">@service</span><br />
                     }
                 }
                 <p>@Model.Notes</p>

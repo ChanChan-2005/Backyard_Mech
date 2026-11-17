@@ -1,6 +1,6 @@
 <div class="bay-modal" data-bay-modal-panel="set-maintenance" aria-hidden="true">
     <div class="bay-modal-backdrop" data-bay-modal-close></div>
-    <section class="bay-modal-card" role="dialog" aria-modal="true" aria-labelledby="set-maintenance-title">
+    <section class="bay-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="set-maintenance-title">
         <form class="bay-form-card" asp-controller="Owner" asp-action="SetBayMaintenance" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="BayId" id="maintenance-bay-id" />
@@ -36,8 +36,8 @@
                     <input class="bay-input" type="date" name="EstimatedReturnDate" required />
                 </label>
                 <label>
-                    <span class="bay-label">Assigned Technician</span>
-                    <input class="bay-input" type="text" name="AssignedTechnician" maxlength="120" placeholder="Select or enter technician" />
+                    <span class="bay-label">Assigned Mechanic</span>
+                    <input class="bay-input" type="text" name="AssignedTechnician" maxlength="120" placeholder="Select or enter mechanic" />
                 </label>
                 <label>
                     <span class="bay-label">Notes *</span>

@@ -19,8 +19,13 @@ public sealed class MasterDataForm
     [StringLength(120)] public string? ContactFirstName { get; set; }
     [StringLength(120)] public string? ContactMiddleName { get; set; }
     [StringLength(120)] public string? ContactLastName { get; set; }
-    [Phone, StringLength(40)] public string? Phone { get; set; }
+    [CanadianPhone]
+    public string? Phone { get; set; }
     [EmailAddress, StringLength(256)] public string? Email { get; set; }
+    [StringLength(20)] public string? UnitNumber { get; set; }
+    [StringLength(20)] public string? StreetNumber { get; set; }
+    [StringLength(150)] public string? StreetName { get; set; }
+    [StringLength(30)] public string? StreetType { get; set; }
     [StringLength(250)] public string? StreetAddress { get; set; }
     [StringLength(120)] public string? City { get; set; }
     [StringLength(120)] public string? Province { get; set; }
@@ -31,7 +36,7 @@ public sealed class MasterDataForm
 public sealed class MasterStateForm
 {
     [Range(1, int.MaxValue)] public int Id { get; set; }
-    [Required] public string Expected { get; set; } = "";
+    [Required] [StringLength(100)] public string Expected { get; set; } = "";
     [RegularExpression("services|parts|tools")] public string? Kind { get; set; }
     public bool Active { get; set; }
     [Required, StringLength(500)] public string Reason { get; set; } = "";

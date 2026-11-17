@@ -1,5 +1,5 @@
 @model WorkflowReasonDialog
-<dialog class="repair-dialog repair-dialog-small" id="@Model.DialogId" aria-labelledby="@(Model.DialogId)-title">
+<dialog class="repair-dialog repair-dialog-small app-modal app-modal--compact" id="@Model.DialogId" aria-labelledby="@(Model.DialogId)-title" role="dialog" aria-modal="true">
     <form method="post" asp-action="@Model.Action" asp-controller="Owner">
         <header><h2 id="@(Model.DialogId)-title">@Model.Title</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
         <input type="hidden" name="Id" value="@Model.Id" />

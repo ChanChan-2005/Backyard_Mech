@@ -11,10 +11,9 @@ public partial class OwnerController
         .Where(x=>x.IsActive).OrderBy(x=>x.ModuleName).ThenBy(x=>x.ActionName).ToListAsync())
         .Where(x=>OwnerPermissionCatalog.IsSupportedPermission(x.ModuleName??"",x.ActionName??"")).ToList();
 
-    private static string AccessStamp(AppUser user, IEnumerable<UserPermissionOverride> overrides) => MasterStamp(new {
+    private static string AccessStamp(AppUser user) => MasterStamp(new {
         user.Id,user.Role,user.IsActive,user.Email,user.UserName,
-        Credentials=AccountSecurityService.CredentialStamp(user),
-        Permissions=overrides.OrderBy(x=>x.PermissionId).Select(x=>new{x.PermissionId,x.IsAllowed}).ToArray()
+        Credentials=AccountSecurityService.CredentialStamp(user)
     });
 
     public async Task<IActionResult> StaffAccounts(int? userId)
@@ -22,7 +21,7 @@ public partial class OwnerController
         var role=HttpContext.Session.GetString("UserRole");
         var model=new StaffAccountsPage {
             Profiles=await _dbContext.EmployeeProfiles.AsNoTracking().Where(x=>!x.IsArchived && !x.IsDeleted).OrderBy(x=>x.FirstName).ToListAsync(),
-            Accounts=await _dbContext.Users.AsNoTracking().OrderBy(x=>x.UserName).ToListAsync(),
+            Accounts=await _dbContext.Users.AsNoTracking().Where(x=>!_dbContext.EmployeeProfiles.Any(p=>p.UserId==x.Id.ToString() && (p.IsArchived || p.IsDeleted))).OrderBy(x=>x.UserName).ToListAsync(),
             Roles=await _dbContext.AppRoles.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.RoleName).ToListAsync(),
             Permissions=await AssignablePermissions(),
             CanCreate=await _permissionService.HasPermissionAsync(role,"User Access","Create"),
@@ -33,9 +32,8 @@ public partial class OwnerController
             model.RoleDefaults[availableRole.RoleKey]=(await _permissionService.GetRolePermissionCodesAsync(availableRole.RoleKey)).ToArray();
         if(model.Selected is not null)
         {
-            model.Overrides=await _dbContext.UserPermissionOverrides.AsNoTracking().Where(x=>x.UserId==model.Selected.Id).ToListAsync();
             model.Defaults=await _permissionService.GetRolePermissionCodesAsync(model.Selected.Role);
-            model.Expected=AccessStamp(model.Selected,model.Overrides);
+            model.Expected=AccessStamp(model.Selected);
             if(model.Selected.Id.ToString()==HttpContext.Session.GetString("UserId") || model.Defaults.Contains("*")) model.CanEdit=false;
         }
         return View(model);
@@ -44,8 +42,8 @@ public partial class OwnerController
     private async Task ValidateDelegation(AppRole role, HashSet<string> grants)
     {
         var actor=await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
-        Require(!role.IsSystemProtected || actor.Contains("*"),"Only a protected owner may assign the owner role.");
-        Require(actor.Contains("*") || (!grants.Contains("*") && grants.All(actor.Contains)),"You cannot assign access beyond your own permissions.");
+        Require(!role.IsSystemProtected || actor.Contains("*"),"Only the root administrator may assign protected access.");
+        Require(PermissionService.CanDelegateStaffPermissions(actor, grants),"You cannot assign access beyond your own permissions.");
     }
 
     [HttpPost,ValidateAntiForgeryToken]
@@ -62,22 +60,13 @@ public partial class OwnerController
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
         Require(role is not null,"Choose an active role.");
         Require(!role.IsSystemProtected,"Choose a staff role.");
-        var available=await AssignablePermissions();
-        Require(form.Permissions.Count==available.Count && form.Permissions.Select(x=>x.PermissionId).Distinct().Count()==available.Count &&
-            form.Permissions.All(x=>available.Any(p=>p.PermissionId==x.PermissionId)),"Permission list changed. Refresh and try again.");
-        var effective=new HashSet<string>(await _permissionService.GetRolePermissionCodesAsync(role.RoleKey),StringComparer.OrdinalIgnoreCase);
-        foreach(var choice in form.Permissions)
-        {
-            var code=available.Single(x=>x.PermissionId==choice.PermissionId).PermissionCode!;
-            if(choice.Mode=="Allow") effective.Add(code); else if(choice.Mode=="Deny") effective.Remove(code);
-        }
+        Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
+        var effective=await _permissionService.GetRolePermissionCodesAsync(role.RoleKey);
         await ValidateDelegation(role,effective);
         var user=new AppUser {Email=email,UserName=name,Role=role.RoleKey,PasswordHash=PasswordHasher.Hash(form.Password),IsActive=true};
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
         profile.UserId=user.Id.ToString();
-        foreach(var choice in form.Permissions.Where(x=>x.Mode!="Inherit"))
-            _dbContext.UserPermissionOverrides.Add(new UserPermissionOverride {UserId=user.Id,PermissionId=choice.PermissionId,IsAllowed=choice.Mode=="Allow"});
-        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role,form.Permissions});
+        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role});
         return RedirectToAction(nameof(StaffAccounts));
     },nameof(StaffAccounts));
 
@@ -86,30 +75,24 @@ public partial class OwnerController
         Require(form.UserId.ToString()!=HttpContext.Session.GetString("UserId"),"You cannot change your own account access.");
         var user=await _dbContext.Users.FindAsync(form.UserId); Require(user is not null,"Account not found.");
         var previousRole=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==user.Role);
-        Require(previousRole?.IsSystemProtected!=true,"Protected owner access cannot be overridden here.");
-        var old=await _dbContext.UserPermissionOverrides.Where(x=>x.UserId==user.Id).ToListAsync();
-        Require(AccessStamp(user,old)==form.Expected,"Account access changed. Refresh before saving.");
+        Require(previousRole?.IsSystemProtected!=true,"Protected root administrator access cannot be overridden here.");
+        Require(AccessStamp(user)==form.Expected,"Account access changed. Refresh before saving.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
         Require(role is not null,"Choose an active role.");
-        Require(!role.IsSystemProtected,"Use a non-protected staff role for individual permissions.");
-        var available=await AssignablePermissions();
-        Require(form.Permissions.Count==available.Count && form.Permissions.Select(x=>x.PermissionId).Distinct().Count()==available.Count &&
-            form.Permissions.All(x=>available.Any(p=>p.PermissionId==x.PermissionId)),"Permission list changed. Refresh and try again.");
-        var effective=new HashSet<string>(await _permissionService.GetRolePermissionCodesAsync(role.RoleKey),StringComparer.OrdinalIgnoreCase);
-        foreach(var choice in form.Permissions)
-        {
-            var code=available.Single(x=>x.PermissionId==choice.PermissionId).PermissionCode!;
-            if(choice.Mode=="Allow") effective.Add(code); else if(choice.Mode=="Deny") effective.Remove(code);
-        }
-        await ValidateDelegation(role,effective);
-        WorkflowAudit("Account",user.Id,"Before access change",new {user.Role,user.IsActive,Overrides=old.Select(x=>new{x.PermissionId,x.IsAllowed}).ToArray()});
+        Require(!role.IsSystemProtected,"Choose a staff role.");
+        Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
+        await ValidateDelegation(role,await _permissionService.GetRolePermissionCodesAsync(role.RoleKey));
+        var before = new { user.Role, user.IsActive };
+        var changes = new List<string>();
+        if (user.Role != role.RoleKey) changes.Add($"System access role changed from {user.Role} to {role.RoleKey}");
+        if (user.IsActive != form.IsActive) changes.Add(form.IsActive ? "Account enabled" : "Account disabled");
+        if (changes.Count == 0) return RedirectToAction(nameof(StaffAccounts));
         user.Role=role.RoleKey;user.IsActive=form.IsActive;
-        _dbContext.UserPermissionOverrides.RemoveRange(old);
-        await _dbContext.SaveChangesAsync();
-        foreach(var choice in form.Permissions.Where(x=>x.Mode!="Inherit"))
-            _dbContext.UserPermissionOverrides.Add(new UserPermissionOverride {UserId=user.Id,PermissionId=choice.PermissionId,IsAllowed=choice.Mode=="Allow"});
-        WorkflowAudit("Account",user.Id,"Change access",new{user.Role,user.IsActive,form.Permissions,form.Reason});
-        return RedirectToAction(nameof(StaffAccounts),new{userId=user.Id});
+        WorkflowAudit("Account", user.Id, "Change access", new {
+            Summary = string.Join(". ", changes), AccountUserName = user.UserName,
+            Before = before, After = new { user.Role, user.IsActive }
+        });
+        return RedirectToAction(nameof(StaffAccounts));
     },nameof(StaffAccounts),new{userId=form.UserId});
 
     private TimeZoneInfo GarageZone() => TimeZoneInfo.FindSystemTimeZoneById(HttpContext.RequestServices.GetRequiredService<IConfiguration>()["GarageTimeZone"]??"Asia/Manila");

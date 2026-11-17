@@ -32,13 +32,32 @@
       input.disabled = false;
     });
 
-    const title = document.querySelector("#permissions-modal-title");
+    const title = document.querySelector("#permissions-page-title");
     if (title) title.textContent = `Permissions: ${roleName}`;
     closeModal(detailsForm.closest(".settings-role-modal"));
-    openModal("permissions");
+    document.querySelector('[data-role-directory]').hidden = true;
+    const page = document.querySelector('[data-role-permissions-page]');
+    page.hidden = false;
+    page.querySelector('.settings-permission-role-picker').hidden = true;
+    permissionsForm.querySelector('[type="submit"]').disabled = false;
+    permissionsForm.querySelector('[type="submit"]').textContent = 'Create Role';
+    const rolesTab = document.querySelector('[data-role-directory-tab]');
+    const permissionsTab = document.querySelector('[data-role-permissions-tab]');
+    rolesTab.classList.remove('active');
+    rolesTab.removeAttribute('aria-current');
+    permissionsTab.classList.add('active');
+    permissionsTab.setAttribute('aria-current', 'page');
+    page.scrollIntoView({ block: 'start' });
   }
 
   document.addEventListener("click", function (event) {
+    const expandButton = event.target.closest('[data-permission-expand]');
+    if (expandButton) {
+      document.querySelectorAll('[data-settings-action-group]:not([hidden])').forEach(group => {
+        group.open = expandButton.dataset.permissionExpand === 'true';
+      });
+      return;
+    }
     const nextButton = event.target.closest("[data-settings-role-next]");
     if (nextButton) {
       continueRoleCreation();
@@ -100,7 +119,7 @@
         if (!row.hidden) visible++;
       });
       group.hidden = visible === 0;
-      if (query && visible) group.open = true;
+      group.open = Boolean(query && visible);
     });
   });
 
@@ -127,7 +146,4 @@
     }
   });
 
-  if (new URLSearchParams(window.location.search).get("editPermissions") === "true") {
-    openModal("permissions");
-  }
 })();

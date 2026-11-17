@@ -103,33 +103,33 @@
 
 <div class="wo-modal" id="labor-entry-modal" aria-hidden="true">
     <div class="wo-modal-backdrop" data-wo-close-modal></div>
-    <div class="wo-modal-card wo-form-panel">
+    <div class="wo-modal-card wo-form-panel app-modal" role="dialog" aria-modal="true" aria-labelledby="manual-labour-title">
         <form class="wo-modal-form" asp-controller="Owner" asp-action="AddWorkOrderLaborEntry" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="WorkOrderId" value="@Model.WorkOrder.WorkOrderId" />
             <header class="wo-modal-header">
                 <div>
-                    <h2>Add Manual Labour Entry</h2>
+                    <h2 id="manual-labour-title">Add Manual Labour Entry</h2>
                     <p>@Model.WorkOrder.Id - @Model.WorkOrder.Vehicle</p>
                 </div>
-                <button class="wo-button" type="button" data-wo-close-modal>Close</button>
+                <button class="wo-modal-close" type="button" data-wo-close-modal aria-label="Close">&#215;</button>
             </header>
             <div class="wo-form-grid">
                 <label>
                     <span class="wo-mini-label">Mechanic</span>
-                    <input class="wo-field" name="MechanicName" value="@Model.WorkOrder.Mechanic.Split(',').First().Trim()" required />
+                    <input maxlength="256" class="wo-field" name="MechanicName" value="@Model.WorkOrder.Mechanic.Split(',').First().Trim()" required />
                 </label>
                 <label>
                     <span class="wo-mini-label">Task Description</span>
-                    <input class="wo-field" name="TaskDescription" value="@Model.WorkOrder.ServiceSummary" required />
+                    <input maxlength="500" class="wo-field" name="TaskDescription" value="@Model.WorkOrder.ServiceSummary" required />
                 </label>
                 <label>
                     <span class="wo-mini-label">Hours</span>
-                    <input class="wo-field" name="Hours" type="number" min="0.1" step="0.1" value="1.0" required />
+                    <input max="99" class="wo-field" name="Hours" type="number" min="0.1" step="0.1" value="1.0" required />
                 </label>
                 <label>
                     <span class="wo-mini-label">Hourly Rate</span>
-                    <input class="wo-field" name="HourlyRate" type="number" min="0" step="0.01" value="95.00" required />
+                    <input max="10000" class="wo-field" name="HourlyRate" type="number" min="0" step="0.01" value="95.00" required />
                 </label>
             </div>
             <div class="wo-modal-actions">

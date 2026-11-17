@@ -37,7 +37,7 @@
     }
 
     const cost = (elapsedSeconds / 3600) * hourlyRate;
-    costDisplay.textContent = `$${cost.toFixed(2)}`;
+    costDisplay.textContent = `CA$${cost.toFixed(2)}`;
   };
 
   const render = () => {

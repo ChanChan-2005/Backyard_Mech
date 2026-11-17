@@ -224,7 +224,7 @@ namespace Backyard_Mech.Controllers
                 (Module: "Dashboard", Action: "Dashboard"),
                 (Module: "Service Queue", Action: "ServiceQueue"),
                 (Module: "Customers", Action: "CustomerVehicle"),
-                (Module: "Vehicles", Action: "CustomerVehicle"),
+                (Module: "Vehicles", Action: "VehicleHistory"),
                 (Module: "Appointments", Action: "Appointments"),
                 (Module: "Estimates", Action: "EstimateApprovals"),
                 (Module: "Work Orders", Action: "WorkOrders"),
@@ -243,9 +243,10 @@ namespace Backyard_Mech.Controllers
                 (Module: "Settings", Action: "Settings")
             };
 
+            var codes = await _permissionService.GetPermissionCodesAsync(role);
             foreach (var destination in destinations)
             {
-                if (await _permissionService.HasPermissionAsync(role, destination.Module, "View"))
+                if (OwnerPermissionCatalog.CanAccessAction(codes, destination.Action))
                 {
                     return RedirectToAction(destination.Action, "Owner");
                 }

@@ -5,7 +5,7 @@ namespace Backyard_Mech.Models;
 public class VehicleHistoryForm
 {
     [Range(1, int.MaxValue)] public int VehicleId { get; set; }
-    [Required] public string Expected { get; set; } = "";
+    [Required] [StringLength(100)] public string Expected { get; set; } = "";
 }
 public class TransferVehicleForm : VehicleHistoryForm
 {
@@ -20,7 +20,7 @@ public class RecordOdometerForm : VehicleHistoryForm
 public class CheckInAppointmentForm
 {
     [Range(1, int.MaxValue)] public int AppointmentId { get; set; }
-    [Required] public string Expected { get; set; } = "";
+    [Required] [StringLength(100)] public string Expected { get; set; } = "";
     [Required, Range(0, int.MaxValue)] public int? Odometer { get; set; }
     public bool IdentityVerified { get; set; }
 }

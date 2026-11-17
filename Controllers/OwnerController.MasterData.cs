@@ -11,8 +11,8 @@ public partial class OwnerController
 {
     private async Task ValidatePartReferences(PartFormModel form, Part? existing)
     {
-        if(form.SupplierId.HasValue && form.SupplierId != existing?.SupplierId)
-            Require(await _dbContext.Suppliers.AnyAsync(x=>x.SupplierId==form.SupplierId && x.IsActive),"Choose an active supplier.");
+        Require(form.SupplierId.HasValue, "Select a supplier for this part.");
+        Require(await _dbContext.Suppliers.AnyAsync(x=>x.SupplierId==form.SupplierId && x.IsActive),"Choose an active supplier.");
         if(form.PartCategoryId.HasValue && form.PartCategoryId != existing?.PartCategoryId)
             Require(await _dbContext.PartCategories.AnyAsync(x=>x.PartCategoryId==form.PartCategoryId && x.IsActive),"Choose an active part category.");
     }
@@ -40,6 +40,7 @@ public partial class OwnerController
             Headers = new[] { "Supplier", "Contact", "Phone", "Email", "Location" }, Rows = rows.Select(x => new MasterRow(
                 new MasterDataForm { Id=x.SupplierId, Expected=MasterStamp(x), Name=x.SupplierName ?? "", ContactFirstName=x.ContactFirstName,
                     ContactMiddleName=x.ContactMiddleName, ContactLastName=x.ContactLastName, Phone=x.Phone, Email=x.Email,
+                    UnitNumber=x.UnitNumber, StreetNumber=x.StreetNumber, StreetName=x.StreetName, StreetType=x.StreetType,
                     StreetAddress=x.StreetAddress, City=x.City, Province=x.Province, PostalCode=x.PostalCode, AccountNumber=x.AccountNumber },
                 x.IsActive, x.IsActive ? "Active" : "Inactive", new[] { x.SupplierName ?? "", $"{x.ContactFirstName} {x.ContactLastName}".Trim(), x.Phone ?? "", x.Email ?? "", x.City ?? "" })).ToList() });
     }
@@ -52,8 +53,18 @@ public partial class OwnerController
         var row=f.Id==0 ? new Supplier() : await _dbContext.Suppliers.FindAsync(f.Id);
         Require(row is not null, "Supplier not found.");
         if(f.Id!=0) { CheckMaster(row!,f.Expected); WorkflowAudit("Supplier",f.Id,"Before edit",row); }
+        await ValidateSupplierAddressAsync(f, row!);
+        var hasStreetParts = new[] { f.UnitNumber, f.StreetNumber, f.StreetName, f.StreetType }.Any(value => !string.IsNullOrWhiteSpace(value));
+        var hadStreetParts = !string.IsNullOrWhiteSpace(row!.StreetName);
+        row.UnitNumber = Clean(f.UnitNumber); row.StreetNumber = Clean(f.StreetNumber);
+        row.StreetName = Clean(f.StreetName); row.StreetType = Clean(f.StreetType);
+        if (hasStreetParts) {
+            var street = string.Join(" ", new[] { Clean(f.StreetNumber), Clean(f.StreetName), Clean(f.StreetType) }.Where(value => value is not null));
+            row.StreetAddress = string.IsNullOrWhiteSpace(f.UnitNumber) ? street : $"Unit {f.UnitNumber.Trim()}, {street}";
+        }
+        else if (f.Id == 0 || hadStreetParts || !string.IsNullOrWhiteSpace(f.StreetAddress)) row.StreetAddress = Clean(f.StreetAddress);
         row!.SupplierName=name; row.ContactFirstName=Clean(f.ContactFirstName); row.ContactMiddleName=Clean(f.ContactMiddleName); row.ContactLastName=Clean(f.ContactLastName);
-        row.Phone=Clean(f.Phone); row.Email=Clean(f.Email); row.StreetAddress=Clean(f.StreetAddress); row.City=Clean(f.City); row.Province=Clean(f.Province); row.PostalCode=Clean(f.PostalCode); row.AccountNumber=Clean(f.AccountNumber);
+        row.Phone=Clean(f.Phone); row.Email=Clean(f.Email); row.City=Clean(f.City); row.Province=Clean(f.Province); row.PostalCode=Clean(f.PostalCode); row.AccountNumber=Clean(f.AccountNumber);
         if(f.Id==0) _dbContext.Suppliers.Add(row);
         await _dbContext.SaveChangesAsync(); WorkflowAudit("Supplier",row.SupplierId,f.Id==0 ? "Create" : "Edit",row);
         return RedirectToAction(nameof(Suppliers));
@@ -126,7 +137,7 @@ public partial class OwnerController
         return await MasterPage(new MasterDataPage {Mode="services",Title="Service Catalog",Module="Services",CreateAction=nameof(CreateService),EditAction=nameof(UpdateService),StateAction=nameof(SetServiceState),
             Headers=new[]{"Service","Category","Default Price","Estimated Hours"},Options=categories.Where(x=>x.IsActive).Select(x=>new MasterOption(x.ServiceCategoryId,x.CategoryName??"")).ToList(),
             Rows=rows.Select(x=>new MasterRow(new MasterDataForm {Id=x.ServiceId,Expected=MasterStamp(x),Name=x.ServiceName??"",Description=x.Description,CategoryId=x.ServiceCategoryId,Price=x.DefaultPrice??0,Hours=x.DefaultEstimatedHours??0},x.IsActive,x.IsActive?"Active":"Inactive",
-                new[]{x.ServiceName??"",categories.FirstOrDefault(c=>c.ServiceCategoryId==x.ServiceCategoryId)?.CategoryName??"Uncategorized",(x.DefaultPrice??0).ToString("N2"),(x.DefaultEstimatedHours??0).ToString("0.##")})).ToList()});
+                new[]{x.ServiceName??"",categories.FirstOrDefault(c=>c.ServiceCategoryId==x.ServiceCategoryId)?.CategoryName??"Uncategorized",CurrencyDisplay.Cad(x.DefaultPrice),(x.DefaultEstimatedHours??0).ToString("0.##")})).ToList()});
     }
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> CreateService(MasterDataForm f) { f.Id=0;return SaveService(f); }
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> UpdateService(MasterDataForm f) { if(f.Id<=0)ModelState.AddModelError("Id","Select a service.");return SaveService(f); }

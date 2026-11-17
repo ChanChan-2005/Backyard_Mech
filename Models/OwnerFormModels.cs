@@ -12,7 +12,7 @@ namespace Backyard_Mech.Models
         [Required, StringLength(120)]
         public string LastName { get; set; } = string.Empty;
 
-        [Required, StringLength(14), RegularExpression(@"^(?:[0-9]{10}|\+1[0-9]{10}|\([0-9]{3}\) [0-9]{3}-[0-9]{4})$", ErrorMessage = "Use a 10-digit number, +1 and 10 digits, or (###) ###-####.")]
+        [Required, CanadianPhone]
         public string Phone { get; set; } = string.Empty;
 
         [Required, EmailAddress, StringLength(256)]
@@ -21,7 +21,7 @@ namespace Backyard_Mech.Models
         [Required, StringLength(250)]
         public string StreetAddress { get; set; } = string.Empty;
 
-        public string? Notes { get; set; }
+        [StringLength(2000)] public string? Notes { get; set; }
     }
 
     public class VehicleFormModel
@@ -34,7 +34,7 @@ namespace Backyard_Mech.Models
         [Required, StringLength(100)]
         public string Model { get; set; } = string.Empty;
 
-        [Required]
+        [Required, Range(1886, 9999)]
         public int? Year { get; set; }
 
         [StringLength(50)]
@@ -66,7 +66,7 @@ namespace Backyard_Mech.Models
         [StringLength(200)]
         public string ListingTitle { get; set; } = string.Empty;
 
-        public string? ListingDescription { get; set; }
+        [StringLength(2000)] public string? ListingDescription { get; set; }
 
         [StringLength(1000)]
         [Url]
@@ -87,6 +87,7 @@ namespace Backyard_Mech.Models
     {
         public int PartId { get; set; }
 
+        [Required(ErrorMessage = "Select a supplier for this part.")]
         public int? SupplierId { get; set; }
 
         public int? PartCategoryId { get; set; }
@@ -97,7 +98,7 @@ namespace Backyard_Mech.Models
         [Required, StringLength(160)]
         public string Name { get; set; } = string.Empty;
 
-        public string? Description { get; set; }
+        [StringLength(2000)] public string? Description { get; set; }
 
         [Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? UnitCost { get; set; }
@@ -115,7 +116,7 @@ namespace Backyard_Mech.Models
     public class PartStateFormModel
     {
         public int PartId { get; set; }
-        public string? Reason { get; set; }
+        [StringLength(1000)] public string? Reason { get; set; }
     }
 
     public class ToolFormModel : IValidatableObject
@@ -155,7 +156,7 @@ namespace Backyard_Mech.Models
     public class ToolStateFormModel
     {
         public int ToolId { get; set; }
-        public string? Reason { get; set; }
+        [StringLength(1000)] public string? Reason { get; set; }
     }
 
     public class EmployeeFormModel
@@ -183,7 +184,7 @@ namespace Backyard_Mech.Models
         [Required, StringLength(20)]
         public string PostalCode { get; set; } = string.Empty;
 
-        [Required, Phone, StringLength(40)]
+        [Required, CanadianPhone]
         public string Phone { get; set; } = string.Empty;
 
         [Required, EmailAddress, StringLength(256)]
@@ -201,7 +202,7 @@ namespace Backyard_Mech.Models
         [Required, Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? HourlyRate { get; set; }
 
-        public string? RoleId { get; set; }
+        [StringLength(100)] public string? RoleId { get; set; }
     }
 
     public class AddEmployeeFormModel : EmployeeFormModel
@@ -212,9 +213,10 @@ namespace Backyard_Mech.Models
 
     public class EmployeeStateFormModel
     {
+        public bool FromStaffAccounts { get; set; }
         public int EmployeeProfileId { get; set; }
-        public string? Reason { get; set; }
-        public string? Notes { get; set; }
+        [StringLength(500)] public string? Reason { get; set; }
+        [StringLength(2000)] public string? Notes { get; set; }
     }
 
     public class EmployeeShiftFormModel
@@ -238,8 +240,8 @@ namespace Backyard_Mech.Models
     {
         public int BayId { get; set; }
 
-        [Required, StringLength(50)]
-        public string BayNumber { get; set; } = string.Empty;
+        [Range(1, int.MaxValue, ErrorMessage = "Enter a whole bay number greater than zero.")]
+        public int BayNumber { get; set; }
 
         [Required, StringLength(120)]
         public string Name { get; set; } = string.Empty;
@@ -278,6 +280,22 @@ namespace Backyard_Mech.Models
 
         [Range(1, int.MaxValue)]
         public int BayId { get; set; }
+    }
+
+    public class QueueMechanicAssignmentFormModel
+    {
+        public int AppointmentId { get; set; }
+        [Range(1, int.MaxValue)]
+        public int MechanicId { get; set; }
+    }
+
+    public class QueueStatusFormModel
+    {
+        public int AppointmentId { get; set; }
+        [Required]
+        public string Status { get; set; } = string.Empty;
+        [StringLength(2000)]
+        public string? Notes { get; set; }
     }
 
     public class RecordActionFormModel
@@ -344,7 +362,7 @@ namespace Backyard_Mech.Models
         public string Notes { get; set; } = string.Empty;
         public string Vehicles { get; set; } = "0 Vehicles";
         public string LastVisit { get; set; } = "No visits";
-        public string TotalSpent { get; set; } = "$0.00";
+        public string TotalSpent { get; set; } = "CA$0.00";
         public string Status { get; set; } = "Active";
     }
 
@@ -425,13 +443,14 @@ namespace Backyard_Mech.Models
 
     public class EmployeePerformanceViewModel
     {
+        public string Period { get; set; } = "this-month";
         public int TotalJobsCompleted { get; set; }
-        public string TotalJobsTrend { get; set; } = "+12% vs last month";
-        public string AverageRating { get; set; } = "4.8 / 5";
-        public string RatingTarget { get; set; } = "Target: 4.5";
+        public string TotalJobsTrend { get; set; } = string.Empty;
+        public string AverageRating { get; set; } = "Not tracked";
+        public string RatingTarget { get; set; } = "Customer ratings are not recorded";
         public string ShopUtilization { get; set; } = "0%";
-        public string UtilizationTrend { get; set; } = "+2% vs last week";
-        public string RevenuePerTech { get; set; } = "$0.00";
+        public string UtilizationTrend { get; set; } = string.Empty;
+        public string RevenuePerTech { get; set; } = "CA$0.00";
         public string HighestTech { get; set; } = "Highest: -";
         public IReadOnlyList<EmployeePerformancePersonRow> Employees { get; set; } = Array.Empty<EmployeePerformancePersonRow>();
         public IReadOnlyList<EmployeePerformanceMonthRow> MonthlyEfficiency { get; set; } = Array.Empty<EmployeePerformanceMonthRow>();
@@ -460,13 +479,14 @@ namespace Backyard_Mech.Models
 
     public class EmployeeScheduleViewModel
     {
+        public int WeekOffset { get; set; }
         public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<string> DayLabels { get; set; } = Array.Empty<string>();
         public IReadOnlyList<ProductListingOption> EmployeeOptions { get; set; } = Array.Empty<ProductListingOption>();
         public IReadOnlyList<EmployeeScheduleRow> Employees { get; set; } = Array.Empty<EmployeeScheduleRow>();
         public int MechanicsActive { get; set; }
         public int AdvisorsActive { get; set; }
-        public string CapacityLabel { get; set; } = "Optimal (85%)";
+        public string CapacityLabel { get; set; } = string.Empty;
         public IReadOnlyList<EmployeeTimeOffRow> UpcomingTimeOff { get; set; } = Array.Empty<EmployeeTimeOffRow>();
     }
 
@@ -548,7 +568,7 @@ namespace Backyard_Mech.Models
     public class SettingsRolePermissionFormModel
     {
         [Required]
-        public string RoleId { get; set; } = string.Empty;
+        [StringLength(100)] public string RoleId { get; set; } = string.Empty;
 
         public List<int> PermissionIds { get; set; } = new();
     }
@@ -570,7 +590,7 @@ namespace Backyard_Mech.Models
     public class DeleteSettingsRoleFormModel
     {
         [Required]
-        public string RoleId { get; set; } = string.Empty;
+        [StringLength(100)] public string RoleId { get; set; } = string.Empty;
     }
 
     public class AppointmentListItem
@@ -621,7 +641,7 @@ namespace Backyard_Mech.Models
     public class AppointmentFormModel
     {
         public int AppointmentId { get; set; }
-        public string? Expected { get; set; }
+        [StringLength(100)] public string? Expected { get; set; }
         public List<int> ServiceIds { get; set; } = new();
         public int? PreferredEmployeeProfileId { get; set; }
         [Range(0, int.MaxValue)] public int? Odometer { get; set; }
@@ -655,18 +675,18 @@ namespace Backyard_Mech.Models
         public string? Notes { get; set; }
 
         public bool IsWalkIn { get; set; }
-        public string ViewMode { get; set; } = "list";
+        [StringLength(20)] public string ViewMode { get; set; } = "list";
     }
 
     public class CancelAppointmentFormModel
     {
-        [Required] public string Expected { get; set; } = "";
+        [Required] [StringLength(100)] public string Expected { get; set; } = "";
         [Range(1, int.MaxValue)]
         public int AppointmentId { get; set; }
 
         [Required, StringLength(500)]
         public string? Reason { get; set; }
-        public string ViewMode { get; set; } = "list";
+        [StringLength(20)] public string ViewMode { get; set; } = "list";
     }
 
     public class ServiceQueueColumnItem
@@ -747,10 +767,10 @@ namespace Backyard_Mech.Models
         public string EstimateId { get; set; } = string.Empty;
         public string Initials { get; set; } = "WO";
         public string Odometer { get; set; } = string.Empty;
-        public string LaborTotal { get; set; } = "$0.00";
-        public string PartsTotal { get; set; } = "$0.00";
-        public string ShopSuppliesFee { get; set; } = "$0.00";
-        public string EstimatedTotal { get; set; } = "$0.00";
+        public string LaborTotal { get; set; } = "CA$0.00";
+        public string PartsTotal { get; set; } = "CA$0.00";
+        public string ShopSuppliesFee { get; set; } = "CA$0.00";
+        public string EstimatedTotal { get; set; } = "CA$0.00";
         public string LoggedHours { get; set; } = "0 hrs";
         public string PlannedHours { get; set; } = "0 hrs";
         public IReadOnlyList<string> Services { get; set; } = Array.Empty<string>();
@@ -830,8 +850,8 @@ namespace Backyard_Mech.Models
     public class WorkOrderStatusTransitionFormModel
     {
         public int WorkOrderId { get; set; }
-        public string Transition { get; set; } = string.Empty;
-        public string? Notes { get; set; }
+        [StringLength(50)] public string Transition { get; set; } = string.Empty;
+        [StringLength(2000)] public string? Notes { get; set; }
     }
 
     public class ReleaseWorkOrderFormModel
@@ -846,10 +866,10 @@ namespace Backyard_Mech.Models
         public int WorkOrderId { get; set; }
 
         [Required]
-        public string MechanicName { get; set; } = string.Empty;
+        [StringLength(256)] public string MechanicName { get; set; } = string.Empty;
 
         [Required]
-        public string TaskDescription { get; set; } = string.Empty;
+        [StringLength(500)] public string TaskDescription { get; set; } = string.Empty;
 
         [Range(0.1, 99)]
         public decimal Hours { get; set; }
@@ -879,6 +899,7 @@ namespace Backyard_Mech.Models
         public int PartId { get; set; }
         public int? SupplierId { get; set; }
         public int? PartCategoryId { get; set; }
+        public int? ParentPartCategoryId { get; set; }
         public string Sku { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string RawDescription { get; set; } = string.Empty;
@@ -905,6 +926,7 @@ namespace Backyard_Mech.Models
         public IReadOnlyList<ProductListingOption> PartOptions { get; set; } = Array.Empty<ProductListingOption>();
         public IReadOnlyList<ProductListingOption> ServiceOptions { get; set; } = Array.Empty<ProductListingOption>();
         public IReadOnlyList<ProductListingOption> PartCategoryOptions { get; set; } = Array.Empty<ProductListingOption>();
+        public int RootCategoryCount { get; set; }
         public IReadOnlyList<ProductListingOption> SupplierOptions { get; set; } = Array.Empty<ProductListingOption>();
     }
 
@@ -957,6 +979,7 @@ namespace Backyard_Mech.Models
     public class ToolListItem
     {
         public int ToolId { get; set; }
+        public bool IsActive { get; set; }
         public int? ActiveCheckoutId { get; set; }
         public bool HasOpenMaintenance { get; set; }
         public int? ToolCategoryId { get; set; }

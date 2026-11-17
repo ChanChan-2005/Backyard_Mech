@@ -1,4 +1,4 @@
-<section class="users-modal users-modal-large users-add-employee-modal" data-modal-id="add-employee" aria-labelledby="addEmployeeModalTitle">
+<section class="users-modal users-modal-large users-add-employee-modal app-modal" data-modal-id="add-employee" aria-labelledby="addEmployeeModalTitle" role="dialog" aria-modal="true">
     <header class="users-modal-header">
         <h2 id="addEmployeeModalTitle">Add Staff Profile</h2>
         <button class="users-modal-close" type="button" aria-label="Close add employee modal" data-users-modal-close>&times;</button>
@@ -25,19 +25,19 @@
             <h3 class="users-form-section-title">Address</h3>
             <label>
                 <span class="users-label">Unit/Apt No.</span>
-                <input class="users-input" data-staff-address-unit placeholder="Optional for houses" />
+                <input maxlength="20" class="users-input" data-staff-address-unit placeholder="Optional for houses" />
             </label>
             <label>
                 <span class="users-label">Street No. *</span>
-                <input class="users-input" data-staff-address-number placeholder="Enter street number" required />
+                <input maxlength="20" class="users-input" data-staff-address-number placeholder="Enter street number" required />
             </label>
             <label class="users-span-full">
                 <span class="users-label">Street Name *</span>
-                <input class="users-input" data-staff-address-street placeholder="Enter street name" required />
+                <input maxlength="150" class="users-input" data-staff-address-street placeholder="Enter street name" required />
             </label>
             <label>
                 <span class="users-label">Street Type</span>
-                <input class="users-input" data-staff-address-type placeholder="e.g. Street, Avenue" />
+                <input maxlength="30" class="users-input" data-staff-address-type placeholder="e.g. Street, Avenue" />
             </label>
             <label>
                 <span class="users-label">Province/Territory *</span>
@@ -59,7 +59,7 @@
             <h3 class="users-form-section-title">Contact Details</h3>
             <label>
                 <span class="users-label">Contact Number *</span>
-                <input class="users-input" name="Phone" type="tel" maxlength="40" placeholder="Enter contact number" required />
+                <input inputmode="tel" data-canadian-phone class="users-input" name="Phone" type="tel" placeholder="e.g., (416) 555-0123" required />
             </label>
             <label>
                 <span class="users-label">Email Address *</span>
@@ -76,9 +76,9 @@
                 </select>
             </label>
             <label>
-                <span class="users-label">Employment Classification *</span>
-                <select class="users-select" name="JobTitle" required>
-                    <option value="" selected disabled>Select classification</option>
+                <span class="users-label">Job Title / Position *</span>
+                <select class="users-select" name="JobTitle" aria-describedby="employee-position-help" required>
+                    <option value="" selected disabled>Select a position</option>
                     <option value="Mechanic">Mechanic</option>
                     <option value="Lead Mechanic">Lead Mechanic</option>
                     <option value="Service Advisor">Service Advisor</option>
@@ -86,6 +86,7 @@
                     <option value="Quality Inspector">Quality Inspector</option>
                     <option value="Bookkeeper">Bookkeeper</option>
                 </select>
+                <small id="employee-position-help" class="app-field-help">The employee's job in the shop. System access is configured when creating their login account.</small>
             </label>
 
             <label>
@@ -97,8 +98,8 @@
                 </select>
             </label>
             <label>
-                <span class="users-label">Hourly Rate *</span>
-                <input class="users-input" name="HourlyRate" type="number" min="0" step="0.01" placeholder="Enter hourly rate" required />
+                <span class="users-label">Hourly Rate (CA$) *</span>
+                <input max="9999999999999999.99" class="users-input" name="HourlyRate" type="number" min="0" step="0.01" placeholder="Enter hourly rate" required />
             </label>
 
             <label class="users-span-full">

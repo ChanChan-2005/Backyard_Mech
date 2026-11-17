@@ -104,13 +104,13 @@ public partial class OwnerController
             ChangedUtc = DateTime.UtcNow, ChangedByUserId = HttpContext.Session.GetString("UserId"), ChangedByName = HttpContext.Session.GetString("UserName"), Notes = note });
         WorkflowAudit("Appointment", a.AppointmentId, note, new { a.CustomerName, a.VehicleId, a.AppointmentStatus, a.ScheduledStart, a.ScheduledEnd });
     }
-    private async Task<IActionResult> IntakeAppointments(string view)
+    private async Task<IActionResult> IntakeAppointments(string view, string? notification = null)
     {
         var page = new IntakeAppointmentsPage { Today = GarageNow().Date, View = view == "calendar" ? "calendar" : "list",
             CanCreate = await IntakePermission("Appointments", "Create"), CanEdit = await IntakePermission("Appointments", "Edit"), CanDelete = await IntakePermission("Appointments", "Delete"),
             CanInspect = await IntakePermission("Inspections", "Create"),
             Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
-            Bays = await _dbContext.Bays.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(),
+            Bays = await _dbContext.Bays.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.BayNumber).ToListAsync(),
             Employees = await _dbContext.EmployeeProfiles.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
             Services = await _dbContext.Services.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.ServiceName).ToListAsync() };
         var vehicles = await _dbContext.Vehicles.AsNoTracking().ToDictionaryAsync(x => x.VehicleId);
@@ -118,6 +118,7 @@ public partial class OwnerController
         page.Vehicles = owners.Where(x => x.CustomerId.HasValue && vehicles.TryGetValue(x.VehicleId ?? 0, out var v) && !v.IsArchived && !v.IsDeleted)
             .Select(x => new AppointmentVehicleOption { VehicleId = x.VehicleId!.Value, CustomerId = x.CustomerId!.Value, Label = $"{BuildVehicleName(vehicles[x.VehicleId.Value])} - {vehicles[x.VehicleId.Value].LicensePlate}" }).ToList();
         var rows = await _dbContext.Appointments.AsNoTracking().OrderByDescending(x => x.ScheduledStart).ToListAsync();
+        ViewData["UpcomingNotificationFocus"] = string.Equals(notification, "upcoming", StringComparison.OrdinalIgnoreCase);
         var rowIds = rows.Select(x => x.AppointmentId).ToArray();
         var initialInspections = await _dbContext.Inspections.AsNoTracking().Where(x => rowIds.Contains(x.AppointmentId ?? 0))
             .OrderByDescending(x => x.CompletedUtc).ToListAsync();

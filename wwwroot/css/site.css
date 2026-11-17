@@ -1,5 +1,14 @@
 @import url("/css/account/login.css");
 
+:root {
+  --app-font-family: Arial, Helvetica, sans-serif;
+  --bs-font-sans-serif: var(--app-font-family);
+}
+
+body, button, input, select, textarea {
+  font-family: var(--app-font-family);
+}
+
 html {
   font-size: 14px;
 }
@@ -33,97 +42,52 @@ form label .required-marker,
   font-weight: 900;
 }
 
-.app-notification-modal {
+.app-toast {
   position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: none;
-  place-items: center;
-  padding: 20px;
-}
-
-.app-notification-modal.is-open {
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 4000;
   display: grid;
-}
-
-.app-notification-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgba(17, 24, 39, 0.48);
-}
-
-.app-notification-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  gap: 14px;
-  width: min(430px, calc(100vw - 40px));
-  padding: 22px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 40px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #dbe5df;
+  border-left: 4px solid #16804a;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  box-shadow: 0 8px 30px rgb(15 23 42 / 18%);
+  animation: app-toast-enter 300ms ease-out both;
+}
+.app-toast.error { border-left-color: #dc2626; }
+.app-toast-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #e7f6ed; color: #166534; font-size: 11px; font-weight: 700; }
+.app-toast.error .app-toast-icon { background: #fee2e2; color: #b91c1c; }
+.app-toast h2 { margin: 0; color: #172033; font-size: 14px; line-height: 1.5; font-weight: 700; }
+.app-toast p { margin: 4px 0 0; color: #475569; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.app-toast-close { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: #64748b; font-size: 22px; cursor: pointer; }
+.app-toast-close:hover { background: #f1f5f9; }
+.app-toast-close:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.app-toast.is-closing { animation: app-toast-exit 300ms ease-in both; pointer-events: none; }
+@keyframes app-toast-enter { from { opacity: 0; transform: translateX(calc(100% + 40px)); } to { opacity: 1; transform: translateX(0); } }
+@keyframes app-toast-exit { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(calc(100% + 40px)); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-toast, .app-toast.is-closing { animation-duration: 1ms; }
 }
 
-.app-notification-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  color: #fff;
-  background: #10b981;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.app-notification-modal.error .app-notification-icon {
-  background: #ef4444;
-}
-
-.app-notification-card h2 {
-  margin: 0;
-  color: #111827;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.app-notification-card p {
-  margin: 8px 0 0;
-  color: #4b5563;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.app-notification-close {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 50%;
-  color: #6b7280;
-  background: #f3f4f6;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.app-notification-card footer {
-  grid-column: 2 / -1;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.app-notification-card footer button {
-  min-width: 86px;
-  height: 36px;
-  border: 0;
-  border-radius: 5px;
-  color: #fff;
-  background: #2563eb;
-  font-size: 13px;
-  font-weight: 800;
+/* Secondary explanations for fields and column headings. */
+body .app-field-help,
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .app-field-help {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
 }

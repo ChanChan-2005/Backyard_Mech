@@ -595,6 +595,7 @@ IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NULL
 CREATE TABLE dbo.PartTransaction (
     PartTransactionId INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PartTransaction PRIMARY KEY,
     PartId INT NULL,
+    SupplierId INT NULL,
     WorkOrderId INT NULL,
     TransactionType NVARCHAR(80) NULL,
     Quantity INT NULL,
@@ -914,6 +915,7 @@ EXEC dbo.AddBackyardMechForeignKey N'FK_QueueStatusHistory_Appointment', N'Queue
 EXEC dbo.AddBackyardMechForeignKey N'FK_Inspection_Appointment', N'Inspection', N'AppointmentId', N'Appointment', N'AppointmentId';
 EXEC dbo.AddBackyardMechForeignKey N'FK_InspectionMedia_Inspection', N'InspectionMedia', N'InspectionId', N'Inspection', N'InspectionId';
 EXEC dbo.AddBackyardMechForeignKey N'FK_PartTransaction_Part', N'PartTransaction', N'PartId', N'Part', N'PartId';
+EXEC dbo.AddBackyardMechForeignKey N'FK_PartTransaction_Supplier', N'PartTransaction', N'SupplierId', N'Supplier', N'SupplierId';
 EXEC dbo.AddBackyardMechForeignKey N'FK_PartTransaction_WorkOrder', N'PartTransaction', N'WorkOrderId', N'WorkOrder', N'WorkOrderId';
 EXEC dbo.AddBackyardMechForeignKey N'FK_ServiceEntry_WorkOrder', N'ServiceEntry', N'WorkOrderId', N'WorkOrder', N'WorkOrderId';
 EXEC dbo.AddBackyardMechForeignKey N'FK_ServiceEntry_Service', N'ServiceEntry', N'ServiceId', N'Service', N'ServiceId';

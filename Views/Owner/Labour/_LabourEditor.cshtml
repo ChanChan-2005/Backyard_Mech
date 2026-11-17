@@ -1,6 +1,6 @@
 @model LabourEditor
 @{ var form = Model.Form; var edit = form.ServiceEntryId > 0; var dialog = $"labour-{form.ServiceEntryId}"; }
-<dialog class="repair-dialog" id="@dialog" aria-labelledby="@(dialog)-title"><form method="post" asp-action="@(edit ? "EditLabour" : "AddLabour")">
+<dialog class="repair-dialog app-modal" id="@dialog" aria-labelledby="@(dialog)-title" role="dialog" aria-modal="true"><form method="post" asp-action="@(edit ? "EditLabour" : "AddLabour")">
     <header><h2 id="@(dialog)-title">@(edit ? "Edit Labour Entry" : "New Labour Entry")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
     <input type="hidden" name="ServiceEntryId" value="@form.ServiceEntryId" />
     <input type="hidden" name="SubmissionToken" value="@form.SubmissionToken" />

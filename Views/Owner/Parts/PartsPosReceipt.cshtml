@@ -1,0 +1,18 @@
+@model PartsPosReceiptViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Parts sale receipt";
+    ViewData["PageTitle"] = "Parts sale receipt";
+    ViewData["PageSubtitle"] = "PARTS SALES";
+    ViewData["ActiveNav"] = "Parts POS";
+}
+<link rel="stylesheet" href="~/css/owner/parts/parts-pos.css" asp-append-version="true" />
+<section class="parts-pos">
+    @if (TempData["OwnerMessage"] is string message) { <div class="parts-pos-alert" role="status">@message</div> }
+    <div class="parts-pos-heading"><div><h2>@Model.Invoice.InvoiceNumber</h2><p>@(Model.Invoice.InvoiceStatus == "Voided" ? "Voided sale" : "Parts sale completed") · @Model.Invoice.IssuedUtc.ToString("MMM dd, yyyy h:mm tt") UTC</p></div><div class="parts-pos-receipt-actions"><a href="/Owner/PartsPos">New sale</a><button type="button" onclick="window.print()">Print receipt</button></div></div>
+    <article class="parts-pos-panel parts-pos-receipt">
+        <div class="parts-pos-panel-head"><h3>Receipt</h3></div>
+        @foreach (var line in Model.Lines) { <div class="parts-pos-receipt-line"><span>@line.Description <small>× @line.Quantity</small></span><strong>@CurrencyDisplay.Cad(line.LineTotal)</strong></div> }
+        <div class="parts-pos-totals"><div><span>Subtotal</span><strong>@CurrencyDisplay.Cad(Model.Invoice.Subtotal)</strong></div><div><span>Tax</span><strong>@CurrencyDisplay.Cad(Model.Invoice.TaxAmount)</strong></div><div class="parts-pos-total"><span>Total</span><strong>@CurrencyDisplay.Cad(Model.Invoice.Total)</strong></div><div><span>Payment</span><strong>@Model.Payment?.PaymentMethod</strong></div>@if (Model.Payment?.Notes is string notes && Model.Payment.PaymentMethod == "Cash") { <div><span>Cash</span><strong>@notes</strong></div> }</div>
+    </article>
+</section>

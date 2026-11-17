@@ -35,11 +35,7 @@
     let activeStaffOption = -1;
     const newAccountRole = accountForm?.querySelector('[data-new-account-role]');
     const permissionPreview = document.getElementById('create-account-permissions');
-    const permissionRows = [...(permissionPreview?.querySelectorAll('[data-new-account-permission]') ?? [])];
     const permissionToggles = [...(permissionPreview?.querySelectorAll('[data-permission-toggle]') ?? [])];
-    const permissionModes = new Map([...(permissionPreview?.querySelectorAll('[data-new-account-permission-mode]') ?? [])]
-        .map(input => [input.dataset.permissionId, input]));
-    let previewRole = null;
 
     function positionPasswordPointer(adjustScroll = false) {
         if (!passwordPointer || passwordPointer.hidden || !accountPassword) return;
@@ -175,44 +171,14 @@
         const defaults = JSON.parse(permissionPreview.dataset.roleDefaults || '{}');
         const roleKey = newAccountRole.value;
         const grants = defaults[roleKey] || [];
-        const roleChanged = previewRole !== roleKey;
-        previewRole = roleKey;
         const roleLabel = permissionPreview.querySelector('[data-account-permissions-role]');
-        if (roleLabel) roleLabel.textContent = roleKey ? newAccountRole.selectedOptions[0].textContent : 'Choose a role';
-        if (permissionToggles.length) {
-            permissionToggles.forEach(toggle => {
-                const inherited = grants.includes('*') || grants.includes(toggle.dataset.code);
-                const mode = permissionModes.get(toggle.dataset.permissionId);
-                if (roleChanged) mode.value = 'Inherit';
-                toggle.dataset.roleDefault = String(inherited);
-                toggle.checked = mode.value === 'Inherit' ? inherited : mode.value === 'Allow';
-                toggle.disabled = !roleKey;
-                toggle.closest('label').classList.toggle('is-custom', mode.value !== 'Inherit');
-                toggle.closest('label').title = `Role default: ${inherited ? 'Allowed' : 'Denied'}; account: ${toggle.checked ? 'Allowed' : 'Denied'}`;
-            });
-            return;
-        }
-        const deniedModules = new Set(permissionRows.filter(row =>
-            row.dataset.action === 'View' && row.querySelector('[data-new-account-permission-choice]')?.value === 'Deny'
-        ).map(row => row.dataset.module));
-        permissionRows.forEach(row => {
-            const inherited = grants.includes('*') || grants.includes(row.dataset.code);
-            const choice = row.querySelector('[data-new-account-permission-choice]')?.value;
-            if (!choice) {
-                const legacyAccess = row.querySelector('[data-role-access]');
-                if (legacyAccess) legacyAccess.textContent = roleKey ? (inherited ? 'Allowed' : 'Not allowed') : 'Choose a role';
-                return;
-            }
-            const allowed = !deniedModules.has(row.dataset.module) && (choice === 'Allow' || (choice === 'Inherit' && inherited));
-            row.querySelector('[data-default]').textContent = roleKey ? (inherited ? 'Allowed' : 'Denied') : 'Choose a role';
-            row.querySelector('[data-effective]').textContent = roleKey ? (allowed ? 'Allowed' : 'Denied') : 'Choose a role';
+        if (roleLabel) roleLabel.textContent = roleKey ? newAccountRole.selectedOptions[0].textContent : 'Choose an access role';
+        permissionToggles.forEach(toggle => {
+            toggle.checked = grants.includes('*') || grants.includes(toggle.dataset.code);
+            toggle.disabled = true;
+            const hint = toggle.closest('.permission-item').querySelector('[data-permission-default-label]');
+            if (hint) hint.textContent = roleKey ? (toggle.checked ? 'Allowed by role' : 'Not allowed by role') : 'Choose an access role';
         });
-    }
-
-    function saveAccountPermissionChoice(toggle) {
-        const mode = permissionModes.get(toggle.dataset.permissionId);
-        mode.value = toggle.checked === (toggle.dataset.roleDefault === 'true')
-            ? 'Inherit' : toggle.checked ? 'Allow' : 'Deny';
     }
 
     function validateAccountForm() {
@@ -231,8 +197,25 @@
     }
 
     document.addEventListener('click', event => {
+        const accessLink = event.target.closest('[data-view-account-access]');
+        if (accessLink && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
+            const dialog = document.getElementById('access-settings');
+            if (dialog?.dataset.accountId === accessLink.dataset.viewAccountAccess) {
+                event.preventDefault();
+                if (!dialog.open) dialog.showModal();
+                return;
+            }
+        }
         const open = event.target.closest('[data-staff-open]');
-        if (open) document.getElementById(open.dataset.staffOpen)?.showModal();
+        if (open) {
+            const dialog = document.getElementById(open.dataset.staffOpen);
+            if (dialog && open.dataset.staffProfileAction) {
+                dialog.querySelector('form').reset();
+                dialog.querySelector('[name="EmployeeProfileId"]').value = open.dataset.staffProfileAction;
+                dialog.querySelector('[data-staff-action-name]').textContent = open.dataset.staffName;
+            }
+            dialog?.showModal();
+        }
         const permissionsOpen = event.target.closest('[data-staff-permissions-open]');
         if (permissionsOpen) {
             updatePermissionPreview();
@@ -291,41 +274,14 @@
         if (!staffProfileCombobox.contains(event.relatedTarget)) restoreStaffSelection();
     });
     newAccountRole?.addEventListener('change', updatePermissionPreview);
-    permissionPreview?.addEventListener('change', event => {
-        const toggle = event.target.closest('[data-permission-toggle]');
-        if (toggle) {
-            const moduleToggles = permissionToggles.filter(item => item.dataset.module === toggle.dataset.module);
-            const viewToggle = moduleToggles.find(item => item.dataset.action === 'View');
-            if (toggle === viewToggle && !toggle.checked) {
-                moduleToggles.filter(item => item !== toggle).forEach(item => { item.checked = false; saveAccountPermissionChoice(item); });
-            } else if (!toggle.checked && !toggle.dataset.requiredAction) {
-                moduleToggles.filter(item => item.dataset.requiredAction === toggle.dataset.action).forEach(item => {
-                    item.checked = false;
-                    saveAccountPermissionChoice(item);
-                });
-            } else if (toggle !== viewToggle && toggle.checked && viewToggle && !viewToggle.checked) {
-                viewToggle.checked = true;
-                saveAccountPermissionChoice(viewToggle);
-            }
-            if (toggle.checked && toggle.dataset.requiredAction) {
-                const required = moduleToggles.find(item => item.dataset.action === toggle.dataset.requiredAction);
-                if (required && !required.checked) {
-                    required.checked = true;
-                    saveAccountPermissionChoice(required);
-                }
-            }
-            saveAccountPermissionChoice(toggle);
-        }
-        updatePermissionPreview();
-    });
-    permissionPreview?.querySelector('[data-new-account-permission-search]')?.addEventListener('input', event => {
-        const term = event.target.value.trim().toLowerCase();
-        permissionRows.forEach(row => { row.hidden = !(row.dataset.module + ' ' + row.dataset.action).toLowerCase().includes(term); });
-    });
     permissionPreview?.querySelector('[data-staff-action-search]')?.addEventListener('input', event => {
         const term = event.target.value.trim().toLowerCase();
         permissionPreview.querySelectorAll('[data-staff-action-row]').forEach(row => {
             row.hidden = !row.dataset.search.toLowerCase().includes(term);
+        });
+        permissionPreview.querySelectorAll('.permission-group').forEach(group => {
+            group.hidden = ![...group.querySelectorAll('[data-staff-action-row]')].some(row => !row.hidden);
+            if (term && !group.hidden) group.open = true;
         });
     });
     updatePermissionPreview();
@@ -337,33 +293,34 @@
     });
     const access = document.querySelector('[data-user-access]');
     if (access) {
-        document.getElementById('access-settings')?.showModal();
+        const accessDialog = document.getElementById('access-settings');
+        accessDialog?.addEventListener('close', () => {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get('userId') === accessDialog.dataset.accountId) {
+                url.searchParams.delete('userId');
+                if (url.hash === '#access-settings') url.hash = '';
+                history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+            }
+        });
+        accessDialog?.showModal();
         const defaults = JSON.parse(access.dataset.roleDefaults);
         const rows = [...access.querySelectorAll('[data-permission-row]')];
         const role = access.querySelector('[data-account-role]');
         function refresh() {
             const grants = defaults[role.value] || [];
-            const rawAllowed = row => {
-                const choice = row.querySelector('select').value;
-                return choice === 'Allow' || (choice === 'Inherit' && (grants.includes('*') || grants.includes(row.dataset.code)));
-            };
-            const baseAllowed = (module, action) => {
-                const base = rows.find(row => row.dataset.module === module && row.dataset.action === action);
-                return base ? rawAllowed(base) : false;
-            };
             for (const row of rows) {
-                const inherited = grants.includes('*') || grants.includes(row.dataset.code);
-                const allowed = rawAllowed(row)
-                    && (row.dataset.action === 'View' || baseAllowed(row.dataset.module, 'View'))
-                    && (!row.dataset.requiredAction || baseAllowed(row.dataset.module, row.dataset.requiredAction));
-                row.querySelector('[data-default]').textContent = inherited ? 'Allowed' : 'Denied';
-                row.querySelector('[data-effective]').textContent = allowed ? 'Allowed' : 'Denied';
+                row.querySelector('[data-role-access]').textContent = grants.includes('*') || grants.includes(row.dataset.code) ? 'Allowed' : 'Not allowed';
             }
         }
-        access.addEventListener('change', refresh);
+        role.addEventListener('change', refresh);
         access.querySelector('[data-permission-search]').addEventListener('searchcommit', event => {
             const term = event.detail.value.toLowerCase();
             rows.forEach(row => { row.hidden = !row.dataset.search.toLowerCase().includes(term); });
+            access.querySelectorAll('.permission-group').forEach(group => {
+                group.hidden = ![...group.querySelectorAll('[data-permission-row]')].some(row => !row.hidden);
+                if (term && !group.hidden) group.open = true;
+            });
+            access.querySelector('[data-permission-empty]').hidden = rows.some(row => !row.hidden);
         });
         refresh();
     }

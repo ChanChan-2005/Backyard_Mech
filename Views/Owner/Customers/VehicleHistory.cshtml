@@ -12,7 +12,7 @@
     <div class="app-search-control vehicle-record-search">
         <label class="vehicle-record-search-box">
             <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
-            <input type="search" data-intake-search data-search-managed placeholder="Plate, VIN, owner or model" aria-label="Search vehicles by plate, VIN, owner, or model" />
+            <input maxlength="256" type="search" data-intake-search data-search-managed placeholder="Plate, VIN, owner or model" aria-label="Search vehicles by plate, VIN, owner, or model" />
         </label>
         <button type="button" class="app-search-submit" data-search-submit>Search</button>
         @if(Model.CanCreate){<button class="master-primary vehicle-add-button" type="button" data-intake-open="register-vehicle">+ Add Vehicle</button>}
@@ -37,7 +37,7 @@
     }
 </section>
 @if(Model.CanCreate){
-<dialog id="register-vehicle" class="master-dialog vehicle-register-dialog" aria-labelledby="register-title"><form asp-action="AddVehicle" method="post">
+<dialog id="register-vehicle" class="master-dialog vehicle-register-dialog app-modal" aria-labelledby="register-title" role="dialog" aria-modal="true"><form asp-action="AddVehicle" method="post">
     <header class="master-toolbar"><div><h2 id="register-title">Add Vehicle</h2><p>Enter the vehicle details and select its owner.</p></div><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <div class="master-fields">
         <label class="master-wide"><span>Owner <span class="modal-required-indicator" aria-hidden="true">*</span></span><select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select><small class="vehicle-field-hint">Choose the customer this vehicle belongs to.</small></label>
@@ -49,7 +49,7 @@
 </form></dialog>
 }
 @if(v is not null && Model.CanEdit && !v.IsArchived){
-<dialog id="transfer-owner" class="master-dialog" aria-labelledby="transfer-title"><form asp-action="TransferVehicleOwnership" method="post">
+<dialog id="transfer-owner" class="master-dialog app-modal" aria-labelledby="transfer-title" role="dialog" aria-modal="true"><form asp-action="TransferVehicleOwnership" method="post">
     <header class="master-toolbar"><h2 id="transfer-title">Transfer Ownership</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
     <div class="master-fields"><label class="master-wide">New owner<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select></label>
@@ -57,7 +57,7 @@
     <label class="intake-check master-wide"><input type="checkbox" name="AuthorityVerified" value="true" required /> Ownership documents and authority to transfer verified</label></div>
     <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Transfer Ownership</button></footer>
 </form></dialog>
-<dialog id="record-mileage" class="master-dialog master-confirm" aria-labelledby="mileage-title"><form asp-action="RecordVehicleOdometer" method="post">
+<dialog id="record-mileage" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="mileage-title" role="dialog" aria-modal="true"><form asp-action="RecordVehicleOdometer" method="post">
     <header class="master-toolbar"><h2 id="mileage-title">Record Odometer</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
     <label>Odometer reading<input type="number" name="Odometer" min="@(v.Odometer ?? 0)" max="2147483647" required /></label>

@@ -21,6 +21,11 @@ namespace Backyard_Mech.Services
             return $"{moduleKey}.{action.Trim().ToLowerInvariant()}";
         }
 
+        public static bool CanDelegateStaffPermissions(ISet<string> actor, IEnumerable<string> requested) =>
+            actor.Contains("*") || (!requested.Contains("*") &&
+                ((actor.Contains("useraccess.view") && actor.Contains("useraccess.edit") && actor.Contains("owneraction.managestaffrolepermissions"))
+                || requested.All(actor.Contains)));
+
         public async Task<HashSet<string>> GetPermissionCodesAsync(string? roleKey, int? userId = null)
         {
             var context = _http.HttpContext;
@@ -31,20 +36,7 @@ namespace Backyard_Mech.Services
             var user = await _dbContext.Users.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==userId);
             if(user is null || !user.IsActive || user.Role!=roleKey ||
                 !await _dbContext.AppRoles.AnyAsync(x=>x.RoleKey==roleKey && x.IsActive)) return new(StringComparer.OrdinalIgnoreCase);
-            // Protected owner is the recovery account; individual overrides apply to ordinary roles.
-            if(result.Contains("*")) return result;
-            var overrides = await (from o in _dbContext.UserPermissionOverrides
-                join p in _dbContext.Permissions on o.PermissionId equals p.PermissionId
-                where o.UserId==userId && p.IsActive
-                select new {p.PermissionCode,p.ModuleName,p.ActionName,o.IsAllowed}).ToListAsync();
-            foreach(var item in overrides.Where(x=>OwnerPermissionCatalog.IsSupportedPermission(x.ModuleName??"",x.ActionName??"")))
-                if(item.IsAllowed) result.Add(item.PermissionCode!); else result.Remove(item.PermissionCode!);
-            // Denied module visibility must also prevent direct writes to that module.
-            foreach(var item in overrides.Where(x=>!x.IsAllowed && x.ActionName=="View"))
-            {
-                var prefix=BuildPermissionCode(item.ModuleName??"", "");
-                result.RemoveWhere(x=>x.StartsWith(prefix,StringComparison.OrdinalIgnoreCase));
-            }
+            // Account access is determined solely by the assigned role.
             return result;
         }
 

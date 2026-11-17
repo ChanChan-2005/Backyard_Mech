@@ -1,3 +1,4 @@
+@model GeneralSettingsForm
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Settings";
@@ -11,49 +12,47 @@
 @await Html.PartialAsync("_SettingsTabs")
 
 <section class="settings-page">
-    <form class="settings-card">
-        <section class="settings-section">
-            <h2>Section 1: Business Information</h2>
-            <div class="settings-form-grid">
-                <div class="settings-form-grid">
-                    <label class="settings-wide-label"><span class="settings-label">Garage Name *</span><input class="settings-input" value="BakyardMech" /></label>
-                    <label class="settings-wide-label"><span class="settings-label">Home Address *</span><input class="settings-input" value="1042 Sunset Blvd, Austin, TX" /></label>
-                    <label><span class="settings-label">Phone Number *</span><input class="settings-input" value="(512) 555-0100" /></label>
-                    <label><span class="settings-label">Email Address *</span><input class="settings-input" value="shop@backyardmech.com" /></label>
+    <form class="settings-card general-settings-form" asp-action="SaveGeneralSettings" method="post" enctype="multipart/form-data" data-general-settings>
+        @Html.AntiForgeryToken()
+        <input asp-for="Expected" type="hidden" />
+        <div asp-validation-summary="All" class="general-settings-errors" role="alert"></div>
+        @if(TempData["OwnerMessage"] is string message){<p class="general-settings-saved" role="status">@message</p>}
+        <fieldset disabled="@(!Model.CanEdit)">
+            <section class="settings-section">
+                <h2>Section 1: Business Information</h2>
+                <div class="general-business-grid">
+                    <div class="settings-form-grid">
+                        <label class="settings-wide-label"><span class="settings-label">Garage Name *</span><input asp-for="GarageName" class="settings-input" maxlength="160" required /></label>
+                        <label class="settings-wide-label"><span class="settings-label">Home Address *</span><input asp-for="Address" class="settings-input" maxlength="250" required /></label>
+                        <label><span class="settings-label">Phone Number *</span><input asp-for="Phone" type="tel" inputmode="tel" data-canadian-phone class="settings-input" placeholder="(416) 555-0123" required /></label>
+                        <label><span class="settings-label">Email Address *</span><input asp-for="Email" type="email" class="settings-input" maxlength="256" required /></label>
+                    </div>
+                    <div class="general-logo-field">
+                        <label class="settings-label" for="LogoUpload">Business Logo</label>
+                        <label for="LogoUpload" class="settings-upload general-logo-upload">
+                            <img data-logo-preview src="@(Model.HasLogo ? Url.Action("SettingsLogo", new { v=Model.Expected }) : null)" alt="Business logo preview" hidden="@(!Model.HasLogo)" />
+                            <span>Upload Logo Image</span><small>PNG, JPG up to 5 MB (ideal: 300 x 100)</small>
+                        </label>
+                        <input asp-for="LogoUpload" type="file" accept="image/png,image/jpeg" aria-label="Upload business logo" />
+                    </div>
                 </div>
-                <label>
-                    <span class="settings-label">Business Logo</span>
-                    <span class="settings-upload">Upload Logo Image<small>PNG, JPG up to 5MB (Ideal: 300x100)</small></span>
-                </label>
-            </div>
-        </section>
-
-        <section class="settings-section">
-            <h2>Section 2: Operating Hours</h2>
-            <div class="settings-hours-row"><strong>Monday - Friday</strong><input class="settings-input" value="08:00 AM" /><span>to</span><input class="settings-input" value="06:00 PM" /></div>
-            <div class="settings-hours-row"><strong>Saturday</strong><input class="settings-input" value="09:00 AM" /><span>to</span><input class="settings-input" value="02:00 PM" /></div>
-            <div class="settings-hours-row"><strong>Sunday</strong><button class="settings-toggle" type="button"></button><span class="settings-muted">Closed all day</span></div>
-        </section>
-
-        <section class="settings-section">
-            <h2>Section 3: Notification Preferences</h2>
-            <div class="settings-toggle-row">
-                <div><strong>Email Appointment Reminders</strong><span class="settings-muted">Automatically email customers 24 hours prior to scheduled appointment.</span></div>
-                <button class="settings-toggle on" type="button"></button>
-            </div>
-            <div class="settings-toggle-row">
-                <div><strong>Low Stock Inventory Alerts</strong><span class="settings-muted">Daily summary email to shop manager when parts drop below safe stock level.</span></div>
-                <button class="settings-toggle on" type="button"></button>
-            </div>
-            <div class="settings-toggle-row">
-                <div><strong>Overdue Invoice Reminders</strong><span class="settings-muted">Automatically send gentle reminder emails on unpaid invoices past 15 days.</span></div>
-                <button class="settings-toggle" type="button"></button>
-            </div>
-        </section>
-
-        <div class="settings-actions">
-            <button class="settings-button" type="button">Cancel</button>
-            <button class="settings-button-dark" type="button">Save Changes</button>
-        </div>
+            </section>
+            <section class="settings-section">
+                <h2>Section 2: Operating Hours</h2>
+                <div class="settings-hours-row"><strong>Monday - Friday</strong><input asp-for="WeekdayOpen" type="time" class="settings-input" required aria-label="Weekday opening time" /><span>to</span><input asp-for="WeekdayClose" type="time" class="settings-input" required aria-label="Weekday closing time" /></div>
+                <div class="settings-hours-row"><strong>Saturday</strong><input asp-for="SaturdayOpen" type="time" class="settings-input" required aria-label="Saturday opening time" /><span>to</span><input asp-for="SaturdayClose" type="time" class="settings-input" required aria-label="Saturday closing time" /></div>
+                <div class="general-sunday-row"><strong>Sunday</strong><label class="general-switch-label"><input asp-for="SundayEnabled" type="checkbox" role="switch" class="general-switch" data-sunday-toggle /><span data-sunday-status>@(Model.SundayEnabled ? "Open" : "Closed all day")</span></label></div>
+                <div class="settings-hours-row" data-sunday-hours hidden="@(!Model.SundayEnabled)"><span></span><input asp-for="SundayOpen" type="time" class="settings-input" aria-label="Sunday opening time" /><span>to</span><input asp-for="SundayClose" type="time" class="settings-input" aria-label="Sunday closing time" /></div>
+            </section>
+            <section class="settings-section">
+                <h2>Section 3: Notification Preferences</h2>
+                <label class="settings-toggle-row" for="EmailAppointmentReminders"><span><strong>Email Appointment Reminders</strong><span class="settings-muted">Remind customers 24 hours before their scheduled appointment.</span></span><input asp-for="EmailAppointmentReminders" type="checkbox" role="switch" class="general-switch" /></label>
+                <label class="settings-toggle-row" for="LowStockAlerts"><span><strong>Low Stock Inventory Alerts</strong><span class="settings-muted">Daily summary when parts fall below their stock threshold.</span></span><input asp-for="LowStockAlerts" type="checkbox" role="switch" class="general-switch" /></label>
+                <label class="settings-toggle-row" for="OverdueInvoiceReminders"><span><strong>Overdue Invoice Reminders</strong><span class="settings-muted">Remind customers about invoices overdue by 15 days.</span></span><input asp-for="OverdueInvoiceReminders" type="checkbox" role="switch" class="general-switch" /></label>
+                <p class="settings-muted">Preferences are saved here. Automatic email delivery is not available yet.</p>
+            </section>
+            @if(Model.CanEdit){<div class="settings-actions"><a asp-action="Settings" class="settings-button">Cancel</a><button class="settings-button-dark" type="submit">Save Changes</button></div>}
+        </fieldset>
     </form>
 </section>
+@section Scripts { <script src="~/js/owner-general-settings.js" asp-append-version="true"></script> }

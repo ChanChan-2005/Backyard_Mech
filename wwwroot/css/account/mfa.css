@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
 }
 
 body {

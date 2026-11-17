@@ -1,5 +1,6 @@
 @model RepairOperationsViewModel
 @inject Backyard_Mech.Services.PermissionService Permissions
+<style>[data-stock-supplier-wrap][hidden]{display:none!important}</style>
 @{
     Layout = "_AppLayout"; ViewData["Title"] = ViewData["PageTitle"] = "Parts Transactions"; ViewData["ActiveNav"] = "Parts Management";
     var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
@@ -31,19 +32,35 @@
             <a class="app-action-link" href="/Owner/SparesAllocation">Reset</a>
         </form>
     </section>
-    <section class="repair-section"><h2>Stock Movement History</h2><div class="repair-table-wrap"><table><thead><tr><th>Date (UTC)</th><th>Part</th><th>Work order</th><th>Movement</th><th>Qty</th><th>By</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
+    <section class="repair-section"><h2>Stock Movement History</h2><div class="repair-table-wrap"><table><thead><tr><th>Date (UTC)</th><th>Part</th><th>Supplier</th><th>Work order</th><th>Movement</th><th>Qty</th><th>By</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
     @foreach(var row in Model.Movements) {
-        var editable = row.TransactionType != "Voided" && (!row.WorkOrderId.HasValue || Model.Orders.Any(x => x.WorkOrderId == row.WorkOrderId && x.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC")));
-        <tr><td>@row.PerformedUtc.ToString("g")</td><td>@Model.Parts.FirstOrDefault(x => x.PartId == row.PartId)?.Name</td><td>@(row.WorkOrderId.HasValue ? $"WO-{row.WorkOrderId}" : "None")</td><td>@row.TransactionType</td><td>@row.Quantity</td><td>@row.PerformedByName</td><td>@row.Notes</td><td><div class="repair-actions">
+        var editable = row.TransactionType is not ("Voided" or "Sold") && (!row.WorkOrderId.HasValue || Model.Orders.Any(x => x.WorkOrderId == row.WorkOrderId && x.WorkOrderStatus is not ("Cancelled" or "Completed" or "Ready for Pickup" or "Picked Up" or "Pending QC")));
+        <tr><td>@row.PerformedUtc.ToString("g")</td><td>@Model.Parts.FirstOrDefault(x => x.PartId == row.PartId)?.Name</td><td>@Model.Suppliers.FirstOrDefault(x => x.SupplierId == row.SupplierId)?.SupplierName</td><td>@(row.WorkOrderId.HasValue ? $"WO-{row.WorkOrderId}" : "None")</td><td>@row.TransactionType</td><td>@row.Quantity</td><td>@row.PerformedByName</td><td>@row.Notes</td><td><div class="repair-actions">
         @if(editable && Can("Edit")) { <button type="button" data-dialog-open="stock-@row.PartTransactionId">Edit</button> }
         @if(editable && Can("Delete")) { <button type="button" data-dialog-open="reverse-stock-@row.PartTransactionId">Reverse</button> }
         </div></td></tr>
     }
-    @if(Model.Movements.Count == 0) { <tr><td colspan="8">No stock movements found.</td></tr> }
+    @if(Model.Movements.Count == 0) { <tr><td colspan="9">No stock movements found.</td></tr> }
     </tbody></table></div><p class="repair-muted">@Model.Movements.Count transactions</p></section>
 </div>
 @if(Can("Create")) { @await Html.PartialAsync("_StockMovementEditor", new StockMovementEditor(new StockMovementForm { PartId = Model.PartId ?? 0, WorkOrderId = Model.WorkOrderId, TransactionType = Model.WorkOrderId.HasValue ? "Reserved" : "Received" }, Model)) }
-@foreach(var row in Model.Movements.Where(x => x.TransactionType != "Voided")) {
-    if(Can("Edit")) { @await Html.PartialAsync("_StockMovementEditor", new StockMovementEditor(new StockMovementForm { PartTransactionId = row.PartTransactionId, PartId = row.PartId ?? 0, WorkOrderId = row.WorkOrderId, TransactionType = row.TransactionType ?? "Received", Quantity = row.Quantity ?? 1, Notes = row.Notes ?? "" }, Model)) }
+@foreach(var row in Model.Movements.Where(x => x.TransactionType is not ("Voided" or "Sold"))) {
+    if(Can("Edit")) { @await Html.PartialAsync("_StockMovementEditor", new StockMovementEditor(new StockMovementForm { PartTransactionId = row.PartTransactionId, PartId = row.PartId ?? 0, SupplierId = row.SupplierId, WorkOrderId = row.WorkOrderId, TransactionType = row.TransactionType ?? "Received", Quantity = row.Quantity ?? 1, Notes = row.Notes ?? "" }, Model)) }
     if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"reverse-stock-{row.PartTransactionId}", "Reverse Stock Movement", "ReverseStockMovement", row.PartTransactionId)) }
 }
+<script>
+document.querySelectorAll('dialog[id^="stock-"] form').forEach(form => {
+    const movement = form.querySelector('[data-stock-movement]');
+    const wrap = form.querySelector('[data-stock-supplier-wrap]');
+    const supplier = form.querySelector('[data-stock-supplier]');
+    if (!movement || !wrap || !supplier) return;
+    const sync = () => {
+        const received = movement.value === 'Received';
+        wrap.hidden = !received;
+        supplier.required = received;
+        supplier.disabled = !received;
+    };
+    movement.addEventListener('change', sync);
+    sync();
+});
+</script>

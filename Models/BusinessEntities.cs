@@ -179,6 +179,16 @@ namespace Backyard_Mech.Models
     {
         public int BayId { get; set; }
         public string? BayNumber { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public string DisplayLabel
+        {
+            get
+            {
+                var number = string.IsNullOrWhiteSpace(BayNumber) ? BayId.ToString() : BayNumber.Trim();
+                return number.StartsWith("Bay ", StringComparison.OrdinalIgnoreCase) ? number : $"Bay {number}";
+            }
+        }
+
         public string? Name { get; set; }
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
@@ -273,6 +283,10 @@ namespace Backyard_Mech.Models
         public string? ContactLastName { get; set; }
         public string? Phone { get; set; }
         public string? Email { get; set; }
+        public string? UnitNumber { get; set; }
+        public string? StreetNumber { get; set; }
+        public string? StreetName { get; set; }
+        public string? StreetType { get; set; }
         public string? StreetAddress { get; set; }
         public string? City { get; set; }
         public string? Province { get; set; }
@@ -315,6 +329,7 @@ namespace Backyard_Mech.Models
     {
         public int PartTransactionId { get; set; }
         public int? PartId { get; set; }
+        public int? SupplierId { get; set; }
         public int? WorkOrderId { get; set; }
         public string? TransactionType { get; set; }
         public int? Quantity { get; set; }

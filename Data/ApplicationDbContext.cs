@@ -10,6 +10,7 @@ namespace Backyard_Mech.Data
         {
         }
 
+        public DbSet<GarageSettings> GarageSettings => Set<GarageSettings>();
         public DbSet<AppUser> Users => Set<AppUser>();
         public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
         public DbSet<AccountSecurity> AccountSecurity => Set<AccountSecurity>();
@@ -67,6 +68,14 @@ namespace Backyard_Mech.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<GarageSettings>(entity => {
+                entity.ToTable("GarageSettings");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).ValueGeneratedNever();
+                entity.Property(x => x.LogoContentType).HasMaxLength(30);
+                entity.Property(x => x.Revision).IsConcurrencyToken();
+            });
+
 
             modelBuilder.Entity<AppUser>(entity =>
             {

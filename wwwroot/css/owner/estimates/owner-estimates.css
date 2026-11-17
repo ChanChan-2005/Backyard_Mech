@@ -1,5 +1,5 @@
 .estimates-shell {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 11px;
 }
 
@@ -839,54 +839,4 @@
     width: 100%;
     max-width: none;
   }
-}
-
-body.app-shell-body dialog#estimate-editor .repair-fields {
-  gap: 7px;
-  margin: 0;
-  padding: 12px 18px 0;
-}
-
-body.app-shell-body dialog#estimate-editor h3 {
-  margin: 8px 0 5px;
-  padding: 0 18px;
-}
-
-body.app-shell-body dialog#estimate-editor [data-estimate-lines] {
-  padding: 0 18px;
-}
-
-body.app-shell-body dialog#estimate-editor .estimate-edit-row {
-  grid-template-columns: minmax(95px, 0.75fr) minmax(180px, 2.2fr) minmax(100px, 0.9fr) minmax(100px, 0.9fr) 42px;
-  gap: 6px;
-  padding: 6px 0;
-}
-
-body.app-shell-body dialog#estimate-editor > form > [data-add-line] {
-  margin: 6px 18px 10px;
-}
-
-body.app-shell-body dialog#estimate-editor footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  margin: 0;
-  padding: 8px 18px 10px;
-  background: #fff;
-  box-shadow: 0 -1px 0 #e5eaf0;
-}
-
-@media (max-width: 760px) {
-  body.app-shell-body dialog#estimate-editor .repair-fields,
-  body.app-shell-body dialog#estimate-editor [data-estimate-lines] {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-
-  body.app-shell-body dialog#estimate-editor h3 { padding: 0 18px; }
-  body.app-shell-body dialog#estimate-editor > form > [data-add-line] { margin-left: 18px; }
-  body.app-shell-body dialog#estimate-editor .estimate-edit-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  body.app-shell-body dialog#estimate-editor .estimate-edit-row > button { grid-column: 2; justify-self: end; }
-  body.app-shell-body dialog#estimate-editor .estimate-edit-row .line-description { grid-column: 1 / -1; }
-  body.app-shell-body dialog#estimate-editor footer { padding-left: 18px; padding-right: 18px; }
 }

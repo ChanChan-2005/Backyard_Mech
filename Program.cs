@@ -6,6 +6,8 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -101,7 +103,7 @@ if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("Develop
             await using var scope = app.Services.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var developmentUser = await dbContext.Users.AsNoTracking()
-                .Where(user => user.IsActive && user.Role == "Owner")
+                .Where(user => user.IsActive && user.Role == "RootAdmin")
                 .OrderBy(user => user.Id)
                 .FirstOrDefaultAsync();
 

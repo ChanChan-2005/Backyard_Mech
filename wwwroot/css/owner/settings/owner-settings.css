@@ -1,5 +1,5 @@
 .settings-shell {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
   font-size: 11px;
 }
 
@@ -993,3 +993,62 @@
     flex-direction: column;
   }
 }
+
+/* Role permissions are a settings page, with their own sub-navigation. */
+.settings-role-subtabs { display: flex; gap: 6px; border-bottom: 1px solid #dce3ed; }
+.settings-role-subtabs a { padding: 10px 16px; color: #526174; text-decoration: none; border-bottom: 3px solid transparent; font-weight: 600; }
+.settings-role-subtabs a.active { color: #2563eb; border-bottom-color: #2563eb; }
+.settings-role-management [hidden] { display: none !important; }
+.settings-permission-page { min-width: 0; padding: 12px; }
+.settings-permission-role-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.settings-permission-role-picker select { min-width: 180px; max-width: 100%; }
+.settings-permission-page :is(select, input[type="search"], button) { min-height: 32px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 5px; font: inherit; }
+.settings-permission-page button { cursor: pointer; }
+.settings-permission-page button:disabled { cursor: not-allowed; opacity: .55; }
+.settings-permission-page form > header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; }
+.settings-permission-page h2 { margin: 0 0 8px; }
+.settings-permission-page header p { margin: 0; color: #64748b; }
+.settings-permission-page input[type="search"] { box-sizing: border-box; width: 100%; margin-bottom: 14px; }
+.settings-permission-page .permission-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; }
+.settings-permission-page .permission-group { border: 1px solid #d8e0eb; border-radius: 6px; overflow: hidden; }
+.settings-permission-page .permission-group > summary { padding: 8px 10px; background: #f3f6fa; color: #243447; font-weight: 600; cursor: pointer; }
+.settings-permission-page .permission-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-permission-page .permission-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 10px; border-top: 1px solid #e7ebf0; min-width: 0; }
+.settings-permission-page .permission-item input { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; accent-color: #2563eb; }
+.settings-permission-page .permission-item span { min-width: 0; overflow-wrap: anywhere; }
+.settings-permission-page .permission-item small { display: block; margin-top: 1px; color: #64748b; }
+.settings-permission-page .settings-panel-footer { margin-top: 16px; color: #64748b; }
+ .settings-permission-page .permission-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.settings-permission-page .permission-tools input[type="search"] { flex: 1 1 220px; width: auto; margin: 0; }
+.settings-permission-page .permission-tools button { flex: 0 0 auto; }
+@media(max-width: 760px) { .settings-permission-page .permission-groups { grid-template-columns: minmax(0, 1fr); } }
+@media(max-width: 420px) { .settings-permission-page .permission-list { grid-template-columns: minmax(0, 1fr); } }
+
+.settings-overview-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+.settings-overview-links a { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid #dce3ed; border-radius: 6px; text-decoration: none; color: #2454a6; }
+.settings-overview-links a span { color: #64748b; }
+.settings-overview-links a:hover { background: #f3f6fa; }
+.settings-overview-links a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+.general-settings-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.general-business-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); gap: 24px; }
+.general-logo-field { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.general-logo-upload { padding: 14px; text-align: center; cursor: pointer; }
+.general-logo-upload img { max-width: 100%; max-height: 100px; object-fit: contain; margin-bottom: 10px; }
+.general-logo-field input { max-width: 100%; }
+.general-settings-form [hidden] { display: none !important; }
+.general-settings-form .general-switch { appearance: none; position: relative; display: inline-block; flex: 0 0 34px; width: 34px; height: 18px; min-height: 18px; padding: 0; margin: 0; border: 0; border-radius: 999px; background: #dfe5ec; cursor: pointer; }
+.general-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.general-settings-form .general-switch:checked { background: #2f80ed; }
+.general-switch:checked::after { transform: translateX(16px); }
+.general-switch:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.general-switch:disabled { opacity: .6; cursor: not-allowed; }
+.general-sunday-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-bottom: 9px; }
+.general-switch-label { display: flex; align-items: center; gap: 10px; }
+.general-settings-form .settings-toggle-row { cursor: pointer; }
+.general-settings-errors.validation-summary-valid { display: none; }
+.general-settings-errors { color: #b91c1c; padding: 8px 16px; }
+.general-settings-saved { color: #166534; padding: 8px 16px; }
+.general-settings-form .settings-actions { padding: 14px 18px; border-top: 1px solid #e2e7ee; }
+.general-settings-form .settings-actions a { text-decoration: none; }
+@media(max-width: 700px) { .general-business-grid { grid-template-columns: minmax(0,1fr); } .general-settings-form .settings-hours-row { grid-template-columns: minmax(90px,1fr) minmax(0,1fr) 16px minmax(0,1fr); gap: 6px; } }

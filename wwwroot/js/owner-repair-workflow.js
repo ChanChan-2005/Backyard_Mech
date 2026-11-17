@@ -30,9 +30,15 @@
     document.querySelectorAll('form[data-estimate-editor]').forEach(form => {
         const rows = form.querySelector('[data-estimate-lines]');
         const template = form.querySelector('template');
-        const reindex = () => rows.querySelectorAll('[data-estimate-line]').forEach((row, i) => {
-            row.querySelectorAll('[data-field]').forEach(input => input.name = `Lines[${i}].${input.dataset.field}`);
-        });
+        const reindex = () => {
+            const lines = [...rows.querySelectorAll('[data-estimate-line]')];
+            lines.forEach((row, i) => {
+                row.querySelectorAll('[data-field]').forEach(input => input.name = `Lines[${i}].${input.dataset.field}`);
+            });
+            const empty = form.querySelector('[data-estimate-lines-empty]');
+            if (empty) empty.hidden = lines.length > 0;
+            form.querySelector('button[type="submit"]').disabled = lines.length === 0;
+        };
         const sync = row => {
             const part = row.querySelector('[data-field="LineType"]').value === 'Part';
             row.querySelector('[data-part-select]').hidden = !part;
@@ -46,8 +52,10 @@
             if (event.target.closest('[data-add-line]') && rows.children.length < 100) {
                 rows.append(template.content.cloneNode(true)); reindex(); sync(rows.lastElementChild);
             }
-            if (event.target.closest('[data-remove-line]') && rows.children.length > 1) {
-                event.target.closest('[data-estimate-line]').remove(); reindex();
+            const remove = event.target.closest('[data-remove-line]');
+            if (remove) {
+                remove.closest('[data-estimate-line]').remove(); reindex();
+                form.querySelector('[data-add-line]').focus();
             }
         });
         form.addEventListener('change', event => {

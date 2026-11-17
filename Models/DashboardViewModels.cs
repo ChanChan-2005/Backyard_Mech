@@ -2,6 +2,8 @@ namespace Backyard_Mech.Models
 {
     public class DashboardViewModel
     {
+        public HashSet<string> VisibleSections { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public bool CanSee(string section) => VisibleSections.Contains(section);
         public string PageDateLabel { get; set; } = string.Empty;
         public IReadOnlyList<DashboardMetricCard> Metrics { get; set; } = Array.Empty<DashboardMetricCard>();
         public string QueueFilter { get; set; } = "all";
@@ -19,6 +21,7 @@ namespace Backyard_Mech.Models
 
     public class DashboardMetricCard
     {
+        public string Permission { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
         public string Note { get; set; } = string.Empty;

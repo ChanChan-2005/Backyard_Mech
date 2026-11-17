@@ -4,6 +4,9 @@
     Layout = "_AppLayout";
     ViewData["Title"] = ViewData["PageTitle"] = "Appointments and Check-in";
     ViewData["ActiveNav"] = "Appointments and Check-In";
+    var upcomingFocus = ViewData["UpcomingNotificationFocus"] is true;
+    var notificationNow = DateTime.UtcNow;
+    var notificationUntil = notificationNow.AddHours(24);
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
@@ -11,7 +14,7 @@
     <header class="master-toolbar"><h2>Appointments</h2><div class="master-actions">
         @if(Model.CanCreate){<button type="button" data-intake-open="walkin-new">+ Walk-in</button><button type="button" class="master-primary" data-intake-open="appointment-new">+ New Appointment</button>}
     </div></header>
-    <div class="master-toolbar"><div class="app-search-control"><label class="app-search"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input type="search" data-appointment-search data-search-managed placeholder="Search customer, vehicle or service" aria-label="Search appointments" /></label><button type="button" class="app-search-submit" data-search-submit>Search</button></div>
+    <div class="master-toolbar"><div class="app-search-control"><label class="app-search"><span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span><input maxlength="256" type="search" data-appointment-search data-search-managed placeholder="Search customer, vehicle or service" aria-label="Search appointments" /></label><button type="button" class="app-search-submit" data-search-submit>Search</button></div>
         <select data-appointment-status aria-label="Status"><option value="">All statuses</option>@foreach(var status in Model.Rows.Select(x => x.Row.AppointmentStatus).Distinct().Order()){<option>@status</option>}</select>
         <div class="intake-view-toggle" aria-label="Appointment view"><button type="button" data-appointment-view="calendar">Calendar</button><button type="button" data-appointment-view="list">List</button></div>
     </div>
@@ -19,22 +22,23 @@
         <div class="master-toolbar"><div class="master-actions"><button type="button" data-calendar-step="-1" aria-label="Previous period">&#8592;</button><span class="intake-range" data-calendar-range aria-live="polite"></span><button type="button" data-calendar-step="1" aria-label="Next period">&#8594;</button><button type="button" data-calendar-today>Today</button></div>
             <div class="master-actions"><input type="date" data-calendar-date value="@Model.Today.ToString("yyyy-MM-dd")" aria-label="Calendar date" /><select data-calendar-mode aria-label="Calendar period"><option value="day">Day</option><option value="week" selected>Week</option><option value="month">Month</option></select></div>
         </div><div class="intake-calendar-wrap"><div class="intake-calendar" data-calendar-grid></div></div>
+        <p data-appointment-count class="intake-count" aria-live="polite"></p>
     </div>
-    <div class="master-table-wrap" data-appointment-list><table><thead><tr><th>Date / time</th><th>Customer / vehicle</th><th>Requested services</th><th>Preferred mechanic</th><th>Assigned mechanic</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    <section id="appointment-list" data-appointment-list><div class="master-table-wrap"><table><thead><tr><th>Date / time</th><th>Customer / vehicle</th><th>Requested services</th><th>Preferred mechanic</th><th>Assigned mechanic</th><th>Status</th><th>Actions</th></tr></thead><tbody>
     @foreach(var item in Model.Rows){var a = item.Row;
-        <tr data-appointment-row data-date="@a.ScheduledStart?.ToString("yyyy-MM-dd")" data-time="@a.ScheduledStart?.ToString("HH:mm")" data-customer="@a.CustomerName" data-status="@a.AppointmentStatus" data-dialog="visit-@a.AppointmentId">
+        <tr class="@(upcomingFocus && a.AppointmentStatus == "Scheduled" && !a.CheckedInUtc.HasValue && a.ScheduledStart >= notificationNow && a.ScheduledStart < notificationUntil ? "notification-target" : "")" data-appointment-row data-date="@a.ScheduledStart?.ToString("yyyy-MM-dd")" data-time="@a.ScheduledStart?.ToString("HH:mm")" data-customer="@a.CustomerName" data-status="@a.AppointmentStatus" data-dialog="visit-@a.AppointmentId">
             <td>@a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")<br />@a.AppointmentType</td><td>@a.CustomerName<br />@item.Vehicle</td><td>@item.Services</td><td>@(a.PreferredMechanicName ?? "No preference")</td><td>@(a.AssignedMechanicName ?? "Not assigned")</td><td>@a.AppointmentStatus</td>
             <td><button type="button" data-intake-open="visit-@a.AppointmentId">View</button></td>
         </tr>
     }
-    </tbody></table></div><p data-appointment-count class="intake-count" aria-live="polite"></p>
+    </tbody></table></div></section>
 </section>
 @if(Model.CanCreate){
     @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, new AppointmentFormModel { ScheduledDate=Model.Today, StartTime=TimeSpan.FromHours(9), EndTime=TimeSpan.FromHours(10) }, "appointment-new", "New Appointment"))
     @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, new AppointmentFormModel { IsWalkIn=true }, "walkin-new", "Check In Walk-in"))
 }
 @foreach(var item in Model.Rows){var a = item.Row;
-<dialog id="visit-@a.AppointmentId" class="master-dialog" aria-labelledby="visit-title-@a.AppointmentId">
+<dialog id="visit-@a.AppointmentId" class="master-dialog app-modal" aria-labelledby="visit-title-@a.AppointmentId" role="dialog" aria-modal="true">
     <header class="master-toolbar"><h2 id="visit-title-@a.AppointmentId">Appointment: @a.CustomerName</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <dl class="intake-detail"><dt>Vehicle</dt><dd>@item.Vehicle</dd><dt>Schedule</dt><dd>@a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm") - @a.ScheduledEnd?.ToString("HH:mm")</dd><dt>Requested services</dt><dd>@item.Services</dd><dt>Status</dt><dd>@a.AppointmentStatus</dd><dt>Customer concerns</dt><dd>@a.Notes</dd>
     @if(a.CheckedInUtc.HasValue){<dt>Checked in (UTC)</dt><dd>@a.CheckedInUtc?.ToString("yyyy-MM-dd HH:mm") by @a.CheckedInByName</dd>}
@@ -57,7 +61,7 @@
 </dialog>
 @if(item.CanChange && Model.CanEdit){
     @await Html.PartialAsync("_IntakeAppointmentModal", new IntakeEditor(Model, item.Form, $"appointment-edit-{a.AppointmentId}", "Edit Appointment"))
-    <dialog id="checkin-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="checkin-title-@a.AppointmentId"><form asp-action="CheckInAppointment" method="post">
+    <dialog id="checkin-@a.AppointmentId" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="checkin-title-@a.AppointmentId" role="dialog" aria-modal="true"><form asp-action="CheckInAppointment" method="post">
         <header class="master-toolbar"><h2 id="checkin-title-@a.AppointmentId">Check In</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
         <p>@a.CustomerName - @item.Vehicle</p><input type="hidden" name="AppointmentId" value="@a.AppointmentId" /><input type="hidden" name="Expected" value="@item.Form.Expected" />
         <div class="master-fields"><label class="master-wide">Odometer reading<input name="Odometer" type="number" min="@(item.Form.Odometer ?? 0)" max="2147483647" required /></label><label class="master-wide intake-check"><input name="IdentityVerified" type="checkbox" value="true" required /> Customer identity and vehicle verified</label></div>
@@ -65,7 +69,7 @@
     </form></dialog>
 }
 @if(item.CanChange && Model.CanDelete){
-    <dialog id="cancel-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="cancel-title-@a.AppointmentId"><form asp-action="CancelAppointment" method="post">
+    <dialog id="cancel-@a.AppointmentId" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="cancel-title-@a.AppointmentId" role="dialog" aria-modal="true"><form asp-action="CancelAppointment" method="post">
         <header class="master-toolbar"><h2 id="cancel-title-@a.AppointmentId">Cancel Appointment</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
         <p>@a.CustomerName - @a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")</p>
         <input type="hidden" name="AppointmentId" value="@a.AppointmentId" /><input type="hidden" name="Expected" value="@item.Form.Expected" /><input type="hidden" name="ViewMode" value="@Model.View" />
@@ -73,7 +77,7 @@
     </form></dialog>
 }
 @if(item.Row.CheckedInUtc.HasValue && Model.CanInspect && (item.Row.AppointmentStatus is "Arrived" or "Inspection" or "Waiting Approval")) {
-    <dialog id="initial-inspection-@a.AppointmentId" class="master-dialog master-confirm" aria-labelledby="initial-inspection-title-@a.AppointmentId">
+    <dialog id="initial-inspection-@a.AppointmentId" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="initial-inspection-title-@a.AppointmentId" role="dialog" aria-modal="true">
         <form asp-action="SaveInitialInspection" method="post" enctype="multipart/form-data">
             <header class="master-toolbar"><h2 id="initial-inspection-title-@a.AppointmentId">Initial vehicle inspection</h2><button type="button" data-intake-close aria-label="Close">X</button></header>
             <p>@a.CustomerName - @item.Vehicle</p><input type="hidden" name="AppointmentId" value="@a.AppointmentId" />

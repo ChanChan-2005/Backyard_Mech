@@ -9,14 +9,20 @@
 }
 
 @section TopbarActions {
-    <button class="users-button" type="button">Period: This Month⌄</button>
+    <form method="get" asp-action="EmployeePerformance">
+        <select class="users-button" name="period" aria-label="Performance period" onchange="this.form.requestSubmit()">
+            <option value="this-month" selected="@(Model.Period == "this-month")">This month</option>
+            <option value="last-month" selected="@(Model.Period == "last-month")">Last month</option>
+            <option value="all-time" selected="@(Model.Period == "all-time")">All time</option>
+        </select>
+    </form>
 }
 
 <section class="users-reference-page">
     <div class="users-reference-kpis">
         <article><span>Total Jobs Completed</span><strong>@Model.TotalJobsCompleted</strong><small>@Model.TotalJobsTrend</small></article>
         <article><span>Avg Customer Rating</span><strong>@Model.AverageRating</strong><small>@Model.RatingTarget</small></article>
-        <article><span>Shop Utilization</span><strong>@Model.ShopUtilization</strong><small>@Model.UtilizationTrend</small></article>
+        <article><span>Paid Revenue</span><strong>@Model.ShopUtilization</strong><small>@Model.UtilizationTrend</small></article>
         <article><span>Revenue Per Tech (Avg)</span><strong>@Model.RevenuePerTech</strong><small>@Model.HighestTech</small></article>
     </div>
 
@@ -55,17 +61,17 @@
     </div>
 
     <article class="users-reference-card users-monthly-chart">
-        <h3>Monthly Shop Efficiency Trend</h3>
+        <h3>Monthly Completed Jobs</h3>
         <div>
             @foreach (var month in Model.MonthlyEfficiency)
             {
                 <section>
-                    <span>@month.Value%</span>
-                    <i class="@(month.IsGoal ? "goal" : "")" style="height:@Math.Clamp(month.Value, 12, 96)%"></i>
+                    <span>@month.Value</span>
+                    <i style="height:@Math.Clamp(month.Value * 8, 12, 96)%"></i>
                     <small>@month.Month</small>
                 </section>
             }
         </div>
-        <em>Goal: 85% Efficiency</em>
+        <em>Recorded work order completions</em>
     </article>
 </section>

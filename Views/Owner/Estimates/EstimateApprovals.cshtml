@@ -9,6 +9,7 @@
     ViewData["ShellClass"] = "estimates-shell";
 
     var estimates = Model ?? Array.Empty<EstimateListItem>();
+    var pendingEstimateIds = ViewData["NotificationEstimateIds"] as HashSet<int>;
 }
 
 <section class="estimates-page">
@@ -16,7 +17,7 @@
         <div class="app-search-control">
             <label class="estimate-search-box">
                 <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
-                <input type="search" placeholder="Search client, vehicle or status..." data-table-search="estimates-table" data-search-managed />
+                <input maxlength="256" type="search" placeholder="Search client, vehicle or status..." data-table-search="estimates-table" data-search-managed />
             </label>
             <button type="button" class="app-search-submit" data-search-submit>Search</button>
         </div>
@@ -42,7 +43,7 @@
             <tbody>
                 @foreach (var estimate in estimates)
                 {
-                    <tr>
+                    <tr class="@(pendingEstimateIds?.Contains(estimate.EstimateId) == true ? "notification-target" : "")">
                         <td><a href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">@estimate.Id</a></td>
                         <td>@estimate.Date</td>
                         <td><strong>@estimate.Customer</strong></td>

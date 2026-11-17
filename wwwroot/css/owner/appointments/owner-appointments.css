@@ -1,5 +1,5 @@
 .appointments-shell {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-family, Arial, Helvetica, sans-serif);
 }
 
 .appointments-shell .app-topbar {

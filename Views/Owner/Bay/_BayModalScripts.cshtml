@@ -33,7 +33,7 @@
             const bayStatus = button.dataset.bayStatus || 'Available';
 
             modal.querySelector('#edit-bay-id').value = bayId || '0';
-            modal.querySelector('#edit-bay-number').value = button.dataset.bayNumber || '';
+            modal.querySelector('#edit-bay-number').value = (button.dataset.bayNumber || '').replace(/^Bay\s+/i, '').trim();
             modal.querySelector('#edit-bay-name').value = bayName || '';
             modal.querySelector('#edit-bay-description').value = bayDescription || '';
             modal.querySelector('#edit-bay-status').value = bayStatus;

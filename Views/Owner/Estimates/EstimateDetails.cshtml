@@ -17,9 +17,9 @@
     </div></nav>
     <section class="repair-section"><header><div><h2>@Model.Customer</h2><p>@Model.Vehicle</p></div><span class="repair-status">@Model.Revision.EstimateStatus / Revision @Model.Revision.RevisionNumber</span></header>
         <div class="repair-table-wrap"><table><thead><tr><th>Type</th><th>Description</th><th>Qty / hours</th><th>Price / rate</th><th>Total</th></tr></thead><tbody>
-        @foreach(var line in Model.Lines) { <tr><td>@line.LineType</td><td>@line.Description</td><td>@line.Quantity</td><td>@line.UnitPrice?.ToString("N2")</td><td>@line.LineTotal?.ToString("N2")</td></tr> }
+        @foreach(var line in Model.Lines) { <tr><td>@line.LineType</td><td>@line.Description</td><td>@line.Quantity</td><td>@CurrencyDisplay.Cad(line.UnitPrice)</td><td>@CurrencyDisplay.Cad(line.LineTotal)</td></tr> }
         </tbody></table></div>
-        <p>Subtotal: @Model.Revision.Subtotal?.ToString("N2") | Tax: @Model.Revision.TaxAmount?.ToString("N2")</p><p class="repair-total">Total: @Model.Revision.Total?.ToString("N2")</p>
+        <p>Subtotal: @CurrencyDisplay.Cad(Model.Revision.Subtotal) | Tax: @CurrencyDisplay.Cad(Model.Revision.TaxAmount)</p><p class="repair-total">Total: @CurrencyDisplay.Cad(Model.Revision.Total)</p>
         @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Edit")) {
             <form method="post" asp-action="CreateCustomerApprovalLink" class="repair-actions">
                 @Html.AntiForgeryToken()<input type="hidden" name="Id" value="@Model.Estimate.EstimateId" />
@@ -27,7 +27,16 @@
                 <button type="submit" class="primary">@(Model.ApprovalUrl is null ? "Create customer approval link" : "Refresh approval link")</button>
             </form>
         }
-        @if (Model.ApprovalUrl is not null) { <p class="repair-notice">Customer link (expires in 7 days): <a href="@Model.ApprovalUrl">@Model.ApprovalUrl</a></p> }
+        @if (Model.ApprovalUrl is not null) {
+            var emailBody = Uri.EscapeDataString($"Please review your estimate here: {Model.ApprovalUrl}");
+            var emailSubject = Uri.EscapeDataString($"Estimate EST-{Model.Estimate.EstimateId:0000} approval");
+            <div class="repair-notice">
+                <p>Customer link (expires in 7 days): <a href="@Model.ApprovalUrl">@Model.ApprovalUrl</a></p>
+                <button type="button" data-copy-approval-link="@Model.ApprovalUrl">Copy link</button>
+                @if (!string.IsNullOrWhiteSpace(Model.CustomerEmail)) { <a href="mailto:@Model.CustomerEmail?subject=@emailSubject&amp;body=@emailBody">Open email draft</a> }
+                <small>Share the link with the customer to request approval.</small>
+            </div>
+        }
     </section>
     @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Approve")) {
         <section class="repair-section"><h2>Customer Decision</h2><form method="post" asp-action="RecordEstimateDecision">
@@ -37,8 +46,15 @@
             <button type="submit" class="primary">Record Decision</button></form></section>
     }
     <section class="repair-section"><h2>Revision History</h2><div class="repair-table-wrap"><table><thead><tr><th>Revision</th><th>Created</th><th>By</th><th>Reason</th><th>Status</th><th>Total</th></tr></thead><tbody>
-        @foreach(var row in Model.Revisions) { <tr><td>@row.RevisionNumber</td><td>@row.CreatedUtc.ToString("g") UTC</td><td>@row.CreatedByName</td><td>@row.RevisionReason</td><td>@row.EstimateStatus</td><td>@row.Total?.ToString("N2")</td></tr> }
+        @foreach(var row in Model.Revisions) { <tr><td>@row.RevisionNumber</td><td>@row.CreatedUtc.ToString("g") UTC</td><td>@row.CreatedByName</td><td>@row.RevisionReason</td><td>@row.EstimateStatus</td><td>@CurrencyDisplay.Cad(row.Total)</td></tr> }
     </tbody></table></div></section>
 </div>
+<script>
+document.querySelector('[data-copy-approval-link]')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  await navigator.clipboard.writeText(button.dataset.copyApprovalLink);
+  button.textContent = 'Copied';
+});
+</script>
 @if(open && Can("Estimates", "Edit")) { @await Html.PartialAsync("_EstimateEditor", Model.Editor) }
 @if(open && Can("Estimates", "Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("cancel-estimate", "Cancel Estimate", "CancelEstimate", Model.Estimate.EstimateId)) }

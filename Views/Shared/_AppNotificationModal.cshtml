@@ -41,42 +41,13 @@
 
 @if (!string.IsNullOrWhiteSpace(notificationMessage))
 {
-    <div class="app-notification-modal is-open @notificationTone" data-app-notification-modal aria-hidden="false">
-        <button class="app-notification-backdrop" type="button" data-app-notification-close aria-label="Close notification"></button>
-        <section class="app-notification-card" role="dialog" aria-modal="true" aria-labelledby="app-notification-title">
-            <span class="app-notification-icon" aria-hidden="true">@(string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase) ? "!" : "OK")</span>
-            <div>
-                <h2 id="app-notification-title">@notificationTitle</h2>
-                <p>@notificationMessage</p>
-            </div>
-            <button class="app-notification-close" type="button" data-app-notification-close aria-label="Close notification">x</button>
-            <footer>
-                <button type="button" data-app-notification-close>OK</button>
-            </footer>
-        </section>
-    </div>
-
-    <script>
-        (() => {
-            const modal = document.querySelector("[data-app-notification-modal]");
-            if (!modal) return;
-
-            const close = () => {
-                modal.classList.remove("is-open");
-                modal.setAttribute("aria-hidden", "true");
-            };
-
-            modal.querySelectorAll("[data-app-notification-close]").forEach(button => {
-                button.addEventListener("click", close);
-            });
-
-            document.addEventListener("keydown", event => {
-                if (event.key === "Escape") {
-                    close();
-                }
-            });
-
-            modal.querySelector("[data-app-notification-close]")?.focus();
-        })();
-    </script>
+    <aside class="app-toast @notificationTone" data-app-toast aria-label="Notification">
+        <span class="app-toast-icon" aria-hidden="true">@(notificationTone == "error" ? "!" : "OK")</span>
+        <div role="@(notificationTone == "error" ? "alert" : "status")" aria-atomic="true">
+            <h2>@notificationTitle</h2>
+            <p>@notificationMessage</p>
+        </div>
+        <button type="button" class="app-toast-close" data-app-toast-close aria-label="Dismiss notification">&#215;</button>
+    </aside>
+    <script src="~/js/app-toast.js" asp-append-version="true"></script>
 }

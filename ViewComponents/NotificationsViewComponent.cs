@@ -30,21 +30,22 @@ public sealed class NotificationsViewComponent : ViewComponent
         {
             var count = await _db.Parts.AsNoTracking().CountAsync(part => part.IsActive && !part.IsArchived && !part.IsDeleted &&
                 part.ReorderThreshold > 0 && part.QuantityOnHand <= part.ReorderThreshold);
-            if (count > 0) items.Add(new("Low stock", $"{count} part{(count == 1 ? " is" : "s are")} at or below reorder level.", "/Owner/PartsManagement", count));
+            if (count > 0) items.Add(new("Low stock", $"{count} part{(count == 1 ? " is" : "s are")} at or below reorder level.", "/Owner/PartsManagement?notification=low-stock#parts-inventory-table", count));
         }
 
         if (CanView("Tools"))
         {
             var count = await _db.Tools.AsNoTracking().CountAsync(tool => tool.IsActive && !tool.IsArchived && !tool.IsDeleted &&
                 tool.NextCalibrationDueUtc.HasValue && tool.NextCalibrationDueUtc.Value.Date < now.Date);
-            if (count > 0) items.Add(new("Calibration overdue", $"{count} tool{(count == 1 ? " is" : "s are")} past its calibration date.", "/Owner/ToolTracking", count));
+            if (count > 0) items.Add(new("Calibration overdue", $"{count} tool{(count == 1 ? " is" : "s are")} past its calibration date.", "/Owner/ToolTracking?notification=calibration-overdue#tools-table", count));
         }
 
         if (CanView("Estimates"))
         {
-            var count = await _db.EstimateRevisions.AsNoTracking().CountAsync(revision => revision.EstimateStatus == "Pending" &&
-                revision.ApprovalToken != null && revision.ApprovalTokenExpiresUtc > now);
-            if (count > 0) items.Add(new("Awaiting customer approval", $"{count} estimate{(count == 1 ? " is" : "s are")} awaiting a customer response.", "/Owner/EstimateApprovals", count));
+            var count = await _db.EstimateRevisions.AsNoTracking()
+                .Where(revision => revision.EstimateStatus == "Pending" && revision.ApprovalToken != null && revision.ApprovalTokenExpiresUtc > now)
+                .Select(revision => revision.EstimateId).Distinct().CountAsync();
+            if (count > 0) items.Add(new("Awaiting customer approval", $"{count} estimate{(count == 1 ? " is" : "s are")} awaiting a customer response.", "/Owner/EstimateApprovals?notification=awaiting-approval#estimates-table", count));
         }
 
         if (CanView("Appointments"))
@@ -52,7 +53,7 @@ public sealed class NotificationsViewComponent : ViewComponent
             var until = now.AddHours(24);
             var count = await _db.Appointments.AsNoTracking().CountAsync(appointment => appointment.AppointmentStatus == "Scheduled" &&
                 !appointment.CheckedInUtc.HasValue && appointment.ScheduledStart >= now && appointment.ScheduledStart < until);
-            if (count > 0) items.Add(new("Appointments coming up", $"{count} scheduled appointment{(count == 1 ? " is" : "s are")} due in the next 24 hours.", "/Owner/Appointments", count));
+            if (count > 0) items.Add(new("Appointments coming up", $"{count} scheduled appointment{(count == 1 ? " is" : "s are")} due in the next 24 hours.", "/Owner/Appointments?view=list&notification=upcoming#appointment-list", count));
         }
 
         return View(items);

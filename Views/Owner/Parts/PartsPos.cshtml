@@ -1,0 +1,52 @@
+@model PartsPosViewModel
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Parts POS";
+    ViewData["PageTitle"] = "Parts POS";
+    ViewData["PageSubtitle"] = "PARTS SALES";
+    ViewData["ActiveNav"] = "Parts POS";
+    ViewData["ShellClass"] = "parts-pos-shell";
+    ViewData["SearchPlaceholder"] = "Search parts or SKU...";
+}
+<link rel="stylesheet" href="~/css/owner/parts/parts-pos.css" asp-append-version="true" />
+<section class="parts-pos" data-parts-pos>
+    @if (TempData["OwnerMessage"] is string message) { <div class="parts-pos-alert" role="alert">@message</div> }
+    <header class="parts-pos-heading">
+        <h2>New parts sale</h2>
+        <a class="parts-pos-inventory-link" href="/Owner/PartsManagement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>Inventory registry</a>
+    </header>
+    <div class="parts-pos-grid">
+        <section class="parts-pos-panel parts-pos-catalog-panel" aria-label="Available parts">
+            <div class="parts-pos-panel-head parts-pos-catalog-head">
+                <div><h3>Available parts</h3><span class="parts-pos-count">@Model.Parts.Count ready to sell</span></div>
+                <label class="parts-pos-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><input type="search" data-pos-search placeholder="Search name or SKU" aria-label="Search available parts" autocomplete="off" /></label>
+            </div>
+            <div class="parts-pos-catalog">
+                @foreach (var part in Model.Parts)
+                {
+                    <article class="parts-pos-product" role="button" tabindex="0" data-pos-product data-pos-add data-id="@part.PartId" data-name="@part.Name" data-price="@part.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-available="@part.Available" data-search="@(part.Name.ToLowerInvariant()) @(part.Sku.ToLowerInvariant())" aria-label="Add @part.Name to sale">
+                        <div class="parts-pos-product-top"><span class="parts-pos-sku">@part.Sku</span><span class="parts-pos-stock"><span aria-hidden="true"></span>@part.Available in stock</span></div>
+                        <h4>@part.Name</h4>
+                        <div class="parts-pos-product-bottom"><div class="parts-pos-price"><small>SELLING PRICE</small><strong>@CurrencyDisplay.Cad(part.Price)</strong></div></div>
+                    </article>
+                }
+                @if (Model.Parts.Count == 0) { <p class="parts-pos-empty parts-pos-catalog-empty">No priced parts are available for sale.</p> }
+                <p class="parts-pos-empty parts-pos-catalog-empty" data-pos-no-results hidden>No parts match your search.</p>
+            </div>
+        </section>
+        <form class="parts-pos-panel parts-pos-checkout" asp-controller="Owner" asp-action="CheckoutParts" method="post" data-pos-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="SubmissionToken" value="@Guid.NewGuid()" />
+            <div class="parts-pos-panel-head parts-pos-checkout-head"><div><span class="parts-pos-eyebrow">CHECKOUT</span><h3>Current sale <span class="parts-pos-cart-count" data-pos-cart-count>0</span></h3></div><button type="button" class="parts-pos-text-button" data-pos-clear>Clear all</button></div>
+            <div class="parts-pos-cart" data-pos-cart><p class="parts-pos-empty">Add a part to start a sale.</p></div>
+            <div class="parts-pos-fields">
+                <label>Tax <select name="TaxRateId" data-pos-tax><option value="" data-rate="0">No tax</option>@foreach (var tax in Model.Taxes) { <option value="@tax.TaxRateId" data-rate="@tax.Rate.ToString(System.Globalization.CultureInfo.InvariantCulture)">@tax.Name (@((tax.Rate * 100).ToString("0.##"))%)</option> }</select></label>
+                <label>Payment method <select name="PaymentMethod" data-pos-method><option>Cash</option><option>Card</option><option>Bank Transfer</option></select></label>
+                <label data-pos-tender-wrap>Cash tendered (CA$) <input name="AmountTendered" data-pos-tender type="number" min="0" step="0.01" value="0" required /></label>
+                <label data-pos-reference-wrap hidden>Payment reference <input name="ReferenceNumber" data-pos-reference maxlength="100" /></label>
+            </div>
+            <div class="parts-pos-summary"><div class="parts-pos-totals"><div><span>Subtotal</span><strong data-pos-subtotal>CA$0.00</strong></div><div><span>Tax</span><strong data-pos-tax-total>CA$0.00</strong></div><div class="parts-pos-total"><span>Total due</span><strong data-pos-total>CA$0.00</strong></div><div><span>Change</span><strong data-pos-change>CA$0.00</strong></div></div><button class="parts-pos-pay" type="submit" data-pos-submit disabled>Complete sale <span aria-hidden="true">&rarr;</span></button><p class="parts-pos-payment-note">Review the order and payment details before completing the sale.</p></div>
+        </form>
+    </div>
+</section>
+@section Scripts { <script src="~/js/parts-pos.js" asp-append-version="true"></script> }
