@@ -17,15 +17,14 @@
     if (string.IsNullOrWhiteSpace(notificationTone) && !string.IsNullOrWhiteSpace(notificationMessage))
     {
         var loweredMessage = notificationMessage.ToLowerInvariant();
-        notificationTone = loweredMessage.Contains("not ") ||
-            loweredMessage.Contains("failed") ||
-            loweredMessage.Contains("error") ||
-            loweredMessage.Contains("invalid") ||
-            loweredMessage.Contains("please") ||
-            loweredMessage.Contains("missing") ||
-            loweredMessage.Contains("cannot") ||
-            loweredMessage.Contains("unable") ||
-            loweredMessage.Contains("must ")
+        notificationTone = loweredMessage.Contains("not ") || loweredMessage.Contains("failed") ||
+            loweredMessage.Contains("error") || loweredMessage.Contains("invalid") ||
+            loweredMessage.Contains("missing") || loweredMessage.Contains("cannot") ||
+            loweredMessage.Contains("unable") || loweredMessage.Contains("unavailable") ||
+            loweredMessage.Contains("must ") || loweredMessage.Contains("required") ||
+            loweredMessage.Contains("choose") || loweredMessage.Contains("select ") ||
+            loweredMessage.Contains("conflict") || loweredMessage.Contains("duplicate") ||
+            loweredMessage.Contains("no changes")
             ? "error"
             : "success";
     }
@@ -33,21 +32,21 @@
     notificationTone = string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase)
         ? "error"
         : "success";
-
-    var notificationTitle =
-        TempData["MessageTitle"]?.ToString() ??
-        (string.Equals(notificationTone, "error", StringComparison.OrdinalIgnoreCase) ? "Action Needed" : "Success");
+    var notificationTitle = TempData["MessageTitle"]?.ToString() ??
+        (notificationTone == "error" ? "Please check" : "Completed");
 }
 
-@if (!string.IsNullOrWhiteSpace(notificationMessage))
-{
-    <aside class="app-toast @notificationTone" data-app-toast aria-label="Notification">
-        <span class="app-toast-icon" aria-hidden="true">@(notificationTone == "error" ? "!" : "OK")</span>
-        <div role="@(notificationTone == "error" ? "alert" : "status")" aria-atomic="true">
-            <h2>@notificationTitle</h2>
-            <p>@notificationMessage</p>
-        </div>
-        <button type="button" class="app-toast-close" data-app-toast-close aria-label="Dismiss notification">&#215;</button>
-    </aside>
-    <script src="~/js/app-toast.js" asp-append-version="true"></script>
-}
+<dialog class="app-message-dialog" data-app-message-dialog aria-labelledby="app-message-title" aria-describedby="app-message-text"
+        data-initial-message="@(string.IsNullOrWhiteSpace(notificationMessage) ? "" : notificationMessage)"
+        data-initial-title="@notificationTitle" data-initial-tone="@notificationTone">
+    <div class="app-message-content">
+        <span class="app-message-icon" data-app-message-icon aria-hidden="true"></span>
+        <h2 id="app-message-title" data-app-message-title></h2>
+        <p id="app-message-text" data-app-message-text></p>
+    </div>
+    <footer class="app-message-actions" data-app-message-actions>
+        <button type="button" class="app-message-cancel" data-app-message-cancel hidden>Cancel</button>
+        <button type="button" class="app-message-confirm" data-app-message-confirm>Okay</button>
+    </footer>
+</dialog>
+<script src="~/js/app-toast.js" asp-append-version="true"></script>

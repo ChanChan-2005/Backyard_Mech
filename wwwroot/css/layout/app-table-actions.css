@@ -1,0 +1,110 @@
+body.app-shell-body .app-table-icon-action {
+  align-items: center !important;
+  background: #fff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  flex: 0 0 32px !important;
+  height: 32px !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 2px !important;
+  min-height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+  vertical-align: middle;
+  width: 32px !important;
+}
+
+body.app-shell-body .app-table-icon-action:hover {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+}
+
+body.app-shell-body .app-table-icon-action:focus-visible {
+  outline: 2px solid #2563eb !important;
+  outline-offset: 2px;
+}
+
+body.app-shell-body .app-table-icon-action svg {
+  fill: none;
+  height: 16px;
+  pointer-events: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 16px;
+}
+
+body.app-shell-body .app-table-icon-action[data-table-action="delete"],
+body.app-shell-body .app-table-icon-action[data-table-action="cancel"] {
+  color: #b42318 !important;
+}
+
+body.app-shell-body .app-table-icon-action[data-table-action="delete"]:hover,
+body.app-shell-body .app-table-icon-action[data-table-action="cancel"]:hover {
+  background: #fff1f0 !important;
+  border-color: #fda29b !important;
+  color: #912018 !important;
+}
+
+body.app-shell-body .app-table-icon-action[data-table-action="restore"] {
+  color: #067647 !important;
+}
+
+body.app-shell-body .app-table-icon-action:disabled,
+body.app-shell-body .app-table-icon-action[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+body.app-shell-body td:has(> .app-table-action-group) {
+  white-space: nowrap;
+}
+
+body.app-shell-body .app-table-action-group {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+body.app-shell-body .app-table-action-group form {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+body.app-shell-body #customers-table .customer-actions-cell {
+  flex-wrap: nowrap !important;
+  gap: 2px !important;
+  justify-content: flex-start !important;
+  white-space: nowrap;
+}
+
+body.app-shell-body #customers-table .customer-actions-cell form {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+body.app-shell-body #customers-table td:nth-child(8) {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+@media (max-width: 700px) {
+  body.app-shell-body .app-table-icon-action {
+    height: 30px !important;
+    min-height: 30px !important;
+    min-width: 30px !important;
+    width: 30px !important;
+  }
+}

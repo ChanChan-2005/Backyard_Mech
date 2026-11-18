@@ -1,11 +1,25 @@
-﻿@{
+@model CustomerDetailsViewModel
+@{
     Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+    ViewData["Title"] = ViewData["PageTitle"] = "Customer Details";
+    ViewData["ActiveNav"] = "Customer and Vehicle";
 }
-
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
+<link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
+<section class="master-data intake-page">
+    <header class="master-toolbar"><div><h2>@Model.Customer.FirstName @Model.Customer.MiddleName @Model.Customer.LastName</h2><p>Customer profile and registered vehicle history</p></div><a class="intake-history-button" asp-action="CustomerVehicle">Back to customers</a></header>
+    <dl>
+        <dt>Phone</dt><dd>@(Model.Customer.Phone ?? "—")</dd>
+        <dt>Email</dt><dd>@(Model.Customer.Email ?? "—")</dd>
+        <dt>Address</dt><dd>@(Model.Customer.StreetAddress ?? "—")</dd>
+        <dt>Status</dt><dd>@(Model.Customer.IsDeleted ? "Deleted" : Model.Customer.IsArchived ? "Archived" : Model.Customer.IsActive ? "Active" : "Inactive")</dd>
+        <dt>Notes</dt><dd>@(Model.Customer.Notes ?? "—")</dd>
+    </dl>
+    <h3>Vehicles</h3>
+    <div class="master-table-wrap"><table><thead><tr><th>Vehicle</th><th>Plate</th><th>VIN</th><th>Status</th><th>Action</th></tr></thead><tbody>
+    @foreach (var vehicle in Model.Vehicles)
+    {
+        <tr><td>@vehicle.Year @vehicle.Make @vehicle.Model</td><td>@vehicle.LicensePlate</td><td>@vehicle.VIN</td><td>@(vehicle.IsArchived ? "Archived" : "Active")</td><td><a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@vehicle.VehicleId">View history</a></td></tr>
+    }
+    </tbody></table></div>
+    @if (Model.Vehicles.Count == 0) { <p>No vehicles are linked to this customer.</p> }
 </section>

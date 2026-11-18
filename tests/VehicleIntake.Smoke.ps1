@@ -50,7 +50,7 @@ try {
     Check ((Sql "SELECT COUNT(*) FROM VehicleOwnership WHERE VehicleId=$vehicle AND OwnershipEndUtc IS NULL AND CustomerId=$next") -eq 1) 'Exactly one current owner after transfer'
     Check ((Sql "SELECT OwnerLastName FROM VehicleOwnership WHERE VehicleId=$vehicle AND CustomerId=$customer") -eq 'First') 'Previous owner snapshot retained'
 
-    $form=@{CustomerId=$customer;VehicleId=$vehicle;ScheduledDate='2036-02-04';StartTime='09:00';EndTime='10:00';'ServiceIds[0]'=$service;'ServiceIds[1]'=$second;PreferredEmployeeProfileId=$staff;Notes=$mark;AppointmentStatus='Completed';AppointmentType='Forged';ViewMode='list'}
+    $form=@{CustomerId=$customer;VehicleId=$vehicle;ScheduledDate='2036-02-04';StartTime='09:00';EndTime='10:00';'ServiceIds[0]'=$service;'ServiceIds[1]'=$second;Notes=$mark;AppointmentStatus='Completed';AppointmentType='Forged';ViewMode='list'}
     $null=Post 'CreateAppointment' $form
     Check ((Sql "SELECT COUNT(*) FROM Appointment WHERE VehicleId=$vehicle") -eq 0) 'Former owner cannot book transferred vehicle'
     $form.CustomerId=$next;$null=Post 'CreateAppointment' $form
@@ -59,8 +59,8 @@ try {
     Check ((Sql "SELECT AppointmentStatus FROM Appointment WHERE AppointmentId=$appointment") -eq 'Scheduled') 'Client cannot forge advanced status'
     Check ((Sql "SELECT AppointmentType FROM Appointment WHERE AppointmentId=$appointment") -eq 'Scheduled') 'Appointment type stores entry path rather than service name'
     Check ((Sql "SELECT COUNT(*) FROM AppointmentService WHERE AppointmentId=$appointment AND ServiceId IN ($service,$second)") -eq 2) 'Multiple requested services linked and snapshotted'
-    Check ((Sql "SELECT PreferredMechanicName FROM Appointment WHERE AppointmentId=$appointment") -eq "$mark Tech") 'Preferred accountless mechanic snapshot saved'
-    Check ([DBNull]::Value.Equals((Sql "SELECT AssignedMechanicName FROM Appointment WHERE AppointmentId=$appointment"))) 'Preference does not assign or reserve mechanic'
+    Check ([DBNull]::Value.Equals((Sql "SELECT PreferredMechanicName FROM Appointment WHERE AppointmentId=$appointment"))) 'Preferred mechanic is no longer stored separately'
+    Check ([DBNull]::Value.Equals((Sql "SELECT AssignedMechanicName FROM Appointment WHERE AppointmentId=$appointment"))) 'Unassigned appointment remains unassigned'
     $null=Post 'CreateAppointment' $form
     Check ((Sql "SELECT COUNT(*) FROM Appointment WHERE VehicleId=$vehicle") -eq 1) 'Overlapping vehicle booking rejected'
     $transfer.Expected=VStamp;$transfer.CustomerId=$customer;$null=Post 'TransferVehicleOwnership' $transfer
@@ -78,26 +78,28 @@ try {
     Check ((Sql "SELECT COUNT(*) FROM AppointmentService WHERE AppointmentId=$appointment") -eq 2) 'Cancellation retains requested-service history'
     $form.Remove('AppointmentId');$form.Remove('Expected');$null=Post 'CreateAppointment' $form
     $appointment=[int](Sql "SELECT MAX(AppointmentId) FROM Appointment WHERE VehicleId=$vehicle")
-    $checkin=@{AppointmentId=$appointment;Expected=(AStamp $appointment);Odometer=120;IdentityVerified='true'}
+    $checkin=@{AppointmentId=$appointment;Expected=(AStamp $appointment);Odometer=120}
     $null=Post 'CheckInAppointment' $checkin
     Check ([DBNull]::Value.Equals((Sql "SELECT CheckedInUtc FROM Appointment WHERE AppointmentId=$appointment"))) 'Future appointment cannot be checked in early'
     # Move only this test fixture to today to exercise the arrival transition.
     $today=[TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow,'Singapore Standard Time').ToString('yyyy-MM-dd')
     $null=Sql "UPDATE Appointment SET ScheduledStart='$($today)T10:00:00',ScheduledEnd='$($today)T11:00:00' WHERE AppointmentId=$appointment"
-    $checkin.Expected=AStamp $appointment;$checkin.IdentityVerified='false';$null=Post 'CheckInAppointment' $checkin
-    Check ([DBNull]::Value.Equals((Sql "SELECT CheckedInUtc FROM Appointment WHERE AppointmentId=$appointment"))) 'Identity verification required'
-    $checkin.IdentityVerified='true';$null=Post 'CheckInAppointment' $checkin
+    $html=(GetPage '/Owner/Appointments').Content
+    Check ($html.Contains("data-intake-open=`"checkin-$appointment`"") -and $html.Contains("data-intake-open=`"cancel-$appointment`"")) 'Eligible appointments expose Check In and Cancel actions in the table'
+    $checkin.Expected=AStamp $appointment;$null=Post 'CheckInAppointment' $checkin
     Check ((Sql "SELECT AppointmentStatus FROM Appointment WHERE AppointmentId=$appointment") -eq 'Arrived') 'Check-in moves visit into service queue'
     Check ((Sql "SELECT COUNT(*) FROM VehicleOdometerHistory WHERE AppointmentId=$appointment") -eq 1) 'Check-in appends mileage with appointment link'
     $null=Post 'CheckInAppointment' $checkin
     Check ((Sql "SELECT COUNT(*) FROM VehicleOdometerHistory WHERE AppointmentId=$appointment") -eq 1) 'Repeated check-in cannot duplicate history'
     $null=Sql "UPDATE Appointment SET AppointmentStatus='Completed' WHERE AppointmentId=$appointment"
-    $walkin=@{CustomerId=$next;VehicleId=$vehicle;IsWalkIn='true';IdentityVerified='true';Odometer=130;'ServiceIds[0]'=$service}
-    $walkin.IdentityVerified='false';$null=Post 'CreateAppointment' $walkin
-    Check ((Sql "SELECT COUNT(*) FROM Appointment WHERE VehicleId=$vehicle AND AppointmentType='Walk-in'") -eq 0) 'Invalid walk-in rolls back appointment and services'
-    $walkin.IdentityVerified='true'
+    $walkin=@{CustomerId=$next;VehicleId=$vehicle;IsWalkIn='true';Odometer=130;'ServiceIds[0]'=$service}
     $null=Post 'CreateAppointment' $walkin
     Check ((Sql "SELECT COUNT(*) FROM Appointment WHERE VehicleId=$vehicle AND AppointmentType='Walk-in' AND CheckedInUtc IS NOT NULL") -eq 1) 'Walk-in atomically creates appointment and check-in'
+    $null=Sql "UPDATE Appointment SET AppointmentStatus='Completed' WHERE VehicleId=$vehicle AND AppointmentType='Walk-in';"
+    $walkin.Remove('ServiceIds[0]')
+    $walkin.Odometer=140
+    $null=Post 'CreateAppointment' $walkin
+    Check ((Sql "SELECT COUNT(*) FROM Appointment WHERE VehicleId=$vehicle AND AppointmentType='Walk-in' AND CheckedInUtc IS NOT NULL") -eq 2) 'Walk-in check-in succeeds when no service is selected'
     Check ((Sql "SELECT COUNT(*) FROM AuditLogEntry WHERE EntityName='Vehicle' AND EntityId='$vehicle'") -ge 4) 'Vehicle changes audited'
 
     $token=Token (GetPage '/Owner/Appointments').Content

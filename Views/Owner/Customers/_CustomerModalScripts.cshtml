@@ -38,6 +38,11 @@
         const closeModal = (modal) => {
             if (!modal) return;
 
+            if (modal.matches('[data-customer-modal-panel="add-customer"]')) {
+                modal.querySelector("form")?.reset();
+                setCustomerStep(modal, "customer");
+            }
+
             modal.classList.remove("is-open");
             modal.setAttribute("aria-hidden", "true");
 
@@ -46,7 +51,41 @@
             }
         };
 
+        const setCustomerStep = (modal, step) => {
+            const isVehicle = step === "vehicle";
+            modal.querySelectorAll("[data-intake-step]").forEach(panel => {
+                panel.hidden = panel.dataset.intakeStep !== step;
+            });
+            const title = modal.querySelector("[data-intake-title]");
+            const subtitle = modal.querySelector("[data-intake-subtitle]");
+            const stepLabel = modal.querySelector("[data-intake-step-label]");
+            if (title) title.textContent = isVehicle ? "Vehicle Information" : "Customer information";
+            if (subtitle) subtitle.textContent = isVehicle ? "Add a vehicle for this customer." : "Enter the customer's contact information.";
+            if (stepLabel) stepLabel.textContent = isVehicle ? "Step 2 of 2" : "Step 1 of 2";
+        };
+
         document.addEventListener("click", (event) => {
+            const nextButton = event.target.closest("[data-customer-next-step]");
+            if (nextButton) {
+                const panel = nextButton.closest('[data-intake-step="customer"]');
+                const fields = [...panel.querySelectorAll("input")];
+                const invalid = fields.find(field => !field.checkValidity());
+                if (invalid) {
+                    invalid.reportValidity();
+                    return;
+                }
+                setCustomerStep(nextButton.closest(".customer-modal"), "vehicle");
+                nextButton.closest(".customer-modal").querySelector('[data-intake-step="vehicle"] input')?.focus();
+                return;
+            }
+
+            const previousButton = event.target.closest("[data-customer-prev-step]");
+            if (previousButton) {
+                setCustomerStep(previousButton.closest(".customer-modal"), "customer");
+                previousButton.closest(".customer-modal").querySelector('[data-intake-step="customer"] input')?.focus();
+                return;
+            }
+
             const openButton = event.target.closest("[data-customer-modal]");
             if (openButton) {
                 if (openButton.dataset.customerModal === "edit-customer") {

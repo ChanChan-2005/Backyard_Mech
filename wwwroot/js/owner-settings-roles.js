@@ -51,6 +51,13 @@
   }
 
   document.addEventListener("click", function (event) {
+    const selectAllButton = event.target.closest('[data-permission-select-all]');
+    if (selectAllButton) {
+      document.querySelectorAll('[data-role-permissions-form] input[name="PermissionIds"]:not(:disabled)')
+        .forEach(input => { input.checked = true; });
+      return;
+    }
+
     const expandButton = event.target.closest('[data-permission-expand]');
     if (expandButton) {
       document.querySelectorAll('[data-settings-action-group]:not([hidden])').forEach(group => {

@@ -43,6 +43,20 @@ body.app-shell-body .dashboard-content table {
   line-height: 1.4;
 }
 
+body.app-shell-body .app-responsive-table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.app-shell-body .app-responsive-table:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 body.app-shell-body .dashboard-content table thead {
   background: #f4f6f9;
 }
@@ -152,5 +166,9 @@ body.app-shell-body .dashboard-content .queue-panel .queue-table td:nth-child(8)
   body.app-shell-body .dashboard-content table th,
   body.app-shell-body .dashboard-content table td {
     padding: 10px 11px;
+  }
+
+  body.app-shell-body .dashboard-content table.app-responsive-table-wide {
+    min-width: 680px;
   }
 }

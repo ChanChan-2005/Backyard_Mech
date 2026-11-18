@@ -18,7 +18,7 @@
     <article class="settings-card">
         <section class="settings-section">
             <h2>System Preferences</h2>
-            <p class="settings-muted">The app checks for enabled email notifications every 15 minutes.</p>
+            <p class="settings-muted">Automatic emails are checked every 15 minutes. Configure Gmail SMTP with a Google App Password to enable delivery.</p>
         </section>
         @if (TempData["SmtpMessage"] is string message) { <p role="status">@message</p> }
         <section class="settings-section">

@@ -21,6 +21,7 @@
 .repair-page input, .repair-page select, .repair-page textarea, .repair-dialog input, .repair-dialog select, .repair-dialog textarea { width: 100%; min-width: 0; padding: 9px 11px; min-height: 40px; border: 1px solid #bccbdc; border-radius: 4px; background: white; color: #202b38; font: 14px/1.4 var(--app-font-family, Arial, Helvetica, sans-serif); }
 .repair-page :focus-visible, .repair-dialog :focus-visible { outline: 2px solid #246ddd; outline-offset: 2px; }
 .repair-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+.repair-form-footer { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8ef; }
 .repair-wide { grid-column: 1 / -1; }
 .repair-table-wrap { overflow-x: auto; margin-top: 16px; }
 .repair-page table, .repair-dialog table { width: 100%; border-collapse: collapse; font-size: 14px; }

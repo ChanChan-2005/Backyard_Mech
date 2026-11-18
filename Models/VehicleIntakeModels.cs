@@ -7,6 +7,15 @@ public class VehicleHistoryForm
     [Range(1, int.MaxValue)] public int VehicleId { get; set; }
     [Required] [StringLength(100)] public string Expected { get; set; } = "";
 }
+public class UpdateVehicleForm : VehicleHistoryForm
+{
+    [Required, StringLength(100)] public string Make { get; set; } = "";
+    [Required, StringLength(100)] public string Model { get; set; } = "";
+    [Required, Range(1886, 9999)] public int? Year { get; set; }
+    [StringLength(50)] public string? Color { get; set; }
+    [Required, StringLength(40)] public string LicensePlate { get; set; } = "";
+    [Required, StringLength(40)] public string VIN { get; set; } = "";
+}
 public class TransferVehicleForm : VehicleHistoryForm
 {
     [Range(1, int.MaxValue)] public int CustomerId { get; set; }
@@ -22,7 +31,6 @@ public class CheckInAppointmentForm
     [Range(1, int.MaxValue)] public int AppointmentId { get; set; }
     [Required] [StringLength(100)] public string Expected { get; set; } = "";
     [Required, Range(0, int.MaxValue)] public int? Odometer { get; set; }
-    public bool IdentityVerified { get; set; }
 }
 public class VehicleHistoryPage
 {
@@ -32,8 +40,12 @@ public class VehicleHistoryPage
     public List<VehicleOwnership> Owners { get; set; } = new();
     public List<VehicleOdometerHistory> Readings { get; set; } = new();
     public string Expected { get; set; } = "";
+    public string? OpenAction { get; set; }
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+    public int? CustomerId { get; set; }
+    public string? CustomerName { get; set; }
 }
 public record IntakeAppointment(Appointment Row, AppointmentFormModel Form, string Vehicle, string Services, bool CanChange)
 {
@@ -46,6 +58,7 @@ public class IntakeAppointmentsPage
     public List<Customer> Customers { get; set; } = new();
     public List<AppointmentVehicleOption> Vehicles { get; set; } = new();
     public List<Service> Services { get; set; } = new();
+    public List<ServiceCategory> ServiceCategories { get; set; } = new();
     public List<Bay> Bays { get; set; } = new();
     public List<EmployeeProfile> Employees { get; set; } = new();
     public DateTime Today { get; set; }

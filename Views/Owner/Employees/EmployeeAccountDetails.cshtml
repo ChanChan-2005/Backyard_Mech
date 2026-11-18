@@ -13,7 +13,6 @@
     var assignedRole = ViewData["EmployeeAccountRole"]?.ToString() ?? "";
     var hasLoginAccount = ViewData["EmployeeHasLoginAccount"] as bool? == true;
     var canEdit = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"),"Employees","Edit");
-    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
@@ -42,9 +41,9 @@
 
         <section class="users-tab-card">
             <nav class="users-tabs">
-                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeDetails")) { <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a> }
+                <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a>
                 <a class="active" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
-                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeSecurityActivity")) { <a asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a> }
+                <a asp-controller="Owner" asp-action="AuditLogReport" asp-route-employeeProfileId="@Model.EmployeeProfileId">Activity Report</a>
             </nav>
             <div class="users-tab-content">
                 <form id="employeeEditForm" asp-controller="Owner" asp-action="EditEmployee" method="post">
@@ -57,7 +56,10 @@
                         <label><span class="users-label">First Name *</span><input class="users-input" name="FirstName" maxlength="120" value="@Model.FirstName" required /></label>
                         <label><span class="users-label">Last Name *</span><input class="users-input" name="LastName" maxlength="120" value="@Model.LastName" required /></label>
                         <label><span class="users-label">Middle Initial</span><input class="users-input" name="MiddleInitial" value="@Model.MiddleName" maxlength="1" /></label>
-                        <label><span class="users-label">Job Title / Position *</span><input class="users-input" name="JobTitle" aria-describedby="edit-position-help" maxlength="120" value="@Model.JobTitle" required /><small id="edit-position-help" class="app-field-help">The employee's job in the shop. Assign an access role under Account Access; edit permissions under Roles &amp; Permissions.</small></label>
+                        <label><span class="users-label">Job Title / Position *</span><select class="users-select" name="JobTitle" aria-describedby="edit-position-help" required>
+                            @if (!new[] { "Lead Mechanic", "Mechanic", "Helper", "Technician", "Service Advisor", "Parts Specialist", "Quality Inspector", "Bookkeeper" }.Contains(Model.JobTitle ?? "")) { <option value="@Model.JobTitle" selected>@Model.JobTitle</option> }
+                            <option value="Lead Mechanic" selected="@(Model.JobTitle == "Lead Mechanic")">Lead Mechanic</option><option value="Mechanic" selected="@(Model.JobTitle == "Mechanic")">Mechanic</option><option value="Helper" selected="@(Model.JobTitle == "Helper")">Helper</option><option value="Technician" selected="@(Model.JobTitle == "Technician")">Technician</option><option value="Service Advisor" selected="@(Model.JobTitle == "Service Advisor")">Service Advisor</option><option value="Parts Specialist" selected="@(Model.JobTitle == "Parts Specialist")">Parts Specialist</option><option value="Quality Inspector" selected="@(Model.JobTitle == "Quality Inspector")">Quality Inspector</option><option value="Bookkeeper" selected="@(Model.JobTitle == "Bookkeeper")">Bookkeeper</option>
+                        </select><small id="edit-position-help" class="app-field-help">Choose the employee's operational job in the shop. System access role is configured separately under Account Access.</small></label>
                         <label><span class="users-label">Employment Type *</span><select class="users-select" name="EmploymentType" required><option value="">Select employment type</option><option value="Full-time" selected="@(Model.EmploymentType == "Full-time")">Full-time</option><option value="Part-time" selected="@(Model.EmploymentType == "Part-time")">Part-time</option></select></label>
                         <label><span class="users-label">Contact Number *</span><input placeholder="e.g., (416) 555-0123" inputmode="tel" data-canadian-phone class="users-input" name="Phone" type="tel" value="@Model.Phone" required /></label>
                         <label><span class="users-label">Contact Email *</span><input class="users-input" name="Email" type="email" maxlength="256" value="@Model.Email" required /></label>
@@ -65,7 +67,7 @@
                         <label><span class="users-label">City *</span><input class="users-input" name="City" maxlength="120" value="@Model.City" required /></label>
                         <label><span class="users-label">Province/Territory</span><input class="users-input" name="Province" maxlength="120" value="@Model.Province" /></label>
                         <label><span class="users-label">Postal Code *</span><input class="users-input" name="PostalCode" maxlength="20" value="@Model.PostalCode" required /></label>
-                        <label><span class="users-label">Hourly Rate (CA$) *</span><input max="9999999999999999.99" class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" required /></label>
+                        <label><span class="users-label">Hourly Rate (CA$) *</span><input max="9999999999999999.99" class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate" required /></label>
                         <label class="users-span-full"><span class="users-label">Skills and Qualifications</span><textarea class="users-textarea" name="SkillsAndQualifications" maxlength="2000">@Model.SkillsAndQualifications</textarea></label>
                         <div>
                             <span class="users-label">Account Status</span>

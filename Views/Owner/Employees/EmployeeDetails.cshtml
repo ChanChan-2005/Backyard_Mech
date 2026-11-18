@@ -1,5 +1,4 @@
 @model EmployeeDetailViewModel
-@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = Model.Name;
@@ -7,12 +6,12 @@
     ViewData["PageSubtitle"] = $"EMPLOYEES > {Model.Name.ToUpperInvariant()}";
     ViewData["ActiveNav"] = "User Management";
     ViewData["ShellClass"] = "users-shell users-reference-shell";
-    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
-    @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeAccountDetails")) { <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a> }
-    @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeSecurityActivity")) { <a class="users-icon-button" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId" aria-label="View employee activity">Activity</a> }
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeeAvailability" asp-route-id="@Model.EmployeeProfileId">Manage Availability</a>
+    <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a>
+    <a class="users-icon-button" asp-controller="Owner" asp-action="AuditLogReport" asp-route-employeeProfileId="@Model.EmployeeProfileId" aria-label="View employee activity">Activity Report</a>
 }
 
 <section class="users-reference-page users-employee-detail">
@@ -82,7 +81,7 @@
         </article>
 
         <article class="users-reference-card">
-            <h3>Shift Schedule (This Week)</h3>
+            <header><h3>Shift Schedule (This Week)</h3><a asp-controller="Owner" asp-action="EmployeeAvailability" asp-route-id="@Model.EmployeeProfileId">Edit weekly hours</a></header>
             <div class="users-week-strip">
                 @foreach (var day in Model.WeekSchedule)
                 {

@@ -23,33 +23,36 @@
                     }
                 </select>
             </label>
+            <fieldset class="shift-day-picker">
+                <legend class="users-label">Days *</legend>
+                @foreach (var day in new[] { (1, "Monday"), (2, "Tuesday"), (3, "Wednesday"), (4, "Thursday"), (5, "Friday"), (6, "Saturday"), (0, "Sunday") })
+                {
+                    <label><input type="checkbox" name="DaysOfWeek" value="@day.Item1" /> @day.Item2</label>
+                }
+            </fieldset>
             <label>
-                <span class="users-label">Day *</span>
-                <select class="users-select" name="DayOfWeek" required>
-                    <option value="1">Monday</option>
-                    <option value="2">Tuesday</option>
-                    <option value="3">Wednesday</option>
-                    <option value="4">Thursday</option>
-                    <option value="5">Friday</option>
-                    <option value="6">Saturday</option>
-                    <option value="0">Sunday</option>
+                <span class="users-label">Schedule *</span>
+                <select class="users-select" name="IsAvailable" data-shift-availability>
+                    <option value="true">Working day</option>
+                    <option value="false">Day off</option>
                 </select>
             </label>
-            <label>
-                <span class="users-label">Availability *</span>
-                <select class="users-select" name="IsAvailable">
-                    <option value="true">Available</option>
-                    <option value="false">Off</option>
-                </select>
-            </label>
-            <div class="users-form-grid">
+            <div class="users-form-grid shift-time-fields">
                 <label>
-                    <span class="users-label">Start Time *</span>
+                    <span class="users-label">Start time *</span>
                     <input class="users-input" type="time" name="StartTime" value="08:00" required />
                 </label>
                 <label>
-                    <span class="users-label">End Time *</span>
+                    <span class="users-label">End time *</span>
                     <input class="users-input" type="time" name="EndTime" value="17:00" required />
+                </label>
+                <label>
+                    <span class="users-label">Break starts</span>
+                    <input class="users-input" type="time" name="BreakStart" />
+                </label>
+                <label>
+                    <span class="users-label">Break ends</span>
+                    <input class="users-input" type="time" name="BreakEnd" />
                 </label>
             </div>
             <div class="users-modal-actions">
@@ -131,13 +134,13 @@
 
     <section class="users-modal app-modal app-modal--compact" data-modal-id="soft-delete" role="dialog" aria-modal="true" aria-labelledby="employee-soft-delete-title">
         <header class="users-modal-header">
-            <h2 id="employee-soft-delete-title">Confirm Soft Delete</h2>
+            <h2 id="employee-soft-delete-title">Confirm Delete</h2>
             <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
         </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="SoftDeleteEmployee" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="EmployeeProfileId" data-employee-state-field="id" />
-            <p>This will move the employee to the soft deleted list while preserving historical records.</p>
+            <p>This will remove the employee from active lists while preserving historical records.</p>
             <label><span class="users-label">Employee:</span><strong data-employee-state-field="name">Selected employee</strong></label>
             <label>
                 <span class="users-label">Reason for Deletion *</span>
@@ -154,3 +157,18 @@
         </form>
     </section>
 </div>
+<script>
+  document.querySelectorAll('[data-modal-id="add-shift"]').forEach(modal => {
+    const availability = modal.querySelector('[data-shift-availability]');
+    const timeFields = [...modal.querySelectorAll('.shift-time-fields input')];
+    const updateTimeFields = () => {
+      const isWorkingDay = availability.value === 'true';
+      timeFields.forEach(input => {
+        input.disabled = !isWorkingDay;
+        input.required = isWorkingDay && (input.name === 'StartTime' || input.name === 'EndTime');
+      });
+    };
+    availability.addEventListener('change', updateTimeFields);
+    updateTimeFields();
+  });
+</script>

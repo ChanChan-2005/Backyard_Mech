@@ -52,11 +52,11 @@
                         <td>
                             <div class="wo-role-actions">
                                 <label class="wo-small-choice @(mechanic.IsLead ? "active" : "")">
-                                    <input type="radio" name="LeadEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsLead" />
+                                    <input type="radio" name="LeadEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsLead" disabled="@(mechanic.Availability == "Busy")" />
                                     <span>Lead</span>
                                 </label>
                                 <label class="wo-small-choice @(mechanic.IsHelper ? "active" : "")">
-                                    <input type="radio" name="HelperEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsHelper" />
+                                    <input type="radio" name="HelperEmployeeProfileId" value="@mechanic.EmployeeProfileId" checked="@mechanic.IsHelper" disabled="@(mechanic.Availability == "Busy")" />
                                     <span>Helper</span>
                                 </label>
                             </div>

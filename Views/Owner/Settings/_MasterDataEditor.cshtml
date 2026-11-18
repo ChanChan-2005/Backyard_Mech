@@ -9,7 +9,7 @@
     <input type="hidden" name="Id" value="@f.Id" /><input type="hidden" name="Expected" value="@f.Expected" /><input type="hidden" name="Kind" value="@(page.Kind)" />
     <header class="master-toolbar"><h2>@title @noun</h2><button type="button" data-master-close aria-label="Close">&#215;</button></header>
     <fieldset disabled="@Model.ReadOnly" class="master-fields">
-        <label class="master-wide"><span>@noun Name <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Name" value="@f.Name" required maxlength="@(page.Mode=="categories"?120:160)" placeholder="@(page.Mode=="suppliers"?"e.g., Northside Auto Supply":page.Mode=="services"?"e.g., Brake inspection":null)" />@if(page.Mode=="services"){<small class="master-field-hint">Use a short, recognizable name for the service.</small>}</label>
+        <label class="master-wide"><span>@noun Name <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Name" value="@(page.Mode=="tax"?"Harmonized Sales Tax":f.Name)" required maxlength="@(page.Mode=="categories"?120:160)" placeholder="@(page.Mode=="suppliers"?"e.g., Northside Auto Supply":page.Mode=="services"?"e.g., Brake inspection":null)" readonly="@(page.Mode=="tax")" />@if(page.Mode=="services"){<small class="master-field-hint">Use a short, recognizable name for the service.</small>}</label>
         @if(page.Mode=="suppliers") {
             <label>Contact First Name<input name="ContactFirstName" value="@f.ContactFirstName" maxlength="120" placeholder="e.g., Alex" /><small class="master-field-hint">Primary contact's first name.</small></label>
             <label>Contact Middle Name<input name="ContactMiddleName" value="@f.ContactMiddleName" maxlength="120" placeholder="Optional" /><small class="master-field-hint">Optional middle name or initial.</small></label>
@@ -28,7 +28,7 @@
             @if(!string.IsNullOrWhiteSpace(f.StreetAddress) && string.IsNullOrWhiteSpace(f.StreetName)){
                 <p class="master-wide master-field-hint">Saved street address: @f.StreetAddress. Fill in the street fields above to replace it.</p>
             }
-            <label>Postal Code<input name="PostalCode" value="@f.PostalCode" maxlength="7" placeholder="e.g., M5V 2T6" data-supplier-postal /><small class="master-field-hint">Canadian postal code, e.g. M5V 2T6.</small></label>
+            <label>Postal Code<input name="PostalCode" value="@f.PostalCode" maxlength="7" placeholder="e.g., M5V 2T6" data-supplier-postal list="supplier-postal-suggestions-@f.Id" /><datalist id="supplier-postal-suggestions-@f.Id" data-supplier-postal-suggestions></datalist><small class="master-field-hint" data-supplier-postal-status role="status">Demo suggestions from <a href="https://github.com/djbelieny/geoinfo-dataset" target="_blank" rel="noreferrer">djbelieny/geoinfo-dataset</a> use city/province only; verify and edit the result.</small></label>
 
         }
         @if(page.Mode is "categories" or "services") {
@@ -49,8 +49,7 @@
         }
         @if(page.Mode=="tax") {
             <label><span>Rate (%) <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Percent" type="number" min="0" max="100" step="0.01" value="@f.Percent.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /></label>
-            <label><span>Effective From <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Start" type="date" value="@f.Start?.ToString("yyyy-MM-dd")" required /></label>
-            <label>Effective To<input name="End" type="date" value="@f.End?.ToString("yyyy-MM-dd")" /></label>
+            <label><span>Effectivity Date <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Start" type="date" value="@f.Start?.ToString("yyyy-MM-dd")" required /></label>
         }
     </fieldset>
     <footer><button type="button" data-master-close>@(Model.ReadOnly?"Close":"Cancel")</button>@if(!Model.ReadOnly){<button type="submit" class="master-primary">Save @noun</button>}</footer>

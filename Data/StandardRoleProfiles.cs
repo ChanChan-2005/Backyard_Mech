@@ -44,7 +44,8 @@ public static class StandardRoleProfiles
             Array.Empty<string>()),
         new("Service Advisor", "Service Advisor", "Handles check-in, scheduling, estimates, and customer communication.",
             new[] { "CustomerVehicle", "CustomerDetails", "CustomerVehicles", "CustomerServiceHistory", "AddCustomer", "EditCustomer",
-                "VehicleHistory", "AddVehicle", "RecordVehicleOdometer", "Appointments", "CreateAppointment", "EditAppointment", "CheckInAppointment", "CancelAppointment",
+                "ArchiveCustomer", "SoftDeleteCustomer", "VehicleHistory", "AddVehicle", "RecordVehicleOdometer", "ArchiveVehicle", "SoftDeleteVehicle",
+                "Appointments", "CreateAppointment", "EditAppointment", "CheckInAppointment", "CancelAppointment",
                 "ServiceQueue", "ServiceQueueDetails", "AssignQueueBay", "EstimateApprovals", "EstimateDetails", "CreateEstimate", "EditEstimate", "UpdateEstimate",
                 "CreateCustomerApprovalLink", "RecordEstimateDecision", "CancelEstimate", "WorkOrders", "WorkOrderDetails", "WorkOrderStatus", "CreateWorkOrder", "GenerateWorkOrder",
                 "BayManagement", "BayDetails", "ServiceCatalog" },
@@ -69,7 +70,7 @@ public static class StandardRoleProfiles
             new[] { "InvoiceRegistry", "InvoiceDetails", "GenerateInvoice", "IssueInvoice", "RecordPayment", "AddInvoicePayment", "EditInvoicePayment", "PartsPos", "CheckoutParts",
                 "ApplyInvoiceAdjustment", "IssueCreditAdjustment", "AddInvoiceAdjustment", "EditInvoiceAdjustment",
                 "CustomerVehicle", "CustomerDetails", "CustomerVehicles", "WorkOrders", "WorkOrderDetails", "WorkOrderStatus", "EstimateApprovals", "EstimateDetails",
-                "Reports", "SalesRevenueReport", "ProfitabilityReport", "ExportReport" },
+                "Reports", "SalesRevenueReport", "ExportReport" },
             new[] { "Revenue", "VehiclesServiced", "UnpaidInvoices", "RecentInvoices" })
     };
 }

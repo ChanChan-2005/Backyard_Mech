@@ -47,7 +47,6 @@ public sealed class AutomaticEmailService
 
     private async Task SendAppointmentRemindersAsync(DateTime nowLocal, CancellationToken cancellationToken)
     {
-        // Appointment times are stored as garage-local wall times by the intake workflow.
         var appointments = await _db.Appointments.AsNoTracking()
             .Where(a => a.AppointmentStatus == "Scheduled" && a.CheckedInUtc == null &&
                 a.ScheduledStart > nowLocal && a.ScheduledStart <= nowLocal.AddHours(24))
@@ -88,7 +87,6 @@ public sealed class AutomaticEmailService
 
     private async Task SendOverdueInvoiceRemindersAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {
-        // Send on the day the invoice reaches 15 days. Older invoices are not mailed on rollout.
         var invoices = await _db.Invoices.AsNoTracking()
             .Where(i => (i.InvoiceStatus == "Issued" || i.InvoiceStatus == "Partially Paid") &&
                 i.IssuedUtc > nowUtc.AddDays(-16) && i.IssuedUtc <= nowUtc.AddDays(-15) &&

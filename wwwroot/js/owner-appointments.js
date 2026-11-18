@@ -63,23 +63,70 @@
     page.addEventListener('change', render);
     document.querySelectorAll('[data-appointment-form]').forEach(form => {
         const customer = form.elements.CustomerId; const vehicle = form.elements.VehicleId;
+        const odometer = form.elements.Odometer;
         const vehicleWarning = form.querySelector('[data-vehicle-warning]');
+        const odometerHelp = form.querySelector('[data-odometer-help]');
         const filter = () => {
             const hasCustomer = Boolean(customer.value);
             vehicle.disabled = !hasCustomer;
             if (vehicleWarning) vehicleWarning.hidden = hasCustomer;
             [...vehicle.options].forEach(option => { if (option.value) option.disabled = option.hidden = option.dataset.customer !== customer.value; });
             if (!hasCustomer || vehicle.selectedOptions[0]?.disabled) vehicle.value = '';
+            if (odometer) {
+                const minimum = Number(vehicle.selectedOptions[0]?.dataset.minOdometer || 0);
+                odometer.min = String(minimum);
+                odometer.setCustomValidity(odometer.value && Number(odometer.value) < minimum
+                    ? `Enter at least ${minimum.toLocaleString()} mi, the vehicle's last recorded mileage.` : '');
+                if (odometerHelp) odometerHelp.textContent = minimum > 0
+                    ? `Must be at least ${minimum.toLocaleString()} mi (last recorded mileage).` : 'Enter the current mileage shown on the vehicle.';
+            }
         };
-        customer.addEventListener('change', filter); filter();
+        customer.addEventListener('change', filter); vehicle.addEventListener('change', filter); filter();
+        odometer?.addEventListener('input', filter);
         form.addEventListener('submit', event => {
-            if (!form.querySelector('input[name="ServiceIds"]:checked')) {
+            const isWalkIn = form.elements.IsWalkIn?.value === 'true';
+            if (!isWalkIn && !form.querySelector('input[name="ServiceIds"]:checked')) {
                 event.preventDefault(); form.querySelectorAll('button').forEach(button => { button.disabled = false; });
                 const first = form.querySelector('input[name="ServiceIds"]');
                 if (first) { first.setCustomValidity('Select at least one requested service.'); first.reportValidity(); }
             }
         });
         form.addEventListener('change', () => form.querySelector('input[name="ServiceIds"]')?.setCustomValidity(''));
+    });
+    document.querySelectorAll('[data-service-picker]').forEach(picker => {
+        const toggle = picker.querySelector('[data-service-toggle]');
+        const menu = picker.querySelector('[data-service-menu]');
+        const searchInput = picker.querySelector('[data-service-search]');
+        const categorySelect = picker.querySelector('[data-service-category]');
+        const options = [...picker.querySelectorAll('[data-service-option]')];
+        const count = picker.querySelector('[data-service-count]');
+        const empty = picker.querySelector('[data-service-empty]');
+        const update = () => {
+            const term = searchInput.value.trim().toLowerCase();
+            const category = categorySelect.value;
+            let visible = 0;
+            options.forEach(option => {
+                const matches = option.dataset.search.includes(term) && (!category || option.dataset.category === category);
+                option.hidden = !matches;
+                if (matches) visible++;
+            });
+            empty.hidden = visible > 0;
+            const selectedCount = picker.querySelectorAll('input[name="ServiceIds"]:checked').length;
+            count.textContent = selectedCount ? `${selectedCount} selected` : 'None selected';
+        };
+        toggle.addEventListener('click', () => {
+            const open = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', String(open));
+            menu.hidden = !open;
+            if (open) searchInput.focus();
+        });
+        searchInput.addEventListener('input', update);
+        categorySelect.addEventListener('change', update);
+        picker.addEventListener('change', event => { if (event.target.matches('input[name="ServiceIds"]')) update(); });
+        document.addEventListener('click', event => {
+            if (!picker.contains(event.target)) { menu.hidden = true; toggle.setAttribute('aria-expanded', 'false'); }
+        });
+        update();
     });
     render();
 })();

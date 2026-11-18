@@ -33,9 +33,6 @@
     const staffProfileOptions = [...(staffProfileList?.querySelectorAll('[data-profile-id]') ?? [])];
     let lastSelectedStaffId = '';
     let activeStaffOption = -1;
-    const newAccountRole = accountForm?.querySelector('[data-new-account-role]');
-    const permissionPreview = document.getElementById('create-account-permissions');
-    const permissionToggles = [...(permissionPreview?.querySelectorAll('[data-permission-toggle]') ?? [])];
 
     function positionPasswordPointer(adjustScroll = false) {
         if (!passwordPointer || passwordPointer.hidden || !accountPassword) return;
@@ -166,21 +163,6 @@
         closeStaffOptions();
     }
 
-    function updatePermissionPreview() {
-        if (!permissionPreview || !newAccountRole) return;
-        const defaults = JSON.parse(permissionPreview.dataset.roleDefaults || '{}');
-        const roleKey = newAccountRole.value;
-        const grants = defaults[roleKey] || [];
-        const roleLabel = permissionPreview.querySelector('[data-account-permissions-role]');
-        if (roleLabel) roleLabel.textContent = roleKey ? newAccountRole.selectedOptions[0].textContent : 'Choose an access role';
-        permissionToggles.forEach(toggle => {
-            toggle.checked = grants.includes('*') || grants.includes(toggle.dataset.code);
-            toggle.disabled = true;
-            const hint = toggle.closest('.permission-item').querySelector('[data-permission-default-label]');
-            if (hint) hint.textContent = roleKey ? (toggle.checked ? 'Allowed by role' : 'Not allowed by role') : 'Choose an access role';
-        });
-    }
-
     function validateAccountForm() {
         updateStaffProfileMatch();
         updatePasswordRules();
@@ -197,21 +179,10 @@
     }
 
     document.addEventListener('click', event => {
-        const visibilityButton = event.target.closest('[data-reset-password-visibility]');
-        if (visibilityButton) {
-            const passwordField = document.getElementById(visibilityButton.getAttribute('aria-controls'));
-            if (!passwordField) return;
-            const showing = passwordField.type === 'password';
-            passwordField.type = showing ? 'text' : 'password';
-            visibilityButton.textContent = showing ? 'Hide' : 'Show';
-            visibilityButton.setAttribute('aria-label', `${showing ? 'Hide' : 'Show'} reset password`);
-            visibilityButton.setAttribute('aria-pressed', String(showing));
-            return;
-        }
-        const accessLink = event.target.closest('[data-edit-account]');
+        const accessLink = event.target.closest('[data-view-account-access]');
         if (accessLink && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
-            const dialog = document.getElementById('edit-account');
-            if (dialog?.dataset.accountId === accessLink.dataset.editAccount) {
+            const dialog = document.getElementById('access-settings');
+            if (dialog?.dataset.accountId === accessLink.dataset.viewAccountAccess) {
                 event.preventDefault();
                 if (!dialog.open) dialog.showModal();
                 return;
@@ -226,11 +197,6 @@
                 dialog.querySelector('[data-staff-action-name]').textContent = open.dataset.staffName;
             }
             dialog?.showModal();
-        }
-        const permissionsOpen = event.target.closest('[data-staff-permissions-open]');
-        if (permissionsOpen) {
-            updatePermissionPreview();
-            document.getElementById(permissionsOpen.dataset.staffPermissionsOpen)?.showModal();
         }
         if (event.target.closest('[data-staff-close]')) event.target.closest('dialog')?.close();
     });
@@ -284,54 +250,46 @@
     staffProfileCombobox?.addEventListener('focusout', event => {
         if (!staffProfileCombobox.contains(event.relatedTarget)) restoreStaffSelection();
     });
-    newAccountRole?.addEventListener('change', updatePermissionPreview);
-    permissionPreview?.querySelector('[data-staff-action-search]')?.addEventListener('input', event => {
-        const term = event.target.value.trim().toLowerCase();
-        permissionPreview.querySelectorAll('[data-staff-action-row]').forEach(row => {
-            row.hidden = !row.dataset.search.toLowerCase().includes(term);
-        });
-        permissionPreview.querySelectorAll('.permission-group').forEach(group => {
-            group.hidden = ![...group.querySelectorAll('[data-staff-action-row]')].some(row => !row.hidden);
-            if (term && !group.hidden) group.open = true;
-        });
-    });
-    updatePermissionPreview();
     accountForm?.addEventListener('submit', event => {
-        if (permissionPreview?.open) permissionPreview.close();
         if (!validateAccountForm()) {
             event.preventDefault();
         }
     });
     const access = document.querySelector('[data-user-access]');
     if (access) {
-        const accessDialog = document.getElementById('edit-account');
+        const accessDialog = document.getElementById('access-settings');
         accessDialog?.addEventListener('close', () => {
-            const passwordField = accessDialog.querySelector('#staff-reset-password');
-            const visibilityButton = accessDialog.querySelector('[data-reset-password-visibility]');
-            if (passwordField && visibilityButton) {
-                passwordField.type = 'password';
-                visibilityButton.textContent = 'Show';
-                visibilityButton.setAttribute('aria-label', 'Show reset password');
-                visibilityButton.setAttribute('aria-pressed', 'false');
-            }
             const url = new URL(window.location.href);
             if (url.searchParams.get('userId') === accessDialog.dataset.accountId) {
                 url.searchParams.delete('userId');
-                if (url.hash === '#edit-account') url.hash = '';
+                if (url.hash === '#access-settings') url.hash = '';
                 history.replaceState(history.state, '', url.pathname + url.search + url.hash);
             }
         });
         accessDialog?.showModal();
+        const defaults = JSON.parse(access.dataset.roleDefaults);
+        const rows = [...access.querySelectorAll('[data-permission-row]')];
+        const role = access.querySelector('[data-account-role]');
+        function refresh() {
+            const grants = defaults[role.value] || [];
+            for (const row of rows) {
+                row.querySelector('[data-role-access]').textContent = grants.includes('*') || grants.includes(row.dataset.code) ? 'Allowed' : 'Not allowed';
+            }
+        }
+        role.addEventListener('change', refresh);
+        access.querySelector('[data-permission-search]').addEventListener('input', event => {
+            const term = event.target.value.trim().toLowerCase();
+            rows.forEach(row => { row.hidden = !row.dataset.search.toLowerCase().includes(term); });
+            access.querySelectorAll('.permission-group').forEach(group => {
+                group.hidden = ![...group.querySelectorAll('[data-permission-row]')].some(row => !row.hidden);
+                if (term && !group.hidden) group.open = true;
+            });
+            access.querySelector('[data-permission-empty]').hidden = rows.some(row => !row.hidden);
+        });
+        refresh();
     }
     document.querySelector('[data-staff-search]')?.addEventListener('searchcommit', event => {
         const term = event.detail.value.toLowerCase();
         document.querySelectorAll('[data-staff-row]').forEach(row => { row.hidden = !row.textContent.toLowerCase().includes(term); });
     });
-    const newAccountDialog = document.getElementById('create-account');
-    const newProfileOption = staffProfileOptions.find(option =>
-        option.dataset.profileId === newAccountDialog?.dataset.newProfileId);
-    if (newProfileOption) {
-        selectStaffOption(newProfileOption);
-        newAccountDialog.showModal();
-    }
 })();

@@ -395,7 +395,8 @@ namespace Backyard_Mech.Controllers
             }
 
             var model = await LoadDashboardAsync(queue is "appointments" or "walkins" ? queue : "all");
-            DashboardPermissions.Apply(model, await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole")));
+            var roleKey = HttpContext.Session.GetString("UserRole");
+            DashboardPermissions.Apply(model, await _permissionService.GetPermissionCodesAsync(roleKey), roleKey);
             return View(model);
         }
 
@@ -444,7 +445,7 @@ namespace Backyard_Mech.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddCustomer(CustomerFormModel model)
+        public async Task<IActionResult> AddCustomer(AddCustomerWithVehicleForm model)
         {
             if (!IsOwnerSession())
             {
@@ -453,25 +454,67 @@ namespace Backyard_Mech.Controllers
 
             if (!ModelState.IsValid)
             {
-                TempData["OwnerMessage"] = FormValidationMessage("Customer was not saved. Check the entered values.");
+                TempData["OwnerMessage"] = FormValidationMessage("Customer and vehicle were not saved. Check both steps and try again.");
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(CustomerVehicle));
             }
 
-            _dbContext.Customers.Add(new Customer
+            if (model.Vehicle.Year is < 1886 || model.Vehicle.Year > GarageNow().Year + 1 || model.Vehicle.Odometer is < 0)
             {
-                FirstName = model.FirstName.Trim(),
-                LastName = model.LastName.Trim(),
-                Phone = model.Phone.Trim(),
-                Email = model.Email.Trim(),
-                StreetAddress = model.StreetAddress.Trim(),
-                Notes = model.Notes?.Trim(),
+                TempData["OwnerMessage"] = "Enter a valid vehicle year and non-negative odometer.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(CustomerVehicle));
+            }
+
+            var vin = model.Vehicle.VIN.Trim().ToUpperInvariant();
+            var plate = model.Vehicle.LicensePlate.Trim().ToUpperInvariant();
+            if (await _dbContext.Vehicles.AnyAsync(x => x.VIN == vin || x.LicensePlate == plate))
+            {
+                TempData["OwnerMessage"] = "This VIN or license plate is already registered.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(CustomerVehicle));
+            }
+
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            var customer = new Customer
+            {
+                FirstName = model.Customer.FirstName.Trim(),
+                LastName = model.Customer.LastName.Trim(),
+                Phone = model.Customer.Phone.Trim(),
+                Email = model.Customer.Email.Trim(),
+                StreetAddress = model.Customer.StreetAddress.Trim(),
+                Notes = Clean(model.Customer.Notes),
                 CreatedUtc = DateTime.UtcNow,
                 IsActive = true
-            });
-
+            };
+            _dbContext.Customers.Add(customer);
             await _dbContext.SaveChangesAsync();
-            TempData["OwnerMessage"] = "Customer saved.";
+
+            var vehicle = new Vehicle
+            {
+                VIN = vin,
+                LicensePlate = plate,
+                Make = model.Vehicle.Make.Trim(),
+                Model = model.Vehicle.Model.Trim(),
+                Year = model.Vehicle.Year,
+                Color = Clean(model.Vehicle.Color),
+                Odometer = model.Vehicle.Odometer,
+                OwnerFullName = OwnerName(customer),
+                CreatedUtc = DateTime.UtcNow
+            };
+            _dbContext.Vehicles.Add(vehicle);
+            await _dbContext.SaveChangesAsync();
+            AddOwnership(vehicle, customer, DateTime.UtcNow);
+            if (model.Vehicle.Odometer.HasValue) await AppendOdometer(vehicle, model.Vehicle.Odometer.Value);
+            WorkflowAudit("Customer", customer.CustomerId, "Create with vehicle", new
+            {
+                customer.FirstName, customer.LastName, customer.Email, customer.StreetAddress, customer.Notes,
+                VehicleId = vehicle.VehicleId, vehicle.VIN, vehicle.LicensePlate
+            });
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            TempData["OwnerMessage"] = "Customer and vehicle saved.";
             return RedirectToAction(nameof(CustomerVehicle));
         }
 
@@ -507,6 +550,50 @@ namespace Backyard_Mech.Controllers
 
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Customer updated.";
+            return RedirectToAction(nameof(CustomerVehicle));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CustomerDetails(string id)
+        {
+            if (!int.TryParse(id, out var customerId)) return NotFound();
+            var customer = await _dbContext.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CustomerId == customerId && !x.IsDeleted);
+            if (customer is null) return NotFound();
+            var vehicles = await (from ownership in _dbContext.VehicleOwnerships.AsNoTracking()
+                                  join vehicle in _dbContext.Vehicles.AsNoTracking() on ownership.VehicleId equals vehicle.VehicleId
+                                  where ownership.CustomerId == customerId && !vehicle.IsDeleted
+                                  orderby ownership.OwnershipStartUtc descending
+                                  select vehicle).Distinct().ToListAsync();
+            return View("~/Views/Owner/Customers/CustomerDetails.cshtml", new CustomerDetailsViewModel { Customer = customer, Vehicles = vehicles });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ArchiveCustomer(RecordActionFormModel form)
+        {
+            var customer = await _dbContext.Customers.FindAsync(form.RecordId);
+            if (customer is not null && !customer.IsDeleted)
+            {
+                customer.IsArchived = true; customer.IsActive = false; customer.ArchivedUtc = DateTime.UtcNow;
+                customer.ArchiveReason = string.IsNullOrWhiteSpace(form.Reason) ? "Archived by staff" : form.Reason.Trim();
+                await _dbContext.SaveChangesAsync();
+            }
+            TempData["OwnerMessage"] = "Customer archived; history was preserved.";
+            return RedirectToAction(nameof(CustomerVehicle));
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SoftDeleteCustomer(RecordActionFormModel form)
+        {
+            var customer = await _dbContext.Customers.FindAsync(form.RecordId);
+            if (customer is not null && !customer.IsDeleted)
+            {
+                customer.IsDeleted = true; customer.IsArchived = false; customer.IsActive = false;
+                customer.DeletedUtc = DateTime.UtcNow; customer.ArchivedUtc = null;
+                customer.DeleteReason = string.IsNullOrWhiteSpace(form.Reason) ? "Soft deleted by staff" : form.Reason.Trim();
+                await _dbContext.SaveChangesAsync();
+            }
+            TempData["OwnerMessage"] = "Customer moved to records disposition; history was preserved.";
             return RedirectToAction(nameof(CustomerVehicle));
         }
 
@@ -669,7 +756,7 @@ namespace Backyard_Mech.Controllers
         {
             var bays = await _dbContext.Bays
                 .AsNoTracking()
-                .Where(bay => bay.IsActive)
+                .Where(bay => bay.IsActive && !bay.IsArchived && !bay.IsDeleted)
                 .OrderBy(bay => bay.BayNumber)
                 .ThenBy(bay => bay.Name)
                 .Select(bay => new ProductListingOption
@@ -711,8 +798,7 @@ namespace Backyard_Mech.Controllers
                 var name = NormalizeText($"{employee.FirstName} {employee.LastName}".Trim(), employee.Email ?? employee.EmployeeNumber ?? $"Employee {employee.EmployeeProfileId}");
                 var activeJobs = activeAppointments.Count(appointment =>
                     !string.Equals(appointment.AppointmentId.ToString(), currentAppointmentId?.ToString(), StringComparison.Ordinal) &&
-                    (string.Equals(appointment.AssignedMechanicName, name, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(appointment.PreferredMechanicName, name, StringComparison.OrdinalIgnoreCase)));
+                    string.Equals(appointment.AssignedMechanicName, name, StringComparison.OrdinalIgnoreCase));
 
                 return new QueueEmployeeOption
                 {
@@ -725,7 +811,7 @@ namespace Backyard_Mech.Controllers
             }).ToList();
             var bayRows = await _dbContext.Bays
                 .AsNoTracking()
-                .Where(bay => bay.IsActive)
+                .Where(bay => bay.IsActive && !bay.IsArchived && !bay.IsDeleted)
                 .OrderBy(bay => bay.BayNumber)
                 .ThenBy(bay => bay.Name)
                 .ToListAsync();
@@ -827,7 +913,7 @@ namespace Backyard_Mech.Controllers
                 return new WorkOrderListItem
                 {
                     WorkOrderId = order.WorkOrderId,
-                    Id = $"WO-{order.WorkOrderId:0000}",
+                    Id = order.WorkOrderNumber,
                     Customer = NormalizeText(appointment?.CustomerName, "Unknown customer"),
                     Vehicle = BuildVehicleName(vehicle),
                     Bay = bay?.DisplayLabel ?? "Unassigned",
@@ -906,6 +992,9 @@ namespace Backyard_Mech.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var mechanic = mechanicNames.Length == 0 ? NormalizeText(appointment?.AssignedMechanicName, "Unassigned") : string.Join(", ", mechanicNames);
+            var leadMechanic = assignments.FirstOrDefault(item => string.Equals(item.AssignmentRole, "Lead", StringComparison.OrdinalIgnoreCase))?.MechanicName
+                ?? appointment?.AssignedMechanicName;
+            var helperMechanic = assignments.FirstOrDefault(item => string.Equals(item.AssignmentRole, "Helper", StringComparison.OrdinalIgnoreCase))?.MechanicName;
             var hours = CalculateWorkOrderHours(order);
             var priority = string.Equals(status, "Pending QC", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Waiting Approval", StringComparison.OrdinalIgnoreCase)
                 ? "Urgent"
@@ -990,13 +1079,15 @@ namespace Backyard_Mech.Controllers
             return new WorkOrderDetailsViewModel
             {
                 WorkOrderId = order.WorkOrderId,
-                Id = $"WO-{order.WorkOrderId:0000}",
+                Id = order.WorkOrderNumber,
                 Customer = NormalizeText(appointment?.CustomerName, "Unknown customer"),
                 Vehicle = BuildVehicleName(vehicle),
                 Vin = NormalizeText(vehicle?.VIN, "No VIN"),
                 Plate = NormalizeText(vehicle?.LicensePlate, "No plate"),
                 Bay = bay?.DisplayLabel ?? ((order.BayId ?? appointment?.BayId).HasValue ? $"Bay {order.BayId ?? appointment?.BayId}" : "Unassigned"),
                 Mechanic = mechanic,
+                LeadMechanic = NormalizeText(leadMechanic, "Unassigned"),
+                HelperMechanic = NormalizeText(helperMechanic, "None assigned"),
                 Status = status,
                 StatusTone = GetWorkOrderTone(status),
                 InvoiceStatus = invoice?.InvoiceStatus ?? string.Empty,
@@ -1036,7 +1127,7 @@ namespace Backyard_Mech.Controllers
                 return null;
             }
 
-            var bays = await _dbContext.Bays.AsNoTracking().OrderBy(item => item.BayId).ToListAsync();
+            var bays = await _dbContext.Bays.AsNoTracking().Where(item => !item.IsArchived && !item.IsDeleted).OrderBy(item => item.BayId).ToListAsync();
             var activeOrders = await _dbContext.WorkOrders.AsNoTracking()
                 .Where(item => item.BayId.HasValue && item.WorkOrderId != workOrderId && item.WorkOrderStatus != "Completed" && item.WorkOrderStatus != "Ready for Pickup" && item.WorkOrderStatus != "Picked Up" && item.WorkOrderStatus != "Cancelled")
                 .ToListAsync();
@@ -1107,10 +1198,21 @@ namespace Backyard_Mech.Controllers
             var activeOrders = await _dbContext.WorkOrders.AsNoTracking()
                 .Where(item => item.WorkOrderStatus != "Completed" && item.WorkOrderStatus != "Ready for Pickup" && item.WorkOrderStatus != "Picked Up" && item.WorkOrderStatus != "Cancelled")
                 .ToListAsync();
+            var targetOrder = activeOrders.FirstOrDefault(item => item.WorkOrderId == workOrderId);
             var assignments = await _dbContext.WorkOrderAssignments.AsNoTracking().ToListAsync();
             var currentAssignments = assignments.Where(item => item.WorkOrderId == workOrderId).ToList();
             var leadName = currentAssignments.FirstOrDefault(item => string.Equals(item.AssignmentRole, "Lead", StringComparison.OrdinalIgnoreCase))?.MechanicName;
             var helperName = currentAssignments.FirstOrDefault(item => string.Equals(item.AssignmentRole, "Helper", StringComparison.OrdinalIgnoreCase))?.MechanicName;
+            var unavailableEmployeeIds = new HashSet<int>();
+            if (targetOrder?.ScheduledStart is DateTime scheduledStart && targetOrder.ScheduledEnd is DateTime scheduledEnd)
+            {
+                foreach (var employee in employees)
+                {
+                    var scheduleError = await ScheduleError(scheduledStart, scheduledEnd, null, new[] { employee },
+                        targetOrder.AppointmentId, targetOrder.WorkOrderId);
+                    if (scheduleError is not null) unavailableEmployeeIds.Add(employee.EmployeeProfileId);
+                }
+            }
             var overlapMechanic = assignments
                 .Where(item => item.WorkOrderId != workOrderId)
                 .GroupBy(item => NormalizeText(item.MechanicName, ""))
@@ -1128,18 +1230,25 @@ namespace Backyard_Mech.Controllers
                 {
                     var name = BuildEmployeeName(employee);
                     var employeeAssignments = assignments
-                        .Where(item => string.Equals(NormalizeText(item.MechanicName, ""), name, StringComparison.OrdinalIgnoreCase))
+                        .Where(item => (!string.IsNullOrWhiteSpace(employee.UserId) && item.MechanicUserId == employee.UserId) ||
+                            string.Equals(NormalizeText(item.MechanicName, ""), name, StringComparison.OrdinalIgnoreCase))
                         .ToList();
-                    var activeCount = employeeAssignments.Count(item => activeOrders.Any(order => order.WorkOrderId == item.WorkOrderId && order.WorkOrderId != workOrderId));
+                    var activeAssignments = employeeAssignments
+                        .Where(item => activeOrders.Any(order => order.WorkOrderId == item.WorkOrderId))
+                        .ToList();
+                    var assignedHere = activeAssignments.Any(item => item.WorkOrderId == workOrderId);
+                    var assignedElsewhere = unavailableEmployeeIds.Contains(employee.EmployeeProfileId);
+                    var availability = assignedHere ? "Assigned" : assignedElsewhere ? "Busy" : "Available";
+                    var availabilityTone = assignedHere ? "blue" : assignedElsewhere ? "overlap" : "available";
 
                     return new WorkOrderStaffDispatchRow
                     {
                         EmployeeProfileId = employee.EmployeeProfileId,
                         Mechanic = name,
                         Specialization = NormalizeText(employee.JobTitle, "Mechanic"),
-                        ActiveJobs = $"{activeCount} WOs active",
-                        Availability = activeCount > 2 ? "Overlap Alert" : "Available",
-                        AvailabilityTone = activeCount > 2 ? "overlap" : "available",
+                        ActiveJobs = $"{activeAssignments.Count} WOs active",
+                        Availability = availability,
+                        AvailabilityTone = availabilityTone,
                         Certifications = NormalizeText(employee.EmployeeNumber, "ASE Certified"),
                         IsLead = string.Equals(name, leadName, StringComparison.OrdinalIgnoreCase),
                         IsHelper = string.Equals(name, helperName, StringComparison.OrdinalIgnoreCase)
@@ -1193,7 +1302,10 @@ namespace Backyard_Mech.Controllers
 
         private async Task<List<BayListItem>> LoadBayRowsAsync()
         {
-            var bays = await _dbContext.Bays.AsNoTracking().OrderBy(bay => bay.Name).ToListAsync();
+            var bays = await _dbContext.Bays.AsNoTracking()
+                .Where(bay => !bay.IsArchived && !bay.IsDeleted)
+                .OrderBy(bay => bay.Name)
+                .ToListAsync();
             var workOrders = await _dbContext.WorkOrders.AsNoTracking().ToListAsync();
             var appointments = await _dbContext.Appointments.AsNoTracking().ToDictionaryAsync(appointment => appointment.AppointmentId);
             var vehicles = await _dbContext.Vehicles.AsNoTracking().ToDictionaryAsync(vehicle => vehicle.VehicleId);
@@ -1779,16 +1891,6 @@ namespace Backyard_Mech.Controllers
             };
         }
 
-        public IActionResult CustomerDetails(string id = "")
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            return RedirectToAction(nameof(CustomerVehicle));
-        }
-
         public IActionResult CustomerVehicles(string id = "")
         {
             if (!IsOwnerSession())
@@ -1947,7 +2049,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(ServiceQueue));
             }
 
-            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive);
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive && !item.IsArchived && !item.IsDeleted);
             if (bay is null)
             {
                 TempData["OwnerMessage"] = "Selected bay is not available.";
@@ -2025,7 +2127,7 @@ namespace Backyard_Mech.Controllers
             Bay? bay = null;
             if (form.BayId.HasValue)
             {
-                bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive);
+                bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive && !item.IsArchived && !item.IsDeleted);
                 if (bay is null)
                 {
                     return (customer, vehicle, null, null, "Please select an active service bay.");
@@ -2170,7 +2272,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            return RedirectToAction(nameof(EstimateDetails), new { id, dialog = "estimate-editor" });
+            return RedirectToAction(nameof(EstimateDetails), new { id });
         }
 
         public async Task<IActionResult> WorkOrders()
@@ -2219,7 +2321,7 @@ namespace Backyard_Mech.Controllers
             return await SaveWorkflow(async () =>
             {
             var checkedOrder = await EditableOrder(form.WorkOrderId);
-            Require(await _dbContext.Bays.AnyAsync(x => x.BayId == form.BayId && x.IsActive), "Select an active bay.");
+            Require(await _dbContext.Bays.AnyAsync(x => x.BayId == form.BayId && x.IsActive && !x.IsArchived && !x.IsDeleted), "Select an active bay.");
             Require(checkedOrder.ScheduledStart.HasValue && checkedOrder.ScheduledEnd.HasValue, "Set a work order schedule first.");
             var scheduleError = await ScheduleError(checkedOrder.ScheduledStart!.Value, checkedOrder.ScheduledEnd!.Value, form.BayId, Array.Empty<EmployeeProfile>(), checkedOrder.AppointmentId, checkedOrder.WorkOrderId);
             Require(scheduleError is null, scheduleError ?? "Schedule unavailable.");
@@ -2234,7 +2336,7 @@ namespace Backyard_Mech.Controllers
             }
 
             var order = await _dbContext.WorkOrders.FirstOrDefaultAsync(item => item.WorkOrderId == form.WorkOrderId);
-            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId);
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive && !item.IsArchived && !item.IsDeleted);
             if (order is null || bay is null)
             {
                 TempData["OwnerMessage"] = "Bay dispatch could not be saved.";
@@ -2407,7 +2509,42 @@ namespace Backyard_Mech.Controllers
             }
 
             await SetOperationalOptionViewDataAsync();
-            ViewData["WorkOrderEntity"] = await _dbContext.WorkOrders.AsNoTracking().FirstAsync(x => x.WorkOrderId == model.WorkOrderId);
+            var workOrder = await _dbContext.WorkOrders.AsNoTracking().FirstAsync(x => x.WorkOrderId == model.WorkOrderId);
+            ViewData["WorkOrderEntity"] = workOrder;
+            var selectedLead = await _dbContext.WorkOrderAssignments.AsNoTracking()
+                .Where(x => x.WorkOrderId == model.WorkOrderId && x.AssignmentRole == "Lead")
+                .OrderBy(x => x.WorkOrderAssignmentId)
+                .FirstOrDefaultAsync();
+            var employeeProfiles = await _dbContext.EmployeeProfiles.AsNoTracking()
+                .Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted)
+                .ToListAsync();
+            var selectedLeadProfile = employeeProfiles.FirstOrDefault(x =>
+                (!string.IsNullOrWhiteSpace(selectedLead?.MechanicUserId) && x.UserId == selectedLead.MechanicUserId) ||
+                BuildEmployeeName(x).Equals(selectedLead?.MechanicName, StringComparison.OrdinalIgnoreCase));
+            ViewData["SelectedLeadEmployeeProfileId"] = selectedLeadProfile?.EmployeeProfileId;
+            var unavailableEmployeeIds = new HashSet<int>();
+            if (workOrder.ScheduledStart.HasValue && workOrder.ScheduledEnd.HasValue)
+            {
+                foreach (var employee in employeeProfiles)
+                {
+                    var scheduleError = await ScheduleError(workOrder.ScheduledStart.Value, workOrder.ScheduledEnd.Value,
+                        null, new[] { employee }, workOrder.AppointmentId, workOrder.WorkOrderId);
+                    if (scheduleError is not null) unavailableEmployeeIds.Add(employee.EmployeeProfileId);
+                }
+            }
+            ViewData["UnavailableEmployeeIds"] = unavailableEmployeeIds;
+            model.Evidence = await _dbContext.WorkOrderEvidence.AsNoTracking()
+                .Where(x => x.WorkOrderId == model.WorkOrderId)
+                .OrderByDescending(x => x.UploadedUtc)
+                .ToListAsync();
+            var currentUserId = HttpContext.Session.GetString("UserId");
+            var isAssignedMechanic = !string.IsNullOrWhiteSpace(currentUserId)
+                && await _dbContext.WorkOrderAssignments.AnyAsync(x => x.WorkOrderId == model.WorkOrderId && x.MechanicUserId == currentUserId);
+            var canManageWorkOrders = await _permissionService.HasPermissionAsync(
+                HttpContext.Session.GetString("UserRole"), "Work Orders", "Edit");
+            var permissions = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            var canUploadEvidence = permissions.Contains(OwnerPermissionCatalog.ActionPermissionCode(nameof(UploadWorkOrderEvidence)));
+            model.CanUploadEvidence = canUploadEvidence && (isAssignedMechanic || canManageWorkOrders);
             return View(model);
         }
 
@@ -2503,16 +2640,123 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
+            var permissions = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            bool CanBayAction(string action, string permission) => permissions.Contains("*") ||
+                (permissions.Contains(PermissionService.BuildPermissionCode("Bays", permission)) &&
+                 permissions.Contains(OwnerPermissionCatalog.ActionPermissionCode(action)));
+            ViewData["CanCreateBay"] = CanBayAction("AddBay", "Create");
+            ViewData["CanEditBay"] = CanBayAction("EditBay", "Edit");
+            ViewData["CanMaintainBay"] = CanBayAction("SetBayMaintenance", "Edit");
+            ViewData["CanArchiveBay"] = CanBayAction("ArchiveBay", "Delete");
+            ViewData["CanDeleteBay"] = CanBayAction("DeleteBay", "Delete");
             return View(await LoadBayRowsAsync());
         }
 
-        public IActionResult BayDetails(string id = "")
+        public async Task<IActionResult> BayDetails(string id = "")
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
+            if (!int.TryParse(id, out var bayId) || bayId <= 0)
+            {
+                return NotFound();
+            }
+
+            var bay = await _dbContext.Bays.AsNoTracking()
+                .FirstOrDefaultAsync(item => item.BayId == bayId);
+            if (bay is null)
+            {
+                return NotFound();
+            }
+
+            return View(new BayDetailsViewModel
+            {
+                Bay = bay,
+                Status = bay.IsDeleted ? "Deleted" : bay.IsArchived ? "Archived" :
+                    (await LoadBayRowsAsync()).FirstOrDefault(item => item.BayId == bayId)?.Status ?? (bay.IsActive ? "Available" : "Maintenance"),
+                MaintenanceSchedules = await _dbContext.BayMaintenanceSchedules.AsNoTracking()
+                    .Where(item => item.BayId == bayId)
+                    .OrderByDescending(item => item.StartDate)
+                    .ToListAsync()
+            });
+        }
+
+        private async Task<bool> BayHasOpenWorkAsync(int bayId)
+        {
+            var activeAppointments = await _dbContext.Appointments.AnyAsync(item =>
+                item.BayId == bayId && !new[] { "Completed", "Cancelled", "No Show" }.Contains(item.AppointmentStatus ?? ""));
+            var activeWorkOrders = await _dbContext.WorkOrders.AnyAsync(item =>
+                item.BayId == bayId && !new[] { "Completed", "Ready for Pickup", "Picked Up", "Cancelled" }.Contains(item.WorkOrderStatus ?? ""));
+            return activeAppointments || activeWorkOrders;
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ArchiveBay(RecordActionFormModel form)
+        {
+            if (!IsOwnerSession()) return LoginRedirect();
+            if (!string.Equals(form.RecordType, "Bay", StringComparison.OrdinalIgnoreCase) || form.RecordId <= 0)
+                return RedirectToAction(nameof(BayManagement));
+
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.RecordId && !item.IsArchived && !item.IsDeleted);
+            if (bay is null)
+            {
+                TempData["OwnerMessage"] = "Bay was not found.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(BayManagement));
+            }
+            if (await BayHasOpenWorkAsync(bay.BayId))
+            {
+                TempData["OwnerMessage"] = "This bay cannot be archived while it has active appointments or work orders.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(BayManagement));
+            }
+
+            bay.IsArchived = true;
+            bay.ArchivedUtc = DateTime.UtcNow;
+            bay.ArchiveReason = string.IsNullOrWhiteSpace(form.Reason) ? "Archived from Bay Management" : form.Reason.Trim();
+            bay.IsDeleted = false;
+            bay.DeletedUtc = null;
+            bay.DeleteReason = null;
+            await _dbContext.SaveChangesAsync();
+            TempData["OwnerMessage"] = "Bay archived.";
+            TempData["OwnerMessageTone"] = "success";
+            return RedirectToAction(nameof(BayManagement));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteBay(RecordActionFormModel form)
+        {
+            if (!IsOwnerSession()) return LoginRedirect();
+            if (!string.Equals(form.RecordType, "Bay", StringComparison.OrdinalIgnoreCase) || form.RecordId <= 0)
+                return RedirectToAction(nameof(BayManagement));
+
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.RecordId && !item.IsArchived && !item.IsDeleted);
+            if (bay is null)
+            {
+                TempData["OwnerMessage"] = "Bay was not found.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(BayManagement));
+            }
+            if (await BayHasOpenWorkAsync(bay.BayId))
+            {
+                TempData["OwnerMessage"] = "This bay cannot be deleted while it has active appointments or work orders.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(BayManagement));
+            }
+
+            bay.IsDeleted = true;
+            bay.IsArchived = false;
+            bay.ArchivedUtc = null;
+            bay.ArchiveReason = null;
+            bay.DeletedUtc = DateTime.UtcNow;
+            bay.DeleteReason = string.IsNullOrWhiteSpace(form.Reason) ? "Deleted from Bay Management" : form.Reason.Trim();
+            await _dbContext.SaveChangesAsync();
+            TempData["OwnerMessage"] = "Bay moved to records disposition.";
+            TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(BayManagement));
         }
 
@@ -2610,7 +2854,7 @@ namespace Backyard_Mech.Controllers
             await LockBayIdentifiersAsync();
             if (await HasDuplicateBayAsync(form, form.BayId)) return RedirectToAction(nameof(BayManagement));
 
-            var bay = await _dbContext.Bays.FindAsync(form.BayId);
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && !item.IsArchived && !item.IsDeleted);
             if (bay is null)
             {
                 TempData["OwnerMessage"] = "Bay was not found.";
@@ -2645,7 +2889,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(BayManagement));
             }
 
-            var bay = await _dbContext.Bays.FindAsync(form.BayId);
+            var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && !item.IsArchived && !item.IsDeleted);
             if (bay is null)
             {
                 TempData["OwnerMessage"] = "Bay was not found.";
@@ -2698,12 +2942,11 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var activeTab = string.Equals(tab, "product-listings", StringComparison.OrdinalIgnoreCase) ? "product-listings" : "parts";
             var model = new PartsManagementViewModel
             {
-                ActiveTab = activeTab,
-                Parts = activeTab == "parts" ? await LoadPartRowsAsync() : Array.Empty<PartListItem>(),
-                ProductListings = activeTab == "product-listings" ? await LoadProductListingRowsAsync() : Array.Empty<ProductListingListItem>(),
+                ActiveTab = string.Equals(tab, "product-listings", StringComparison.OrdinalIgnoreCase) ? "product-listings" : "parts",
+                Parts = await LoadPartRowsAsync(),
+                ProductListings = await LoadProductListingRowsAsync(),
                 PartOptions = await LoadProductListingPartOptionsAsync(),
                 ServiceOptions = await LoadProductListingServiceOptionsAsync(),
                 PartCategoryOptions = await LoadPartCategoryOptionsAsync(),
@@ -3412,7 +3655,7 @@ namespace Backyard_Mech.Controllers
             return View(await LoadInvoiceRowsAsync());
         }
 
-        public async Task<IActionResult> InvoiceDetails(string id = "", string? modal = null)
+        public async Task<IActionResult> InvoiceDetails(string id = "", string? modal = null, bool adjust = false, int? adjustmentId = null)
         {
             if (!IsOwnerSession())
             {
@@ -3422,10 +3665,26 @@ namespace Backyard_Mech.Controllers
             var numeric = int.TryParse(id, out var parsed) ? parsed : 0;
             var invoice = await _dbContext.Invoices.AsNoTracking().FirstOrDefaultAsync(x => x.InvoiceId == numeric || x.InvoiceNumber == id);
             if (invoice is null) return NotFound();
-            return View(new InvoiceWorkflowViewModel { Invoice = invoice, OpenModal = modal,
+            var model = new InvoiceWorkflowViewModel { Invoice = invoice, OpenModal = modal,
                 Lines = await _dbContext.InvoiceLineItems.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync(),
                 Payments = await _dbContext.Payments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).OrderByDescending(x => x.PaidUtc).ToListAsync(),
-                Adjustments = await _dbContext.InvoiceAdjustments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync() });
+                Adjustments = await _dbContext.InvoiceAdjustments.AsNoTracking().Where(x => x.InvoiceId == invoice.InvoiceId).ToListAsync() };
+            if (adjust && invoice.InvoiceStatus != "Voided")
+            {
+                var adjustment = adjustmentId.HasValue
+                    ? model.Adjustments.FirstOrDefault(x => x.InvoiceAdjustmentId == adjustmentId.Value && x.AdjustmentType is "Credit" or "Debit")
+                    : null;
+                if (adjustmentId.HasValue && adjustment is null) return NotFound();
+                model.AdjustmentForm = new AdjustmentSaveForm
+                {
+                    InvoiceId = invoice.InvoiceId,
+                    InvoiceAdjustmentId = adjustment?.InvoiceAdjustmentId ?? 0,
+                    AdjustmentType = adjustment?.AdjustmentType ?? "Credit",
+                    Amount = adjustment?.Amount ?? 0.01m,
+                    Reason = adjustment?.Reason ?? string.Empty
+                };
+            }
+            return View(model);
         }
 
         public async Task<IActionResult> GenerateInvoice()
@@ -3448,14 +3707,14 @@ namespace Backyard_Mech.Controllers
             return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "payment-new" });
         }
 
-        public IActionResult ApplyInvoiceAdjustment(string id = "")
+        public IActionResult ApplyInvoiceAdjustment(string id = "", int? adjustmentId = null)
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "adjustment-new" });
+            return RedirectToAction(nameof(InvoiceDetails), new { id, adjust = true, adjustmentId });
         }
 
         public IActionResult IssueCreditAdjustment(string id = "")
@@ -3465,7 +3724,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            return RedirectToAction(nameof(InvoiceDetails), new { id, modal = "adjustment-new" });
+            return RedirectToAction(nameof(InvoiceDetails), new { id, adjust = true });
         }
 
         public async Task<IActionResult> ArchiveRecords(string tab = "all")
@@ -3488,7 +3747,8 @@ namespace Backyard_Mech.Controllers
                 AllCount = records.Count,
                 PartsCount = records.Count(record => record.RecordType == "Part"),
                 ProductListingsCount = records.Count(record => record.RecordType == "Product Listing"),
-                ToolsCount = records.Count(record => record.RecordType == "Tool")
+                ToolsCount = records.Count(record => record.RecordType == "Tool"),
+                BaysCount = records.Count(record => record.RecordType == "Bay")
             });
         }
 
@@ -3514,7 +3774,8 @@ namespace Backyard_Mech.Controllers
                 AllCount = records.Count,
                 PartsCount = records.Count(record => record.RecordType == "Part"),
                 ProductListingsCount = records.Count(record => record.RecordType == "Product Listing"),
-                ToolsCount = records.Count(record => record.RecordType == "Tool")
+                ToolsCount = records.Count(record => record.RecordType == "Tool"),
+                BaysCount = records.Count(record => record.RecordType == "Bay")
             });
         }
 
@@ -3624,11 +3885,12 @@ namespace Backyard_Mech.Controllers
                 "Part" => RedirectToAction(nameof(PartDetails), new { id = id.ToString() }),
                 "Product Listing" => RedirectToAction(nameof(PartsManagement), new { tab = "product-listings" }),
                 "Tool" => RedirectToAction(nameof(ToolProfile), new { id = id.ToString() }),
+                "Bay" => RedirectToAction(nameof(BayDetails), new { id = id.ToString() }),
                 _ => RedirectToAction(nameof(ArchiveRecords))
             };
         }
 
-        public async Task<IActionResult> Employees(string view = "all")
+        public async Task<IActionResult> Employees()
         {
             if (!IsOwnerSession())
             {
@@ -3636,16 +3898,7 @@ namespace Backyard_Mech.Controllers
             }
 
             var employees = await LoadEmployeesAsync(includeArchived: false, includeDeleted: false);
-            ViewData["EmployeeAllCount"] = employees.Count;
-            ViewData["EmployeeActiveCount"] = employees.Count(employee => employee.Status == "Active");
-            ViewData["EmployeeInactiveCount"] = employees.Count(employee => employee.Status != "Active");
-            ViewData["EmployeeView"] = view is "active" or "inactive" ? view : "all";
-            return View(view switch
-            {
-                "active" => employees.Where(employee => employee.Status == "Active").ToList(),
-                "inactive" => employees.Where(employee => employee.Status != "Active").ToList(),
-                _ => employees
-            });
+            return View(employees);
         }
 
         public async Task<IActionResult> ArchivedEmployees()
@@ -3716,7 +3969,7 @@ namespace Backyard_Mech.Controllers
             ViewData["EmployeeAccountRole"] = account?.Role ?? "";
             ViewData["EmployeeHasLoginAccount"] = account is not null;
             ViewData["EmployeeRoleOptions"] = await _dbContext.AppRoles.AsNoTracking()
-                .Where(role => role.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(role.RoleKey))
+                .Where(role => role.IsActive)
                 .OrderBy(role => role.DisplayOrder)
                 .ThenBy(role => role.RoleName)
                 .Select(role => new SettingsRoleOption
@@ -3737,16 +3990,7 @@ namespace Backyard_Mech.Controllers
             {
                 return LoginRedirect();
             }
-
-            var model = await LoadEmployeeSecurityActivityAsync(ParseEntityId(id, "EMP"));
-            if (model is null)
-            {
-                TempData["OwnerMessage"] = "Employee was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(Employees));
-            }
-
-            return View(model);
+            return RedirectToAction(nameof(AuditLogReport), new { employeeProfileId = ParseEntityId(id, "EMP") });
         }
 
         public IActionResult AddEmployee()
@@ -3800,9 +4044,7 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Create staff profile",new{EmployeeNumber=nextNumber,form.FirstName,form.LastName});
             TempData["OwnerMessage"] = "Employee saved.";
-            return form.ReturnToStaffAccounts && employee.IsActive
-                ? RedirectToAction(nameof(StaffAccounts), new { newProfileId = employee.EmployeeProfileId })
-                : RedirectToAction(nameof(Employees));
+            return RedirectToAction(nameof(Employees));
             },nameof(Employees));
         }
 
@@ -3971,12 +4213,23 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            if (!ModelState.IsValid ||
-                !TimeOnly.TryParse(form.StartTime, out var startTime) ||
-                !TimeOnly.TryParse(form.EndTime, out var endTime) ||
-                (form.IsAvailable && endTime <= startTime))
+            var selectedDays = form.DaysOfWeek.Distinct().ToList();
+            var validShift = ModelState.IsValid && selectedDays.Count > 0 && selectedDays.All(day => day is >= 0 and <= 6);
+            TimeOnly startTime = default;
+            TimeOnly endTime = default;
+            TimeOnly breakStart = default;
+            TimeOnly breakEnd = default;
+            var hasBreakStart = TimeOnly.TryParse(form.BreakStart, out breakStart);
+            var hasBreakEnd = TimeOnly.TryParse(form.BreakEnd, out breakEnd);
+            if (form.IsAvailable)
             {
-                TempData["OwnerMessage"] = "Shift was not saved. Please enter a valid employee, day and time range.";
+                validShift &= TimeOnly.TryParse(form.StartTime, out startTime) && TimeOnly.TryParse(form.EndTime, out endTime) && endTime > startTime;
+                validShift &= hasBreakStart == hasBreakEnd;
+                validShift &= !hasBreakStart || breakStart > startTime && breakEnd < endTime && breakEnd > breakStart;
+            }
+            if (!validShift)
+            {
+                TempData["OwnerMessage"] = "Shift was not saved. Select one or more days, enter valid work hours, and keep any break within those hours.";
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(EmployeeSchedule));
             }
@@ -3990,22 +4243,27 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction(nameof(EmployeeSchedule));
             }
 
-            var availability = await _dbContext.EmployeeAvailabilities
-                .FirstOrDefaultAsync(item => item.EmployeeProfileId == form.EmployeeProfileId && item.DayOfWeek == form.DayOfWeek);
-
-            if (availability is null)
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            foreach (var dayOfWeek in selectedDays)
             {
-                availability = new EmployeeAvailability
+                var availability = await _dbContext.EmployeeAvailabilities
+                    .FirstOrDefaultAsync(item => item.EmployeeProfileId == form.EmployeeProfileId && item.DayOfWeek == dayOfWeek);
+                if (availability is null)
                 {
-                    EmployeeProfileId = form.EmployeeProfileId,
-                    DayOfWeek = form.DayOfWeek
-                };
-                _dbContext.EmployeeAvailabilities.Add(availability);
-            }
+                    availability = new EmployeeAvailability
+                    {
+                        EmployeeProfileId = form.EmployeeProfileId,
+                        DayOfWeek = dayOfWeek
+                    };
+                    _dbContext.EmployeeAvailabilities.Add(availability);
+                }
 
-            availability.IsAvailable = form.IsAvailable;
-            availability.StartTime = form.IsAvailable ? startTime : null;
-            availability.EndTime = form.IsAvailable ? endTime : null;
+                availability.IsAvailable = form.IsAvailable;
+                availability.StartTime = form.IsAvailable ? startTime : null;
+                availability.EndTime = form.IsAvailable ? endTime : null;
+                availability.BreakStart = form.IsAvailable && hasBreakStart ? breakStart : null;
+                availability.BreakEnd = form.IsAvailable && hasBreakEnd ? breakEnd : null;
+            }
 
             await _dbContext.SaveChangesAsync();
             var employeeName = BuildEmployeeName(employee);
@@ -4025,8 +4283,9 @@ namespace Backyard_Mech.Controllers
                 var error = await ScheduleError(order.ScheduledStart!.Value, order.ScheduledEnd!.Value, null, new[] { employee }, order.AppointmentId, order.WorkOrderId);
                 Require(error is null, error ?? "Shift conflicts with existing work orders.");
             }
+            await transaction.CommitAsync();
 
-            TempData["OwnerMessage"] = "Employee shift saved.";
+            TempData["OwnerMessage"] = form.IsAvailable ? "Shift saved for the selected days." : "Days off saved for the selected days.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(EmployeeSchedule));
             }, nameof(EmployeeSchedule));
@@ -4133,6 +4392,23 @@ namespace Backyard_Mech.Controllers
                     Details = tool.SerialNumber ?? tool.Location ?? "Tool record",
                     Reason = tool.ArchiveReason ?? "No reason recorded",
                     MovedUtc = tool.ArchivedUtc,
+                    Status = "Archived",
+                    Tone = "archived"
+                })
+                .ToListAsync());
+
+            records.AddRange(await _dbContext.Bays
+                .AsNoTracking()
+                .Where(bay => bay.IsArchived && !bay.IsDeleted)
+                .Select(bay => new RecordGovernanceItem
+                {
+                    RecordType = "Bay",
+                    RecordId = bay.BayId,
+                    ModuleName = "Bay Management",
+                    RecordName = bay.Name ?? bay.DisplayLabel,
+                    Details = bay.DisplayLabel + (bay.Description == null ? "" : " — " + bay.Description),
+                    Reason = bay.ArchiveReason ?? "No reason recorded",
+                    MovedUtc = bay.ArchivedUtc,
                     Status = "Archived",
                     Tone = "archived"
                 })
@@ -4251,6 +4527,23 @@ namespace Backyard_Mech.Controllers
                 })
                 .ToListAsync());
 
+            records.AddRange(await _dbContext.Bays
+                .AsNoTracking()
+                .Where(bay => bay.IsDeleted)
+                .Select(bay => new RecordGovernanceItem
+                {
+                    RecordType = "Bay",
+                    RecordId = bay.BayId,
+                    ModuleName = "Bay Management",
+                    RecordName = bay.Name ?? bay.DisplayLabel,
+                    Details = bay.DisplayLabel + (bay.Description == null ? "" : " — " + bay.Description),
+                    Reason = bay.DeleteReason ?? "No reason recorded",
+                    MovedUtc = bay.DeletedUtc,
+                    Status = "Soft Deleted",
+                    Tone = "deleted"
+                })
+                .ToListAsync());
+
             foreach (var record in records)
             {
                 record.EligibleUtc = record.MovedUtc is DateTime movedUtc
@@ -4357,6 +4650,19 @@ namespace Backyard_Mech.Controllers
                         tool.DeleteReason = reason;
                     }
                     break;
+
+                case "Bay":
+                    var bay = await _dbContext.Bays.FindAsync(form.RecordId);
+                    if (bay is not null)
+                    {
+                        bay.IsArchived = false;
+                        bay.IsDeleted = true;
+                        bay.ArchivedUtc = null;
+                        bay.ArchiveReason = null;
+                        bay.DeletedUtc = DateTime.UtcNow;
+                        bay.DeleteReason = reason;
+                    }
+                    break;
             }
 
             await _dbContext.SaveChangesAsync();
@@ -4447,6 +4753,19 @@ namespace Backyard_Mech.Controllers
                         tool.DeleteReason = null;
                     }
                     break;
+
+                case "Bay":
+                    var bay = await _dbContext.Bays.FindAsync(form.RecordId);
+                    if (bay is not null)
+                    {
+                        bay.IsArchived = false;
+                        bay.IsDeleted = false;
+                        bay.ArchivedUtc = null;
+                        bay.DeletedUtc = null;
+                        bay.ArchiveReason = null;
+                        bay.DeleteReason = null;
+                    }
+                    break;
             }
 
             await _dbContext.SaveChangesAsync();
@@ -4498,6 +4817,7 @@ namespace Backyard_Mech.Controllers
                 "part" => "Part",
                 "product listing" or "productlisting" or "listing" => "Product Listing",
                 "tool" => "Tool",
+                "bay" => "Bay",
                 _ => ""
             };
         }
@@ -4509,6 +4829,7 @@ namespace Backyard_Mech.Controllers
                 "parts" => "parts",
                 "product-listings" or "listings" => "product-listings",
                 "tools" => "tools",
+                "bays" => "bays",
                 _ => "all"
             };
         }
@@ -4520,6 +4841,7 @@ namespace Backyard_Mech.Controllers
                 "parts" => records.Where(record => record.RecordType == "Part").ToList(),
                 "product-listings" => records.Where(record => record.RecordType == "Product Listing").ToList(),
                 "tools" => records.Where(record => record.RecordType == "Tool").ToList(),
+                "bays" => records.Where(record => record.RecordType == "Bay").ToList(),
                 _ => records
             };
         }
@@ -4640,7 +4962,11 @@ namespace Backyard_Mech.Controllers
                 {
                     Day = date.ToString("ddd").ToUpperInvariant(),
                     Time = row is null ? "Not set" : isOff ? "OFF" : FormatShift(row.StartTime, row.EndTime),
-                    Detail = isOff || row?.EndTime is null ? "--" : row.EndTime.Value.ToString("h:mm tt"),
+                    Detail = isOff || row?.EndTime is null
+                        ? "--"
+                        : row.BreakStart.HasValue && row.BreakEnd.HasValue
+                            ? $"Break {row.BreakStart.Value:h:mm tt}–{row.BreakEnd.Value:h:mm tt}"
+                            : row.EndTime.Value.ToString("h:mm tt"),
                     IsOff = isOff
                 };
             }).ToList();
@@ -5048,8 +5374,20 @@ namespace Backyard_Mech.Controllers
             };
         }
 
-        private async Task<SalesRevenueReportViewModel> LoadSalesRevenueReportAsync(DateTime? startDate = null, DateTime? endDate = null)
+        private async Task<SalesRevenueReportViewModel> LoadSalesRevenueReportAsync(DateTime? startDate = null, DateTime? endDate = null, string period = "custom")
         {
+            if (period is "day" or "week" or "month" or "year")
+            {
+                var today = DateTime.Today;
+                endDate = today;
+                startDate = period switch
+                {
+                    "day" => today,
+                    "week" => today.AddDays(-(((int)today.DayOfWeek + 6) % 7)),
+                    "month" => new DateTime(today.Year, today.Month, 1),
+                    _ => new DateTime(today.Year, 1, 1)
+                };
+            }
             var (start, end) = GetReportPeriod(startDate, endDate);
             var endExclusive = end.Date.AddDays(1);
             var daysInPeriod = Math.Max(1, (end.Date - start.Date).Days + 1);
@@ -5058,19 +5396,29 @@ namespace Backyard_Mech.Controllers
 
             var invoices = await _dbContext.Invoices
                 .AsNoTracking()
-                .Where(invoice => invoice.IssuedUtc >= start && invoice.IssuedUtc < endExclusive && invoice.InvoiceStatus != "Voided")
+                .Where(invoice => invoice.IssuedUtc >= start && invoice.IssuedUtc < endExclusive)
                 .OrderByDescending(invoice => invoice.IssuedUtc)
                 .ToListAsync();
             var previousRevenue = await _dbContext.Invoices
                 .AsNoTracking()
                 .Where(invoice => invoice.IssuedUtc >= previousStart && invoice.IssuedUtc < previousEndExclusive && invoice.InvoiceStatus != "Voided")
-                .SumAsync(invoice => invoice.Total ?? 0);
+                .SumAsync(invoice => (invoice.Total ?? 0) - (invoice.TaxAmount ?? 0));
 
             var workOrders = await _dbContext.WorkOrders.AsNoTracking().ToDictionaryAsync(order => order.WorkOrderId);
             var appointments = await _dbContext.Appointments.AsNoTracking().ToDictionaryAsync(appointment => appointment.AppointmentId);
             var vehicles = await _dbContext.Vehicles.AsNoTracking().ToDictionaryAsync(vehicle => vehicle.VehicleId);
             var appointmentServices = await _dbContext.AppointmentServices.AsNoTracking().ToListAsync();
             var assignments = await _dbContext.WorkOrderAssignments.AsNoTracking().ToListAsync();
+            var invoiceIds = invoices.Select(invoice => invoice.InvoiceId).ToHashSet();
+            var payments = await _dbContext.Payments.AsNoTracking()
+                .Where(payment => payment.InvoiceId != null && invoiceIds.Contains(payment.InvoiceId.Value))
+                .ToListAsync();
+            var adjustments = await _dbContext.InvoiceAdjustments.AsNoTracking()
+                .Where(adjustment => adjustment.InvoiceId != null && invoiceIds.Contains(adjustment.InvoiceId.Value))
+                .ToListAsync();
+            var lineItems = await _dbContext.InvoiceLineItems.AsNoTracking()
+                .Where(line => line.InvoiceId != null && invoiceIds.Contains(line.InvoiceId.Value))
+                .ToListAsync();
 
             var rows = invoices.Select(invoice =>
             {
@@ -5086,6 +5434,9 @@ namespace Backyard_Mech.Controllers
                     .Select(item => NormalizeText(item.MechanicName, "Unassigned"))
                     .FirstOrDefault() ?? NormalizeText(appointment?.AssignedMechanicName, "Unassigned");
                 var status = NormalizeStatus(invoice.InvoiceStatus, "Draft");
+                var invoicePayments = payments.Where(payment => payment.InvoiceId == invoice.InvoiceId && (payment.Amount ?? 0) > 0).ToList();
+                var paid = invoicePayments.Sum(payment => payment.Amount ?? 0);
+                var invoiceTotal = invoice.Total ?? 0;
 
                 return new SalesRevenueReportRow
                 {
@@ -5096,31 +5447,73 @@ namespace Backyard_Mech.Controllers
                     Vehicle = BuildVehicleName(vehicle),
                     Service = service,
                     Mechanic = mechanic,
-                    Amount = FormatMoney(invoice.Total),
-                    AmountValue = invoice.Total ?? 0,
+                    Cashier = string.Join(", ", invoicePayments.Select(payment => NormalizeText(payment.ReceivedByName, "Unrecorded"))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    PaymentMethod = string.Join(", ", invoicePayments.Select(payment => NormalizeText(payment.PaymentMethod, "Unrecorded"))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Paid = FormatMoney(paid),
+                    Balance = FormatMoney(status.Equals("Voided", StringComparison.OrdinalIgnoreCase) ? 0 : Math.Max(0, invoiceTotal - paid)),
+                    Amount = FormatMoney(invoiceTotal),
+                    AmountValue = status.Equals("Voided", StringComparison.OrdinalIgnoreCase) ? 0 : invoiceTotal - (invoice.TaxAmount ?? 0),
                     Status = status,
                     Tone = GetReportInvoiceTone(status)
                 };
             }).ToList();
 
-            var revenue = invoices.Sum(invoice => invoice.Total ?? 0);
+            var activeInvoices = invoices.Where(invoice => !string.Equals(invoice.InvoiceStatus, "Voided", StringComparison.OrdinalIgnoreCase)).ToList();
+            var revenue = activeInvoices.Sum(invoice => (invoice.Total ?? 0) - (invoice.TaxAmount ?? 0));
             var revenueDelta = revenue - previousRevenue;
-            var completedJobs = invoices.Count(invoice => string.Equals(invoice.InvoiceStatus, "Paid", StringComparison.OrdinalIgnoreCase));
-            if (completedJobs == 0)
-            {
-                completedJobs = invoices.Count;
-            }
+            var completedJobs = activeInvoices.Count(invoice => string.Equals(invoice.InvoiceStatus, "Paid", StringComparison.OrdinalIgnoreCase));
+            var periodPayments = payments.Where(payment => payment.PaidUtc >= start && payment.PaidUtc < endExclusive && (payment.Amount ?? 0) > 0).ToList();
+            var outstandingInvoices = activeInvoices.Select(invoice => new
+                {
+                    Invoice = invoice,
+                    Paid = payments.Where(payment => payment.InvoiceId == invoice.InvoiceId).Sum(payment => payment.Amount ?? 0)
+                })
+                .Where(item => item.Invoice.Total.GetValueOrDefault() > item.Paid)
+                .ToList();
+            var discountTotal = adjustments.Where(adjustment => adjustment.AdjustmentType == "Credit"
+                    && adjustment.PerformedUtc >= start && adjustment.PerformedUtc < endExclusive
+                    && (adjustment.Reason ?? "").Contains("discount", StringComparison.OrdinalIgnoreCase))
+                .Sum(adjustment => adjustment.Amount ?? 0);
+            var refundCredits = adjustments.Where(adjustment => adjustment.AdjustmentType == "Credit"
+                    && adjustment.PerformedUtc >= start && adjustment.PerformedUtc < endExclusive
+                    && (adjustment.Reason ?? "").Contains("refund", StringComparison.OrdinalIgnoreCase))
+                .Sum(adjustment => adjustment.Amount ?? 0);
+            var partsRevenue = lineItems.Where(line => line.SourceType is "Part" or "POS Part").Sum(line => line.LineTotal ?? 0);
+            var serviceRevenue = lineItems.Where(line => line.SourceType == "Labour").Sum(line => line.LineTotal ?? 0);
+            var invoicesWithoutLineBreakdown = lineItems.Select(line => line.InvoiceId).ToHashSet();
+            var unclassifiedRevenue = activeInvoices.Where(invoice => !invoicesWithoutLineBreakdown.Contains(invoice.InvoiceId))
+                .Sum(invoice => invoice.Subtotal ?? 0);
+            var voidedPaymentCount = await _dbContext.AuditLogEntries.AsNoTracking().CountAsync(entry =>
+                entry.EntityName == "Payment" && entry.Action == "Void payment"
+                && entry.TimestampUtc >= start && entry.TimestampUtc < endExclusive);
+            var voidedInvoiceCount = await _dbContext.AuditLogEntries.AsNoTracking().CountAsync(entry =>
+                entry.EntityName == "Invoice" && entry.Action == "Void invoice"
+                && entry.TimestampUtc >= start && entry.TimestampUtc < endExclusive);
+            var serviceBreakdown = rows.Where(row => !row.Status.Equals("Voided", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(row => row.Service, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new SalesRevenueBreakdownRow { Name = group.Key, TransactionCount = group.Count(), Amount = FormatMoney(group.Sum(row => row.AmountValue)) })
+                .OrderByDescending(row => row.TransactionCount).ToList();
+            var cashierBreakdown = periodPayments.GroupBy(payment => NormalizeText(payment.ReceivedByName, "Unrecorded"), StringComparer.OrdinalIgnoreCase)
+                .Select(group => new SalesRevenueBreakdownRow { Name = group.Key, TransactionCount = group.Count(), Amount = FormatMoney(group.Sum(payment => payment.Amount ?? 0)) })
+                .OrderByDescending(row => row.TransactionCount).ToList();
+            var paymentMethodBreakdown = periodPayments.GroupBy(payment => NormalizeText(payment.PaymentMethod, "Unrecorded"), StringComparer.OrdinalIgnoreCase)
+                .Select(group => new SalesRevenueBreakdownRow { Name = group.Key, TransactionCount = group.Count(), Amount = FormatMoney(group.Sum(payment => payment.Amount ?? 0)) })
+                .OrderByDescending(row => row.TransactionCount).ToList();
 
             var chartLabels = new List<string>();
             var chartData = new List<decimal>();
             for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
             {
                 chartLabels.Add(date.ToString("M/d"));
-                chartData.Add(invoices.Where(invoice => invoice.IssuedUtc.Date == date).Sum(invoice => invoice.Total ?? 0));
+                chartData.Add(activeInvoices.Where(invoice => invoice.IssuedUtc.Date == date)
+                    .Sum(invoice => (invoice.Total ?? 0) - (invoice.TaxAmount ?? 0)));
             }
 
             return new SalesRevenueReportViewModel
             {
+                PeriodType = period,
                 PeriodLabel = FormatReportPeriod(start, end),
                 StartDate = start,
                 EndDate = end,
@@ -5129,10 +5522,23 @@ namespace Backyard_Mech.Controllers
                     new ReportMetricCard { Title = "Total Revenue", Value = FormatMoney(revenue), Badge = revenueDelta >= 0 ? "Up" : "Down", BadgeTone = revenueDelta >= 0 ? "green" : "red" },
                     new ReportMetricCard { Title = "Average Ticket", Value = FormatMoney(invoices.Count == 0 ? 0 : revenue / invoices.Count), Badge = "Per Invoice", BadgeTone = "blue" },
                     new ReportMetricCard { Title = "Jobs Completed", Value = completedJobs.ToString("N0"), Badge = $"{((decimal)completedJobs / daysInPeriod):N1} Daily Avg", BadgeTone = "yellow" },
-                    new ReportMetricCard { Title = "Revenue vs Last Period", Value = $"{(revenueDelta >= 0 ? "+" : "-")}{FormatMoney(Math.Abs(revenueDelta))}", Badge = revenueDelta >= 0 ? "Up" : "Down", BadgeTone = revenueDelta >= 0 ? "green" : "red" }
+                    new ReportMetricCard { Title = "Revenue vs Last Period", Value = $"{(revenueDelta >= 0 ? "+" : "-")}{FormatMoney(Math.Abs(revenueDelta))}", Badge = revenueDelta >= 0 ? "Up" : "Down", BadgeTone = revenueDelta >= 0 ? "green" : "red" },
+                    new ReportMetricCard { Title = "Transactions", Value = activeInvoices.Count.ToString("N0"), Badge = "Non-void invoices", BadgeTone = "blue" },
+                    new ReportMetricCard { Title = "Payments Received", Value = FormatMoney(periodPayments.Sum(payment => payment.Amount ?? 0)), Badge = $"{periodPayments.Count:N0} payments", BadgeTone = "green" },
+                    new ReportMetricCard { Title = "Unpaid / Partially Paid", Value = outstandingInvoices.Count.ToString("N0"), Badge = FormatMoney(outstandingInvoices.Sum(item => Math.Max(0, item.Invoice.Total.GetValueOrDefault() - item.Paid))), BadgeTone = "yellow" },
+                    new ReportMetricCard { Title = "Service Revenue", Value = FormatMoney(serviceRevenue), Badge = "Labour lines", BadgeTone = "blue" },
+                    new ReportMetricCard { Title = "Parts Revenue", Value = FormatMoney(partsRevenue), Badge = "Part lines", BadgeTone = "blue" },
+                    new ReportMetricCard { Title = "Unclassified Revenue", Value = FormatMoney(unclassifiedRevenue), Badge = "Invoices without line details", BadgeTone = unclassifiedRevenue > 0 ? "yellow" : "green" },
+                    new ReportMetricCard { Title = "Tax Collected / Billed", Value = FormatMoney(activeInvoices.Sum(invoice => invoice.TaxAmount ?? 0)), Badge = "Invoice tax", BadgeTone = "gray" },
+                    new ReportMetricCard { Title = "Discount Credits", Value = FormatMoney(discountTotal), Badge = "Reason marked discount", BadgeTone = "gray" },
+                    new ReportMetricCard { Title = "Refund-tagged Credits", Value = FormatMoney(refundCredits), Badge = "Adjustment only; no cash refund ledger", BadgeTone = "gray" },
+                    new ReportMetricCard { Title = "Voids", Value = (voidedInvoiceCount + voidedPaymentCount).ToString("N0"), Badge = $"{voidedInvoiceCount} invoices · {voidedPaymentCount} payments", BadgeTone = "red" }
                 },
                 Rows = rows,
-                RevenueChart = new ReportChartData { Labels = chartLabels, Data = chartData }
+                RevenueChart = new ReportChartData { Labels = chartLabels, Data = chartData },
+                ByService = serviceBreakdown,
+                ByCashier = cashierBreakdown,
+                ByPaymentMethod = paymentMethodBreakdown
             };
         }
 
@@ -5248,6 +5654,7 @@ namespace Backyard_Mech.Controllers
                     BayIdentifier = bay.DisplayLabel,
                     HoursAvailable = FormatHours(availablePerBay),
                     HoursOccupied = FormatHours(occupied),
+                    OccupiedHoursValue = occupied,
                     UtilizationRate = FormatPercent(utilization),
                     JobsCompleted = jobs,
                     AverageJobDuration = jobs == 0 ? "0.0h" : $"{(occupied / jobs):N1}h"
@@ -5255,7 +5662,7 @@ namespace Backyard_Mech.Controllers
             }).ToList();
 
             var totalAvailable = availablePerBay * Math.Max(1, bays.Count);
-            var totalOccupied = rows.Sum(row => decimal.Parse(row.HoursOccupied.Replace(" Hrs", "")));
+            var totalOccupied = rows.Sum(row => row.OccupiedHoursValue);
             var totalJobs = rows.Sum(row => row.JobsCompleted);
             var peakHour = workOrders
                 .Where(order => order.ScheduledStart is not null)
@@ -5280,9 +5687,9 @@ namespace Backyard_Mech.Controllers
                 BayChart = new ReportChartData
                 {
                     Labels = rows.Select(row => row.BayIdentifier.Split('(')[0].Trim()).ToList(),
-                    Active = rows.Select(row => totalAvailable == 0 ? 0 : Math.Min(100, decimal.Parse(row.HoursOccupied.Replace(" Hrs", "")) / availablePerBay * 100)).ToList(),
+                    Active = rows.Select(row => totalAvailable == 0 ? 0 : Math.Min(100, row.OccupiedHoursValue / availablePerBay * 100)).ToList(),
                     Setup = rows.Select(row => Math.Min(12m, row.JobsCompleted * 2m)).ToList(),
-                    Idle = rows.Select(row => Math.Max(0, 100 - Math.Min(100, decimal.Parse(row.HoursOccupied.Replace(" Hrs", "")) / availablePerBay * 100) - Math.Min(12m, row.JobsCompleted * 2m))).ToList()
+                    Idle = rows.Select(row => Math.Max(0, 100 - Math.Min(100, row.OccupiedHoursValue / availablePerBay * 100) - Math.Min(12m, row.JobsCompleted * 2m))).ToList()
                 }
             };
         }
@@ -5293,7 +5700,7 @@ namespace Backyard_Mech.Controllers
             var parts = await _dbContext.Parts.AsNoTracking().Where(part => !part.IsArchived && !part.IsDeleted).ToListAsync();
             var categories = await _dbContext.PartCategories.AsNoTracking().ToDictionaryAsync(category => category.PartCategoryId);
             var suppliers = await _dbContext.Suppliers.AsNoTracking().ToDictionaryAsync(supplier => supplier.SupplierId);
-            var rows = parts.OrderByDescending(part => (part.UnitCost ?? 0) * part.QuantityOnHand).Select(part =>
+            var rows = parts.Select(part =>
             {
                 categories.TryGetValue(part.PartCategoryId ?? 0, out var category);
                 suppliers.TryGetValue(part.SupplierId ?? 0, out var supplier);
@@ -5310,11 +5717,12 @@ namespace Backyard_Mech.Controllers
                     QuantityInStock = $"{part.QuantityOnHand:N0} Units",
                     UnitCost = FormatMoney(part.UnitCost),
                     TotalValue = FormatMoney(value),
+                    TotalValueAmount = value,
                     ReorderLevel = $"{part.ReorderThreshold:N0} Units",
                     Status = lowStock ? "Low Stock" : "In Stock",
                     StatusTone = lowStock ? "red" : "profit"
                 };
-            }).ToList();
+            }).OrderByDescending(row => row.TotalValueAmount).ToList();
 
             var totalValue = parts.Sum(part => (part.UnitCost ?? 0) * part.QuantityOnHand);
             var totalUnits = parts.Sum(part => part.QuantityOnHand);
@@ -5443,7 +5851,7 @@ namespace Backyard_Mech.Controllers
                         ServiceType = group.Key,
                         JobsCount = FormatCount(group.Count(), "Job", "Jobs"),
                         Revenue = FormatMoney(revenue),
-                        RevenueValue = revenue,
+                        RevenueAmount = revenue,
                         LabourCost = FormatMoney(serviceLabourCost),
                         PartsCost = FormatMoney(servicePartsCost),
                         TotalCost = FormatMoney(serviceCost),
@@ -5452,7 +5860,7 @@ namespace Backyard_Mech.Controllers
                         MarginTone = serviceMargin >= 0 ? "green" : "red"
                     };
                 })
-                .OrderByDescending(row => row.RevenueValue)
+                .OrderByDescending(row => row.RevenueAmount)
                 .ToList();
 
             var chartLabels = sales.RevenueChart.Labels;
@@ -5532,10 +5940,11 @@ namespace Backyard_Mech.Controllers
             return new ReportExportData(
                 "Sales & Revenue Report",
                 model.PeriodLabel,
-                new[] { "Date", "Invoice #", "Customer", "Vehicle", "Service Type", "Mechanic", "Amount", "Status" },
+                new[] { "Date", "Invoice #", "Customer", "Vehicle", "Service Type", "Mechanic", "Cashier", "Payment Method", "Amount", "Paid", "Balance", "Status" },
                 model.Rows.Select(row => (IReadOnlyList<string>)new[]
                 {
-                    row.Date, row.Invoice, row.Customer, row.Vehicle, row.Service, row.Mechanic, row.Amount, row.Status
+                    row.Date, row.Invoice, row.Customer, row.Vehicle, row.Service, row.Mechanic, row.Cashier,
+                    row.PaymentMethod, row.Amount, row.Paid, row.Balance, row.Status
                 }).ToList());
         }
 
@@ -5607,7 +6016,7 @@ namespace Backyard_Mech.Controllers
         private static ReportExportData BuildProfitabilityExport(ProfitabilityReportViewModel model)
         {
             return new ReportExportData(
-                "Profitability Report",
+                "Financial Summary (tracked costs only)",
                 model.PeriodLabel,
                 new[] { "Service Type", "Jobs", "Revenue", "Labour Cost", "Parts Cost", "Total Cost", "Profit", "Margin" },
                 model.Rows.Select(row => (IReadOnlyList<string>)new[]
@@ -5629,12 +6038,22 @@ namespace Backyard_Mech.Controllers
             var bays = await LoadBayUtilizationReportAsync(startDate, endDate);
             var inventory = await LoadInventoryValueReportAsync(startDate, endDate);
 
+            var roleKey = HttpContext.Session.GetString("UserRole");
+            var permissionCodes = await _permissionService.GetPermissionCodesAsync(roleKey);
+            var availableReports = OwnerPermissionCatalog.DetailedActions
+                .Where(action => action.Module == "Reports" && OwnerPermissionCatalog.CanAccessAction(permissionCodes, action.Name))
+                .Select(action => action.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (string.Equals(roleKey, "Administrator", StringComparison.OrdinalIgnoreCase))
+                availableReports.Remove("ProfitabilityReport");
+
             return View(new ReportsOverviewViewModel
             {
                 PeriodLabel = sales.PeriodLabel,
                 StartDate = sales.StartDate,
                 EndDate = sales.EndDate,
                 PageDateLabel = DateTime.Today.ToString("dddd, MMMM d, yyyy").ToUpperInvariant(),
+                AvailableReports = availableReports,
                 Metrics = new[]
                 {
                     new ReportMetricCard { Title = sales.Metrics[0].Title, Value = sales.Metrics[0].Value, Badge = sales.Metrics[0].Badge, BadgeTone = sales.Metrics[0].BadgeTone, Detail = "vs previous same-length period" },
@@ -5645,14 +6064,16 @@ namespace Backyard_Mech.Controllers
             });
         }
 
-        public async Task<IActionResult> SalesRevenueReport(DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<IActionResult> SalesRevenueReport(DateTime? startDate = null, DateTime? endDate = null, string period = "month")
         {
             if (!IsOwnerSession())
             {
                 return RedirectToAction("Login", "Account");
             }
 
-            return View(await LoadSalesRevenueReportAsync(startDate, endDate));
+            var model = await LoadSalesRevenueReportAsync(startDate, endDate, period);
+            model.ReadOnlyTransactions = string.Equals(HttpContext.Session.GetString("UserRole"), "Administrator", StringComparison.OrdinalIgnoreCase);
+            return View(model);
         }
 
         public async Task<IActionResult> LabourProductivityReport(DateTime? startDate = null, DateTime? endDate = null)
@@ -5791,15 +6212,42 @@ namespace Backyard_Mech.Controllers
             return NormalizeText(role, "Owner");
         }
 
+        private static string ClassifyPermissionAction(Permission permission)
+        {
+            var value = NormalizeText($"{permission.ActionName} {permission.PermissionCode}", "").ToLowerInvariant();
+            if (value.Contains("approve") || value.Contains("approval"))
+            {
+                return "Approve";
+            }
+
+            if (value.Contains("delete") || value.Contains("remove") || value.Contains("archive"))
+            {
+                return "Delete";
+            }
+
+            if (value.Contains("edit") || value.Contains("update") || value.Contains("manage") || value.Contains("write"))
+            {
+                return "Edit";
+            }
+
+            if (value.Contains("create") || value.Contains("add") || value.Contains("new"))
+            {
+                return "Create";
+            }
+
+            return "View";
+        }
+
         private async Task<SettingsRolesViewModel> LoadSettingsRolesAsync(string? role)
         {
             var selectedRoleId = NormalizeSettingsRoleId(role);
             var roleRows = await _dbContext.AppRoles.AsNoTracking()
-                .Where(roleRow => roleRow.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(roleRow.RoleKey))
+                .Where(roleRow => roleRow.IsActive)
                 .OrderBy(roleRow => roleRow.DisplayOrder)
                 .ThenBy(roleRow => roleRow.RoleName)
                 .ToListAsync();
             var selectedRole = roleRows.FirstOrDefault(roleRow => string.Equals(roleRow.RoleKey, selectedRoleId, StringComparison.OrdinalIgnoreCase))
+                ?? roleRows.FirstOrDefault(roleRow => roleRow.IsSystemProtected)
                 ?? roleRows.FirstOrDefault();
 
             selectedRoleId = selectedRole?.RoleKey ?? selectedRoleId;
@@ -5837,44 +6285,39 @@ namespace Backyard_Mech.Controllers
             var rows = permissions
                 .Where(permission => SettingsPermissionActions.Contains(permission.ActionName, StringComparer.OrdinalIgnoreCase))
                 .GroupBy(permission => NormalizeText(permission.ModuleName, "General"))
-                .OrderBy(group => SidebarPermissionCatalog.OrderForModule(group.Key))
+                .OrderBy(group => group.Key)
                 .Select(group =>
                 {
                     var cells = SettingsPermissionActions.ToDictionary(
                         action => action,
                         action =>
                         {
-                            var permission = group.FirstOrDefault(item => string.Equals(item.ActionName, action, StringComparison.OrdinalIgnoreCase));
+                            var permission = group.FirstOrDefault(item => string.Equals(ClassifyPermissionAction(item), action, StringComparison.OrdinalIgnoreCase));
                             return new SettingsPermissionCell
                             {
                                 PermissionId = permission?.PermissionId,
                                 Exists = permission is not null,
-                                IsChecked = isProtected || (permission is not null && savedPermissionIds.Contains(permission.PermissionId)),
-                                Description = OwnerPermissionDescriptionCatalog.ModuleAction(group.Key, action)
+                                IsChecked = isProtected || (permission is not null && savedPermissionIds.Contains(permission.PermissionId))
                             };
                         });
 
                     return new SettingsPermissionRow
                     {
                         ModuleName = group.Key,
-                        DisplayName = SidebarPermissionCatalog.LabelForModule(group.Key),
                         Actions = cells
                     };
                 })
                 .ToList();
 
             var detailedPermissions = permissions
-                .Where(permission => OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is not null ||
-                    SubTabPermissionCatalog.ByActionName(permission.ActionName) is not null)
+                .Where(permission => OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is not null)
                 .Select(permission => new SettingsDetailedPermission
                 {
                     PermissionId = permission.PermissionId,
                     ModuleName = permission.ModuleName ?? "General",
-                    Label = SubTabPermissionCatalog.ByActionName(permission.ActionName)?.Label ?? OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
-                    Action = SubTabPermissionCatalog.ByActionName(permission.ActionName) is not null ? "View" : OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
-                    IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId),
-                    Description = OwnerPermissionDescriptionCatalog.ForPermission(
-                        permission.ModuleName ?? "General", permission.ActionName ?? "")
+                    Label = OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
+                    Action = OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
+                    IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId)
                 })
                 .OrderBy(permission => permission.ModuleName)
                 .ThenBy(permission => permission.Label)
@@ -5891,9 +6334,9 @@ namespace Backyard_Mech.Controllers
                 PermissionRows = rows,
                 DetailedPermissions = detailedPermissions,
                 TotalPermissionCount = permissions.Count,
-                CanCreateRole = false,
+                CanCreateRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Create"),
                 CanEditRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Edit"),
-                CanDeleteRole = false
+                CanDeleteRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Delete")
             };
         }
 
@@ -5917,16 +6360,12 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var actorPermissions = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
-            Require(SubTabPermissionCatalog.CanAccess(actorPermissions, "SettingsRoles", "permissions"),
-                "You cannot edit the Permissions tab.");
-
             form.RoleId = NormalizeSettingsRoleId(form.RoleId);
             var role = await _dbContext.AppRoles.AsNoTracking()
                 .FirstOrDefaultAsync(roleRow => roleRow.RoleKey == form.RoleId && roleRow.IsActive);
-            if (role is null || !StandardRoleProfiles.IsBusinessRole(role.RoleKey))
+            if (role is null)
             {
-                TempData["OwnerMessage"] = "Choose one of the seven standard roles.";
+                TempData["OwnerMessage"] = "Role was not found.";
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(SettingsRoles));
             }
@@ -5971,27 +6410,180 @@ namespace Backyard_Mech.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CreateRole()
+        public async Task<IActionResult> CreateRole(SettingsRoleFormModel form)
         {
-            if (!IsOwnerSession()) return LoginRedirect();
-            return StatusCode(405, "Only the seven standard roles are allowed.");
+            if (!IsOwnerSession())
+            {
+                return LoginRedirect();
+            }
+
+            var roleName = form.RoleName?.Trim() ?? "";
+            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roleName))
+            {
+                TempData["OwnerMessage"] = "Role was not created. Enter a role name.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            if (await _dbContext.AppRoles.AnyAsync(role => role.IsActive && role.RoleName == roleName))
+            {
+                TempData["OwnerMessage"] = "An active role with that name already exists.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            var requestedPermissionIds = form.PermissionIds.Distinct().ToList();
+            var validPermissions = await _dbContext.Permissions.AsNoTracking()
+                .Where(permission => permission.IsActive && requestedPermissionIds.Contains(permission.PermissionId))
+                .Select(permission => new { permission.PermissionId, permission.PermissionCode })
+                .ToListAsync();
+            if (validPermissions.Count != requestedPermissionIds.Count)
+            {
+                TempData["OwnerMessage"] = "One or more selected permissions are no longer available. Please choose again.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            var actorCodes = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            var requestedCodes = validPermissions.Select(permission => permission.PermissionCode!).ToList();
+            if (!PermissionService.CanDelegateStaffPermissions(actorCodes, requestedCodes))
+            {
+                TempData["OwnerMessage"] = "You cannot grant role permissions beyond your own access.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            var nextDisplayOrder = (await _dbContext.AppRoles.MaxAsync(role => (int?)role.DisplayOrder) ?? 0) + 10;
+            var role = new AppRole
+            {
+                RoleKey = $"custom-{Guid.NewGuid():N}"[..19],
+                RoleName = roleName,
+                Description = form.Description?.Trim(),
+                DisplayOrder = nextDisplayOrder,
+                IsSystemProtected = false,
+                IsActive = true
+            };
+            _dbContext.AppRoles.Add(role);
+            _dbContext.RolePermissions.AddRange(validPermissions.Select(permission => new RolePermission
+            {
+                RoleId = role.RoleKey,
+                PermissionId = permission.PermissionId
+            }));
+            _dbContext.AuditLogEntries.Add(new AuditLogEntry
+            {
+                UserId = HttpContext.Session.GetString("UserId"),
+                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
+                Action = "Role Created",
+                EntityName = "AppRole",
+                EntityId = role.RoleKey,
+                TimestampUtc = DateTime.UtcNow,
+                Details = System.Text.Json.JsonSerializer.Serialize(new { role.RoleName, PermissionIds = validPermissions.Select(permission => permission.PermissionId).ToArray() })
+            });
+            await _dbContext.SaveChangesAsync();
+            _permissionService.ClearCache(role.RoleKey);
+
+            TempData["OwnerMessage"] = $"{role.RoleName} created with its default permissions.";
+            TempData["OwnerMessageTone"] = "success";
+            return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult EditRole()
+        public async Task<IActionResult> EditRole(SettingsRoleFormModel form)
         {
-            if (!IsOwnerSession()) return LoginRedirect();
-            return StatusCode(405, "The seven standard role names are fixed.");
+            if (!IsOwnerSession())
+            {
+                return LoginRedirect();
+            }
+
+            var role = await _dbContext.AppRoles.FirstOrDefaultAsync(item => item.AppRoleId == form.AppRoleId && item.IsActive);
+            var roleName = form.RoleName?.Trim() ?? "";
+            if (role is null || role.IsSystemProtected)
+            {
+                TempData["OwnerMessage"] = role?.IsSystemProtected == true ? "System-protected roles cannot be edited." : "Role was not found.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roleName))
+            {
+                TempData["OwnerMessage"] = "Role was not updated. Enter a role name.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
+            }
+
+            if (await _dbContext.AppRoles.AnyAsync(item => item.AppRoleId != role.AppRoleId && item.IsActive && item.RoleName == roleName))
+            {
+                TempData["OwnerMessage"] = "An active role with that name already exists.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
+            }
+
+            role.RoleName = roleName;
+            role.Description = form.Description?.Trim();
+            _dbContext.AuditLogEntries.Add(new AuditLogEntry
+            {
+                UserId = HttpContext.Session.GetString("UserId"),
+                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
+                Action = "Role Updated",
+                EntityName = "AppRole",
+                EntityId = role.RoleKey,
+                TimestampUtc = DateTime.UtcNow,
+                Details = $"Updated role {role.RoleName}."
+            });
+            await _dbContext.SaveChangesAsync();
+
+            TempData["OwnerMessage"] = $"{role.RoleName} updated.";
+            TempData["OwnerMessageTone"] = "success";
+            return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteRole()
+        public async Task<IActionResult> DeleteRole(DeleteSettingsRoleFormModel form)
         {
-            if (!IsOwnerSession()) return LoginRedirect();
-            return StatusCode(405, "The seven standard roles cannot be deleted.");
+            if (!IsOwnerSession())
+            {
+                return LoginRedirect();
+            }
+
+            var role = await _dbContext.AppRoles.FirstOrDefaultAsync(item => item.RoleKey == form.RoleId && item.IsActive);
+            if (role is null || role.IsSystemProtected)
+            {
+                TempData["OwnerMessage"] = role?.IsSystemProtected == true ? "System-protected roles cannot be deleted." : "Role was not found.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles));
+            }
+
+            var assignedUsers = await _dbContext.Users.CountAsync(user => user.Role == role.RoleKey);
+            if (assignedUsers > 0)
+            {
+                TempData["OwnerMessage"] = $"Cannot delete {role.RoleName}. Reassign its {assignedUsers} user(s) first.";
+                TempData["OwnerMessageTone"] = "error";
+                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
+            }
+
+            role.IsActive = false;
+            var permissions = await _dbContext.RolePermissions.Where(item => item.RoleId == role.RoleKey).ToListAsync();
+            _dbContext.RolePermissions.RemoveRange(permissions);
+            _dbContext.AuditLogEntries.Add(new AuditLogEntry
+            {
+                UserId = HttpContext.Session.GetString("UserId"),
+                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
+                Action = "Role Deleted",
+                EntityName = "AppRole",
+                EntityId = role.RoleKey,
+                TimestampUtc = DateTime.UtcNow,
+                Details = $"Deleted role {role.RoleName}."
+            });
+            await _dbContext.SaveChangesAsync();
+            _permissionService.ClearCache(role.RoleKey);
+
+            TempData["OwnerMessage"] = $"{role.RoleName} deleted.";
+            TempData["OwnerMessageTone"] = "success";
+            return RedirectToAction(nameof(SettingsRoles));
         }
+
         public async Task<IActionResult> SettingsSystemPreferences()
         {
             if (!IsOwnerSession())
@@ -6003,27 +6595,5 @@ namespace Backyard_Mech.Controllers
                 .Where(settings => settings.Id == 1).Select(settings => settings.ValuesJson).SingleAsync();
             return View(System.Text.Json.JsonSerializer.Deserialize<GeneralSettingsValues>(json) ?? new());
         }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveEmailNotifications(NotificationPreferencesForm form)
-        {
-            if (!IsOwnerSession()) return LoginRedirect();
-            var row = await _dbContext.GarageSettings.SingleAsync(settings => settings.Id == 1);
-            var values = System.Text.Json.JsonSerializer.Deserialize<GeneralSettingsValues>(row.ValuesJson) ?? new();
-            values.EmailAppointmentReminders = form.EmailAppointmentReminders;
-            values.LowStockAlerts = form.LowStockAlerts;
-            values.OverdueInvoiceReminders = form.OverdueInvoiceReminders;
-            row.ValuesJson = System.Text.Json.JsonSerializer.Serialize(values);
-            row.Revision = Guid.NewGuid();
-            WorkflowAudit("GarageSettings", 1, "Update email notifications", new
-            {
-                values.EmailAppointmentReminders, values.LowStockAlerts, values.OverdueInvoiceReminders
-            });
-            await _dbContext.SaveChangesAsync();
-            TempData["SmtpMessage"] = "Email notification settings saved. Enabled messages are checked every 15 minutes.";
-            return RedirectToAction(nameof(SettingsSystemPreferences));
-        }
-
     }
 }

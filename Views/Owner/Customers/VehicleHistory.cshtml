@@ -2,13 +2,17 @@
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = ViewData["PageTitle"] = "Vehicle Records";
-    ViewData["ActiveNav"] = "Vehicle Records";
+    ViewData["ActiveNav"] = "Customer and Vehicle";
     var v = Model.Selected;
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/vehicle-intake.css" asp-append-version="true" />
 <section class="master-data intake-page vehicle-records-page">
-    <header class="master-toolbar"><h2>Vehicles</h2></header>
+    <nav class="customer-module-tabs" aria-label="Customer and vehicle sections">
+        <a asp-action="CustomerVehicle">Customers</a>
+        <a class="is-active" aria-current="page" asp-action="VehicleHistory">Vehicle Records</a>
+    </nav>
+    <header class="master-toolbar"><div><h2>@(v is not null ? $"{v.Year} {v.Make} {v.Model}" : Model.CustomerName is null ? "Vehicle Records" : $"Vehicles for {Model.CustomerName}")</h2><p>@(v is not null ? $"Vehicle record for {v.OwnerFullName} · {v.LicensePlate}" : "Vehicle records, ownership, and odometer history.")</p></div>@if(v is not null && Model.CustomerId.HasValue){<a class="intake-history-button" asp-action="VehicleHistory" asp-route-customerId="@Model.CustomerId">Back to this customer's vehicles</a>}else{<a class="intake-history-button" asp-action="CustomerVehicle">Back to customers</a>}</header>
     <div class="app-search-control vehicle-record-search">
         <label class="vehicle-record-search-box">
             <span aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg></span>
@@ -18,13 +22,19 @@
         @if(Model.CanCreate){<button class="master-primary vehicle-add-button" type="button" data-intake-open="register-vehicle">+ Add Vehicle</button>}
     </div>
     <div class="master-table-wrap"><table><thead><tr><th>Vehicle</th><th>Plate / VIN</th><th>Current owner</th><th>Odometer</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-    @foreach(var row in Model.Vehicles){<tr data-intake-row><td>@row.Year @row.Make @row.Model</td><td>@row.LicensePlate<br />@row.VIN</td><td>@row.OwnerFullName</td><td>@row.Odometer?.ToString("N0")</td><td>@(row.IsArchived ? "Archived" : "Active")</td><td><a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId">View history</a></td></tr>}
+    @foreach(var row in Model.Vehicles){<tr data-intake-row><td>@row.Year @row.Make @row.Model</td><td>@row.LicensePlate<br />@row.VIN</td><td>@row.OwnerFullName</td><td>@row.Odometer?.ToString("N0")</td><td>@(row.IsDeleted ? "Deleted" : row.IsArchived ? "Archived" : "Active")</td><td><a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId" asp-route-customerId="@Model.CustomerId">View history</a>
+        @if(!row.IsArchived && !row.IsDeleted && Model.CanEdit){
+            <a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId" asp-route-customerId="@Model.CustomerId" asp-route-openAction="edit-vehicle">Edit</a>
+            <a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId" asp-route-customerId="@Model.CustomerId" asp-route-openAction="transfer-owner">Transfer ownership</a>
+            <a class="intake-history-button" asp-action="VehicleHistory" asp-route-id="@row.VehicleId" asp-route-customerId="@Model.CustomerId" asp-route-openAction="record-mileage">Record odometer</a>
+        }
+        @if(!row.IsArchived && !row.IsDeleted && Model.CanDelete){<form asp-action="ArchiveVehicle" method="post" style="display:inline" data-confirm="Archive this vehicle? Its history will be preserved." data-confirm-title="Archive vehicle" data-confirm-action="Archive">@Html.AntiForgeryToken()<input type="hidden" name="RecordType" value="Vehicle"/><input type="hidden" name="RecordId" value="@row.VehicleId"/><button class="intake-history-button" type="submit">Archive</button></form>}
+        @if(!row.IsDeleted && Model.CanDelete){<form asp-action="SoftDeleteVehicle" method="post" style="display:inline" data-confirm="Move this vehicle to Records Disposition? Its history will be preserved." data-confirm-title="Delete vehicle" data-confirm-action="Move to disposition">@Html.AntiForgeryToken()<input type="hidden" name="RecordType" value="Vehicle"/><input type="hidden" name="RecordId" value="@row.VehicleId"/><button class="intake-history-button" type="submit">Delete</button></form>}
+    </td></tr>}
     </tbody></table></div>
     @if(Model.Vehicles.Count == 0){<p>No vehicles found.</p>}
     @if(v is not null){
-        <header class="master-toolbar"><h2>@v.LicensePlate: @v.Year @v.Make @v.Model</h2>
-        @if(Model.CanEdit && !v.IsArchived){<div class="master-actions"><button type="button" data-intake-open="transfer-owner">Transfer Ownership</button><button type="button" data-intake-open="record-mileage">Record Odometer</button></div>}
-        </header>
+        <header class="master-toolbar"><h2>@v.LicensePlate: @v.Year @v.Make @v.Model</h2></header>
         <h3>Ownership History</h3>
         <div class="master-table-wrap"><table><thead><tr><th>Owner</th><th>From (UTC)</th><th>Until (UTC)</th></tr></thead><tbody>
         @foreach(var o in Model.Owners){<tr><td>@o.OwnerFirstName @o.OwnerMiddleName @o.OwnerLastName</td><td>@o.OwnershipStartUtc?.ToString("yyyy-MM-dd HH:mm")</td><td>@(o.OwnershipEndUtc?.ToString("yyyy-MM-dd HH:mm") ?? "Current owner")</td></tr>}
@@ -49,7 +59,19 @@
 </form></dialog>
 }
 @if(v is not null && Model.CanEdit && !v.IsArchived){
-<dialog id="transfer-owner" class="master-dialog app-modal" aria-labelledby="transfer-title" role="dialog" aria-modal="true"><form asp-action="TransferVehicleOwnership" method="post">
+<dialog id="edit-vehicle" class="master-dialog vehicle-register-dialog app-modal" aria-labelledby="edit-vehicle-title" role="dialog" aria-modal="true" data-intake-auto-open="@(Model.OpenAction == "edit-vehicle" ? "true" : "false")"><form asp-action="UpdateVehicle" method="post">
+    <header class="master-toolbar"><div><h2 id="edit-vehicle-title">Edit Vehicle</h2><p>Update vehicle details without changing its ownership or odometer history.</p></div><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
+    <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
+    <div class="master-fields">
+        <label><span>Make <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Make" value="@v.Make" required maxlength="100" /></label>
+        <label><span>Model <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="Model" value="@v.Model" required maxlength="100" /></label>
+        <label><span>Model year <span class="modal-required-indicator" aria-hidden="true">*</span></span><input type="number" name="Year" value="@v.Year" required min="1886" max="@(DateTime.UtcNow.Year+1)" /></label>
+        <label>Color<input name="Color" value="@v.Color" maxlength="50" /></label>
+        <label><span>License plate <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="LicensePlate" value="@v.LicensePlate" required maxlength="40" /></label>
+        <label><span>VIN <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="VIN" value="@v.VIN" required maxlength="40" /></label>
+    </div><footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Save Vehicle</button></footer>
+</form></dialog>
+<dialog id="transfer-owner" class="master-dialog app-modal" aria-labelledby="transfer-title" role="dialog" aria-modal="true" data-intake-auto-open="@(Model.OpenAction == "transfer-owner" ? "true" : "false")"><form asp-action="TransferVehicleOwnership" method="post">
     <header class="master-toolbar"><h2 id="transfer-title">Transfer Ownership</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
     <div class="master-fields"><label class="master-wide">New owner<select name="CustomerId" required><option value="">Select customer</option>@foreach(var c in Model.Customers){<option value="@c.CustomerId">@c.FirstName @c.MiddleName @c.LastName (@c.Phone)</option>}</select></label>
@@ -57,7 +79,7 @@
     <label class="intake-check master-wide"><input type="checkbox" name="AuthorityVerified" value="true" required /> Ownership documents and authority to transfer verified</label></div>
     <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Transfer Ownership</button></footer>
 </form></dialog>
-<dialog id="record-mileage" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="mileage-title" role="dialog" aria-modal="true"><form asp-action="RecordVehicleOdometer" method="post">
+<dialog id="record-mileage" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="mileage-title" role="dialog" aria-modal="true" data-intake-auto-open="@(Model.OpenAction == "record-mileage" ? "true" : "false")"><form asp-action="RecordVehicleOdometer" method="post">
     <header class="master-toolbar"><h2 id="mileage-title">Record Odometer</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
     <input type="hidden" name="VehicleId" value="@v.VehicleId" /><input type="hidden" name="Expected" value="@Model.Expected" />
     <label>Odometer reading<input type="number" name="Odometer" min="@(v.Odometer ?? 0)" max="2147483647" required /></label>

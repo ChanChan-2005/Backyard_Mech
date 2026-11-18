@@ -1,11 +1,56 @@
-﻿@{
+@model BayDetailsViewModel
+@{
     Layout = "_AppLayout";
-    ViewData["Title"] = "Database-backed page moved";
-    ViewData["PageTitle"] = "Database-backed page moved";
-    ViewData["PageSubtitle"] = "LIVE DATA ONLY";
+    ViewData["Title"] = "Bay Details";
+    ViewData["PageTitle"] = "Bay Details";
+    ViewData["ActiveNav"] = "Bay Management";
+    ViewData["ShellClass"] = "bay-shell";
+    var bay = Model.Bay;
+    var status = Model.Status;
 }
 
-<section class="empty-state-panel">
-    <h2>This mockup page has been retired.</h2>
-    <p>The matching controller action now redirects to the active database-backed page so hard-coded sample records are not shown.</p>
+<section class="bay-page">
+    <header class="bay-panel-header bay-details-header">
+        <div>
+            <h2>@bay.DisplayLabel — @bay.Name</h2>
+            <p>@bay.Description</p>
+        </div>
+        <a class="bay-button" asp-action="BayManagement">Back to Bay Management</a>
+    </header>
+    <section class="bay-panel bay-details-card">
+        <dl>
+            <div><dt>Bay Number</dt><dd>@bay.DisplayLabel</dd></div>
+            <div><dt>Status</dt><dd>@status</dd></div>
+            <div><dt>Lifecycle</dt><dd>@(bay.IsDeleted ? "In Records Disposition" : bay.IsArchived ? "Archived" : "Active")</dd></div>
+            <div><dt>Description</dt><dd>@(string.IsNullOrWhiteSpace(bay.Description) ? "No description" : bay.Description)</dd></div>
+        </dl>
+    </section>
+    <section class="bay-panel">
+        <header class="bay-panel-header"><h2>Maintenance History</h2></header>
+        <div class="table-responsive app-responsive-table" role="region" aria-label="Bay maintenance history" tabindex="0">
+            <table class="bay-table">
+                <thead><tr><th>Type</th><th>Start</th><th>Estimated Return</th><th>Technician</th><th>Notes</th><th>Status</th></tr></thead>
+                <tbody>
+                @if (Model.MaintenanceSchedules.Count == 0)
+                {
+                    <tr><td colspan="6">No maintenance records.</td></tr>
+                }
+                else
+                {
+                    @foreach (var entry in Model.MaintenanceSchedules)
+                    {
+                        <tr>
+                            <td>@entry.MaintenanceType</td>
+                            <td>@entry.StartDate.ToString("MMM dd, yyyy")</td>
+                            <td>@entry.EstimatedReturnDate.ToString("MMM dd, yyyy")</td>
+                            <td>@(entry.AssignedTechnician ?? "—")</td>
+                            <td>@(entry.Notes ?? "—")</td>
+                            <td>@(entry.IsCompleted ? "Completed" : "Open")</td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
 </section>

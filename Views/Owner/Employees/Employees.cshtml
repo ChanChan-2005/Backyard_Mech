@@ -83,9 +83,10 @@
                         <td><strong>@employee.Util</strong><span class="users-progress @employee.Progress"><span></span></span></td>
                         <td><div class="users-table-actions">
                             <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@employee.EmployeeProfileId">@(canEdit ? "Edit" : "View")</a>
+                            <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeAvailability" asp-route-id="@employee.EmployeeProfileId">Availability</a>
                             @if(canDelete){
                             <button class="users-small-button" type="button" data-users-modal="archive" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Archive</button>
-                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Soft Delete</button>
+                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Delete</button>
                             }
                         </div></td>
                     </tr>

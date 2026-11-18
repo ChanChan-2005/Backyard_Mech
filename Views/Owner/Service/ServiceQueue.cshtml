@@ -155,7 +155,7 @@
                     <th>Priority</th>
                     <th>Time</th>
                     <th>Duration</th>
-                    <th></th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -181,7 +181,7 @@
                             <td><span class="queue-priority @card.PriorityTone">@card.Priority</span></td>
                             <td>@card.Time</td>
                             <td>@card.Duration</td>
-                            <td><a class="queue-list-action" href="/Owner/ServiceQueueDetails/@card.AppointmentId">Open</a></td>
+                            <td><a class="queue-list-action" data-action-label="View service details" href="/Owner/ServiceQueueDetails/@card.AppointmentId">View</a></td>
                         </tr>
                     }
                 }

@@ -71,6 +71,10 @@ namespace Backyard_Mech.Services
                 .Where(item => item.IsDeleted && item.DeletedUtc != null && item.DeletedUtc <= cutoffUtc)
                 .Select(item => item.ToolId)
                 .ToListAsync(cancellationToken)).Select(id => ("Tool", id)));
+            candidates.AddRange((await _dbContext.Bays.AsNoTracking()
+                .Where(item => item.IsDeleted && item.DeletedUtc != null && item.DeletedUtc <= cutoffUtc)
+                .Select(item => item.BayId)
+                .ToListAsync(cancellationToken)).Select(id => ("Bay", id)));
 
             var deletedCount = 0;
             foreach (var candidate in candidates)
@@ -209,6 +213,24 @@ namespace Backyard_Mech.Services
                     _dbContext.Tools.Remove(tool);
                     break;
                 }
+                case "Bay":
+                {
+                    var bay = await _dbContext.Bays
+                        .FirstOrDefaultAsync(item => item.BayId == recordId && item.IsDeleted, cancellationToken);
+                    if (bay is null) return new PermanentDeletionResult(false, "Bay record was not found in records disposition.");
+
+                    var hasHistory = await _dbContext.Appointments.AnyAsync(item => item.BayId == recordId, cancellationToken)
+                        || await _dbContext.WorkOrders.AnyAsync(item => item.BayId == recordId, cancellationToken)
+                        || await _dbContext.BayMaintenanceSchedules.AnyAsync(item => item.BayId == recordId, cancellationToken);
+                    if (hasHistory)
+                    {
+                        return new PermanentDeletionResult(false, "Bay cannot be permanently deleted while appointment, work-order, or maintenance history references it.");
+                    }
+
+                    recordName = bay.Name;
+                    _dbContext.Bays.Remove(bay);
+                    break;
+                }
             }
 
             _dbContext.AuditLogEntries.Add(new AuditLogEntry
@@ -271,6 +293,7 @@ namespace Backyard_Mech.Services
                 "part" => "Part",
                 "product listing" or "productlisting" or "listing" => "Product Listing",
                 "tool" => "Tool",
+                "bay" => "Bay",
                 _ => string.Empty
             };
         }

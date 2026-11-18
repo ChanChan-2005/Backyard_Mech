@@ -1,10 +1,9 @@
 @model AdjustmentSaveForm
-@{ var edit = Model.InvoiceAdjustmentId > 0; var dialog = edit ? $"adjustment-{Model.InvoiceAdjustmentId}" : "adjustment-new"; }
-<dialog class="repair-dialog repair-dialog-small app-modal app-modal--compact" id="@dialog" aria-labelledby="@(dialog)-title" role="dialog" aria-modal="true"><form method="post" asp-action="@(edit ? "EditInvoiceAdjustment" : "AddInvoiceAdjustment")">
-<header><h2 id="@(dialog)-title">@(edit ? "Edit Adjustment" : "Invoice Adjustment")</h2><button type="button" data-dialog-close aria-label="Close">&#215;</button></header>
+@{ var edit = Model.InvoiceAdjustmentId > 0; }
+<section class="repair-section" id="invoice-adjustment-editor" tabindex="-1"><form method="post" asp-action="@(edit ? "EditInvoiceAdjustment" : "AddInvoiceAdjustment")">
+<header class="repair-section-header"><div><h2>@(edit ? "Edit Invoice Adjustment" : "Invoice Adjustment")</h2><p>Apply a credit or debit to this invoice.</p></div><a class="repair-button" asp-action="InvoiceDetails" asp-route-id="@Model.InvoiceId">Cancel</a></header>
 <input type="hidden" name="InvoiceId" value="@Model.InvoiceId" /><input type="hidden" name="InvoiceAdjustmentId" value="@Model.InvoiceAdjustmentId" /><input type="hidden" name="SubmissionToken" value="@Model.SubmissionToken" />
 <div class="repair-fields"><label>Type<select name="AdjustmentType"><option value="Credit" selected="@(Model.AdjustmentType == "Credit")">Credit (reduce total)</option><option value="Debit" selected="@(Model.AdjustmentType == "Debit")">Debit (increase total)</option></select></label>
 <label>Amount (CA$, tax-inclusive)<input type="number" name="Amount" min=".01" max="9999999999999999.99" step=".01" required value="@Model.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" /></label>
 <label class="repair-wide">Reason<textarea name="Reason" required maxlength="1000">@Model.Reason</textarea></label></div>
-<footer><button type="button" data-dialog-close>Cancel</button><button type="submit" class="primary">Save Adjustment</button></footer>
-</form></dialog>
+<footer class="repair-form-footer"><button type="submit" class="primary">Save Adjustment</button></footer></form></section>

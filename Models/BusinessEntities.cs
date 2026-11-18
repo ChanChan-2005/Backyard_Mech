@@ -58,6 +58,8 @@ namespace Backyard_Mech.Models
         public int? DayOfWeek { get; set; }
         public TimeOnly? StartTime { get; set; }
         public TimeOnly? EndTime { get; set; }
+        public TimeOnly? BreakStart { get; set; }
+        public TimeOnly? BreakEnd { get; set; }
         public bool IsAvailable { get; set; } = true;
     }
 
@@ -192,6 +194,12 @@ namespace Backyard_Mech.Models
         public string? Name { get; set; }
         public string? Description { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsArchived { get; set; }
+        public DateTime? ArchivedUtc { get; set; }
+        public string? ArchiveReason { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedUtc { get; set; }
+        public string? DeleteReason { get; set; }
     }
 
     public class BayMaintenanceSchedule
@@ -407,6 +415,7 @@ namespace Backyard_Mech.Models
     public class WorkOrder
     {
         public int WorkOrderId { get; set; }
+        public string WorkOrderNumber { get; set; } = string.Empty;
         public int? AppointmentId { get; set; }
         public int? EstimateId { get; set; }
         public int? ApprovedEstimateRevisionId { get; set; }
@@ -430,6 +439,19 @@ namespace Backyard_Mech.Models
         public string? MechanicName { get; set; }
         public string? AssignmentRole { get; set; }
         public DateTime AssignedUtc { get; set; }
+    }
+
+    public class WorkOrderEvidence
+    {
+        public int WorkOrderEvidenceId { get; set; }
+        public int WorkOrderId { get; set; }
+        public string Stage { get; set; } = "Before";
+        public string Description { get; set; } = string.Empty;
+        public string FileType { get; set; } = string.Empty;
+        public string BlobUrl { get; set; } = string.Empty;
+        public DateTime UploadedUtc { get; set; }
+        public string? UploadedByUserId { get; set; }
+        public string UploadedByName { get; set; } = string.Empty;
     }
 
     public class ServiceEntry

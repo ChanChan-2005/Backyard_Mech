@@ -8,6 +8,7 @@
     document.querySelectorAll('dialog form').forEach(form => form.addEventListener('submit', () => {
         form.querySelectorAll('button:not([type="button"])').forEach(button => { button.disabled = true; });
     }));
+    document.querySelector('dialog[data-intake-auto-open="true"]')?.showModal();
     document.querySelector('[data-intake-search]')?.addEventListener('searchcommit', event => {
         const query = event.detail.value.toLowerCase();
         document.querySelectorAll('[data-intake-row]').forEach(row => { row.hidden = !row.textContent.toLowerCase().includes(query); });

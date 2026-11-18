@@ -18,11 +18,14 @@
 
 <section class="reports-page">
     <form class="reports-filter-card reports-date-filter" method="get" asp-action="SalesRevenueReport">
+        <label class="reports-date-field"><span>Period</span><select name="period"><option value="day" selected="@(Model.PeriodType == "day")">Today</option><option value="week" selected="@(Model.PeriodType == "week")">This week</option><option value="month" selected="@(Model.PeriodType == "month")">This month</option><option value="year" selected="@(Model.PeriodType == "year")">This year</option><option value="custom" selected="@(Model.PeriodType == "custom")">Custom dates</option></select></label>
         <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
         <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
         <button class="reports-button-blue" type="submit">Apply Dates</button><span class="reports-filter-spacer"></span>
         <select data-report-filter data-report-column="4"><option value="">Service: All</option>@foreach (var value in Model.Rows.Select(x => x.Service).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
         <select data-report-filter data-report-column="5"><option value="">Mechanic: All</option>@foreach (var value in Model.Rows.Select(x => x.Mechanic).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="6"><option value="">Cashier: All</option>@foreach (var value in Model.Rows.Select(x => x.Cashier).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
+        <select data-report-filter data-report-column="7"><option value="">Payment: All</option>@foreach (var value in Model.Rows.Select(x => x.PaymentMethod).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x)){<option value="@value">@value</option>}</select>
     </form>
 
     <div class="reports-stats">
@@ -37,17 +40,23 @@
         <canvas id="salesRevenueChart" height="190"></canvas>
     </section>
 
+    <section class="reports-grid compact">
+        <article class="reports-card"><h2>Sales by Service</h2><table class="reports-table"><thead><tr><th>Service</th><th>Transactions</th><th>Revenue</th></tr></thead><tbody>@foreach (var row in Model.ByService){<tr><td>@row.Name</td><td>@row.TransactionCount</td><td>@row.Amount</td></tr>}@if (!Model.ByService.Any()){<tr><td colspan="3">No service transactions.</td></tr>}</tbody></table></article>
+        <article class="reports-card"><h2>Payments by Cashier</h2><table class="reports-table"><thead><tr><th>Cashier</th><th>Payments</th><th>Received</th></tr></thead><tbody>@foreach (var row in Model.ByCashier){<tr><td>@row.Name</td><td>@row.TransactionCount</td><td>@row.Amount</td></tr>}@if (!Model.ByCashier.Any()){<tr><td colspan="3">No payments recorded.</td></tr>}</tbody></table></article>
+        <article class="reports-card"><h2>Payments by Method</h2><table class="reports-table"><thead><tr><th>Method</th><th>Payments</th><th>Received</th></tr></thead><tbody>@foreach (var row in Model.ByPaymentMethod){<tr><td>@row.Name</td><td>@row.TransactionCount</td><td>@row.Amount</td></tr>}@if (!Model.ByPaymentMethod.Any()){<tr><td colspan="3">No payments recorded.</td></tr>}</tbody></table></article>
+    </section>
+
     <section class="reports-panel">
         <table class="reports-table" data-report-table>
-            <thead><tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Vehicle</th><th>Service Type</th><th>Mechanic</th><th>Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Vehicle</th><th>Service Type</th><th>Mechanic</th><th>Cashier</th><th>Payment Method</th><th>Invoice Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
             <tbody>
                 @foreach (var row in Model.Rows)
                 {
-                    <tr data-report-row><td>@row.Date</td><td><a class="reports-link" href="/Owner/InvoiceDetails/@row.InvoiceId">@row.Invoice</a></td><td><strong>@row.Customer</strong></td><td>@row.Vehicle</td><td>@row.Service</td><td>@row.Mechanic</td><td><strong>@row.Amount</strong></td><td><span class="reports-pill @row.Tone">@row.Status</span></td></tr>
+                    <tr data-report-row><td>@row.Date</td><td>@if (Model.ReadOnlyTransactions){@row.Invoice}else{<a class="reports-link" href="/Owner/InvoiceDetails/@row.InvoiceId">@row.Invoice</a>}</td><td><strong>@row.Customer</strong></td><td>@row.Vehicle</td><td>@row.Service</td><td>@row.Mechanic</td><td>@row.Cashier</td><td>@row.PaymentMethod</td><td><strong>@row.Amount</strong></td><td>@row.Paid</td><td>@row.Balance</td><td><span class="reports-pill @row.Tone">@row.Status</span></td></tr>
                 }
                 @if (!Model.Rows.Any())
                 {
-                    <tr><td colspan="8">No invoices found for this period.</td></tr>
+                    <tr><td colspan="12">No invoices found for this period.</td></tr>
                 }
             </tbody>
         </table>
@@ -56,6 +65,13 @@
 </section>
 
 @section Scripts {
+    <script>
+        const salesPeriod = document.querySelector('select[name="period"]');
+        const salesDateFields = document.querySelectorAll('input[name="startDate"], input[name="endDate"]');
+        const updateSalesDateFields = () => salesDateFields.forEach(field => field.disabled = salesPeriod.value !== 'custom');
+        salesPeriod.addEventListener('change', updateSalesDateFields);
+        updateSalesDateFields();
+    </script>
     <script>
         window.ownerReportCharts = {
             salesRevenueChart: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RevenueChart, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))

@@ -15,22 +15,61 @@ public partial class OwnerController
         Owners = await _dbContext.VehicleOwnerships.AsNoTracking().Where(x => x.VehicleId == v.VehicleId).OrderBy(x => x.VehicleOwnershipId).ToListAsync() });
     private async Task<string> AppointmentStamp(Appointment a) => MasterStamp(new { Appointment = a, Services = await _dbContext.AppointmentServices.AsNoTracking().Where(x => x.AppointmentId == a.AppointmentId).OrderBy(x => x.AppointmentServiceId).ToListAsync() });
 
-    public async Task<IActionResult> VehicleHistory(int? id = null, int? customerId = null)
+    public async Task<IActionResult> VehicleHistory(int? id = null, int? customerId = null, string? openAction = null)
     {
         var vehicles = _dbContext.Vehicles.AsNoTracking().Where(x => !x.IsDeleted);
         if (customerId.HasValue) vehicles = vehicles.Where(v => _dbContext.VehicleOwnerships.Any(o => o.VehicleId == v.VehicleId && o.CustomerId == customerId));
-        var page = new VehicleHistoryPage { Vehicles = await vehicles.OrderBy(x => x.LicensePlate).ToListAsync(),
+        if (id.HasValue) vehicles = vehicles.Where(v => v.VehicleId == id.Value);
+        var page = new VehicleHistoryPage { Vehicles = await vehicles.OrderBy(x => x.LicensePlate).ToListAsync(), CustomerId = customerId,
             Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
-            CanCreate = await IntakePermission("Vehicles", "Create"), CanEdit = await IntakePermission("Vehicles", "Edit") };
+            CanCreate = await IntakePermission("Vehicles", "Create"), CanEdit = await IntakePermission("Vehicles", "Edit"),
+            CanDelete = await IntakePermission("Vehicles", "Delete") };
+        if (customerId.HasValue)
+        {
+            var customer = await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.CustomerId == customerId.Value && !x.IsDeleted);
+            if (customer is null) return NotFound();
+            page.CustomerName = OwnerName(customer);
+        }
         if (id.HasValue)
         {
-            page.Selected = await _dbContext.Vehicles.AsNoTracking().FirstOrDefaultAsync(x => x.VehicleId == id && !x.IsDeleted);
+            page.Selected = page.Vehicles.FirstOrDefault();
             if (page.Selected is null) return NotFound();
             page.Expected = await VehicleStamp(page.Selected);
+            if (page.CanEdit && !page.Selected.IsArchived && openAction is "edit-vehicle" or "transfer-owner" or "record-mileage")
+                page.OpenAction = openAction;
             page.Owners = await _dbContext.VehicleOwnerships.AsNoTracking().Where(x => x.VehicleId == id).OrderByDescending(x => x.OwnershipStartUtc).ToListAsync();
             page.Readings = await _dbContext.VehicleOdometerHistories.AsNoTracking().Where(x => x.VehicleId == id).OrderByDescending(x => x.RecordedUtc).ToListAsync();
         }
         return View("~/Views/Owner/Customers/VehicleHistory.cshtml", page);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ArchiveVehicle(RecordActionFormModel form)
+    {
+        var vehicle = await _dbContext.Vehicles.FindAsync(form.RecordId);
+        if (vehicle is not null && !vehicle.IsDeleted)
+        {
+            vehicle.IsArchived = true; vehicle.ArchivedUtc = DateTime.UtcNow;
+            vehicle.ArchiveReason = string.IsNullOrWhiteSpace(form.Reason) ? "Archived by staff" : form.Reason.Trim();
+            await _dbContext.SaveChangesAsync();
+        }
+        TempData["OwnerMessage"] = "Vehicle archived; history was preserved.";
+        return RedirectToAction(nameof(VehicleHistory));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SoftDeleteVehicle(RecordActionFormModel form)
+    {
+        var vehicle = await _dbContext.Vehicles.FindAsync(form.RecordId);
+        if (vehicle is not null && !vehicle.IsDeleted)
+        {
+            vehicle.IsDeleted = true; vehicle.IsArchived = false;
+            vehicle.DeletedUtc = DateTime.UtcNow; vehicle.ArchivedUtc = null;
+            vehicle.DeleteReason = string.IsNullOrWhiteSpace(form.Reason) ? "Soft deleted by staff" : form.Reason.Trim();
+            await _dbContext.SaveChangesAsync();
+        }
+        TempData["OwnerMessage"] = "Vehicle moved to records disposition; history was preserved.";
+        return RedirectToAction(nameof(VehicleHistory));
     }
 
     private Task<IActionResult> RegisterVehicle(VehicleFormModel f) => SaveWorkflow(async () => {
@@ -47,6 +86,27 @@ public partial class OwnerController
         WorkflowAudit("Vehicle", vehicle.VehicleId, "Register", new { vehicle.VIN, vehicle.LicensePlate, vehicle.OwnerFullName });
         return RedirectToAction(nameof(VehicleHistory), new { id = vehicle.VehicleId });
     }, nameof(VehicleHistory));
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public Task<IActionResult> UpdateVehicle(UpdateVehicleForm f) => SaveWorkflow(async () => {
+        var vehicle = await ActiveIntakeVehicle(f.VehicleId);
+        Require(await VehicleStamp(vehicle) == f.Expected, "Vehicle changed. Refresh before saving.");
+        Require(f.Year is >= 1886 && f.Year <= GarageNow().Year + 1, "Enter a valid model year.");
+        var vin = f.VIN.Trim().ToUpperInvariant();
+        var plate = f.LicensePlate.Trim().ToUpperInvariant();
+        Require(!await _dbContext.Vehicles.AnyAsync(x => x.VehicleId != vehicle.VehicleId && (x.VIN == vin || x.LicensePlate == plate)),
+            "This VIN or plate is already registered to another vehicle.");
+        var before = new { vehicle.VIN, vehicle.LicensePlate, vehicle.Make, vehicle.Model, vehicle.Year, vehicle.Color };
+        vehicle.VIN = vin;
+        vehicle.LicensePlate = plate;
+        vehicle.Make = f.Make.Trim();
+        vehicle.Model = f.Model.Trim();
+        vehicle.Year = f.Year;
+        vehicle.Color = Clean(f.Color);
+        await _dbContext.SaveChangesAsync();
+        WorkflowAudit("Vehicle", vehicle.VehicleId, "Edit", new { Before = before, After = new { vehicle.VIN, vehicle.LicensePlate, vehicle.Make, vehicle.Model, vehicle.Year, vehicle.Color } });
+        return RedirectToAction(nameof(VehicleHistory), new { id = vehicle.VehicleId });
+    }, nameof(VehicleHistory), new { id = f.VehicleId });
 
     private async Task<Customer> ActiveIntakeCustomer(int id)
     {
@@ -110,13 +170,21 @@ public partial class OwnerController
             CanCreate = await IntakePermission("Appointments", "Create"), CanEdit = await IntakePermission("Appointments", "Edit"), CanDelete = await IntakePermission("Appointments", "Delete"),
             CanInspect = await IntakePermission("Inspections", "Create"),
             Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
-            Bays = await _dbContext.Bays.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.BayNumber).ToListAsync(),
+            Bays = await _dbContext.Bays.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.BayNumber).ToListAsync(),
             Employees = await _dbContext.EmployeeProfiles.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
-            Services = await _dbContext.Services.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.ServiceName).ToListAsync() };
+            Services = await _dbContext.Services.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.ServiceName).ToListAsync(),
+            ServiceCategories = await _dbContext.ServiceCategories.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.CategoryName).ToListAsync() };
         var vehicles = await _dbContext.Vehicles.AsNoTracking().ToDictionaryAsync(x => x.VehicleId);
+        var highestReadings = await _dbContext.VehicleOdometerHistories.AsNoTracking()
+            .Where(x => x.VehicleId.HasValue && x.Odometer.HasValue)
+            .GroupBy(x => x.VehicleId!.Value)
+            .Select(group => new { VehicleId = group.Key, Odometer = group.Max(x => x.Odometer!.Value) })
+            .ToDictionaryAsync(x => x.VehicleId, x => x.Odometer);
         var owners = await _dbContext.VehicleOwnerships.AsNoTracking().Where(x => x.OwnershipEndUtc == null && (x.OwnershipStartUtc == null || x.OwnershipStartUtc <= DateTime.UtcNow)).ToListAsync();
         page.Vehicles = owners.Where(x => x.CustomerId.HasValue && vehicles.TryGetValue(x.VehicleId ?? 0, out var v) && !v.IsArchived && !v.IsDeleted)
-            .Select(x => new AppointmentVehicleOption { VehicleId = x.VehicleId!.Value, CustomerId = x.CustomerId!.Value, Label = $"{BuildVehicleName(vehicles[x.VehicleId.Value])} - {vehicles[x.VehicleId.Value].LicensePlate}" }).ToList();
+            .Select(x => new AppointmentVehicleOption { VehicleId = x.VehicleId!.Value, CustomerId = x.CustomerId!.Value,
+                MinimumOdometer = Math.Max((int)(vehicles[x.VehicleId.Value].Odometer ?? 0), highestReadings.GetValueOrDefault(x.VehicleId.Value)),
+                Label = $"{BuildVehicleName(vehicles[x.VehicleId.Value])} - {vehicles[x.VehicleId.Value].LicensePlate}" }).ToList();
         var rows = await _dbContext.Appointments.AsNoTracking().OrderByDescending(x => x.ScheduledStart).ToListAsync();
         ViewData["UpcomingNotificationFocus"] = string.Equals(notification, "upcoming", StringComparison.OrdinalIgnoreCase);
         var rowIds = rows.Select(x => x.AppointmentId).ToArray();
@@ -139,7 +207,6 @@ public partial class OwnerController
             var f = new AppointmentFormModel { AppointmentId = a.AppointmentId, Expected = MasterStamp(new { Appointment = a, Services = services }), CustomerId = a.CustomerId ?? 0, VehicleId = a.VehicleId ?? 0,
                 BayId = a.BayId, ScheduledDate = a.ScheduledStart?.Date ?? page.Today, StartTime = a.ScheduledStart?.TimeOfDay ?? TimeSpan.Zero, EndTime = a.ScheduledEnd?.TimeOfDay ?? TimeSpan.Zero,
                 AssignedEmployeeProfileId = page.Employees.FirstOrDefault(x => !string.IsNullOrEmpty(x.UserId) && x.UserId == a.AssignedMechanicUserId || StaffName(x) == a.AssignedMechanicName)?.EmployeeProfileId,
-                PreferredEmployeeProfileId = page.Employees.FirstOrDefault(x => !string.IsNullOrEmpty(x.UserId) && x.UserId == a.PreferredMechanicUserId || StaffName(x) == a.PreferredMechanicName)?.EmployeeProfileId,
                 ServiceIds = services.Where(x => x.ServiceId.HasValue).Select(x => x.ServiceId!.Value).ToList(), Notes = a.Notes, AppointmentType = a.AppointmentType ?? "Scheduled", Odometer = vehicles.GetValueOrDefault(a.VehicleId ?? 0)?.Odometer };
             page.Rows.Add(new IntakeAppointment(a, f, BuildVehicleName(vehicles.GetValueOrDefault(a.VehicleId ?? 0)), string.Join(", ", services.Select(x => x.ServiceName)),
                 a.AppointmentStatus == "Scheduled" && !a.CheckedInUtc.HasValue && !scopedIds.Contains(a.AppointmentId))
@@ -163,17 +230,14 @@ public partial class OwnerController
         Require(f.IsWalkIn || start >= now.AddMinutes(-5), "Schedule the appointment in the future.");
         var references = await LoadAppointmentReferencesAsync(f); Require(references.Error is null, references.Error ?? "Invalid appointment references.");
         var conflict = await ValidateAppointmentScheduleAsync(f, start, end, references.Employee); Require(conflict is null, conflict ?? "Schedule conflict.");
-        var ids = f.ServiceIds.Distinct().ToList(); Require(ids.Count is > 0 and <= 30, "Select at least one requested service (up to 30).");
+        var ids = f.ServiceIds.Distinct().ToList();
+        Require(f.IsWalkIn ? ids.Count <= 30 : ids.Count is > 0 and <= 30,
+            f.IsWalkIn ? "Select up to 30 requested services." : "Select at least one requested service (up to 30).");
         var services = await _dbContext.Services.Where(x => ids.Contains(x.ServiceId) && x.IsActive).ToListAsync(); Require(services.Count == ids.Count, "Choose active services from the catalog.");
-        EmployeeProfile? preferred = null;
-        if (f.PreferredEmployeeProfileId.HasValue) {
-            preferred = await _dbContext.EmployeeProfiles.FirstOrDefaultAsync(x => x.EmployeeProfileId == f.PreferredEmployeeProfileId && x.IsActive && !x.IsArchived && !x.IsDeleted);
-            Require(preferred is not null, "Choose an active preferred mechanic.");
-        }
         if (!creating) WorkflowAudit("Appointment", a.AppointmentId, "Before edit", a);
         a.CustomerId = f.CustomerId; a.CustomerName = OwnerName(references.Customer!); a.VehicleId = f.VehicleId; a.BayId = f.BayId;
         a.AssignedMechanicUserId = references.Employee?.UserId; a.AssignedMechanicName = references.Employee is null ? null : StaffName(references.Employee);
-        a.PreferredMechanicUserId = preferred?.UserId; a.PreferredMechanicName = preferred is null ? null : StaffName(preferred);
+        a.PreferredMechanicUserId = null; a.PreferredMechanicName = null;
         a.ScheduledStart = start; a.ScheduledEnd = end; a.Notes = Clean(f.Notes);
         if (creating) {
             a.AppointmentType = f.IsWalkIn ? "Walk-in" : "Scheduled"; a.AppointmentStatus = "Scheduled"; a.CreatedUtc = DateTime.UtcNow;
@@ -182,17 +246,17 @@ public partial class OwnerController
         }
         else _dbContext.AppointmentServices.RemoveRange(await _dbContext.AppointmentServices.Where(x => x.AppointmentId == a.AppointmentId).ToListAsync());
         foreach (var s in services) _dbContext.AppointmentServices.Add(new AppointmentService { AppointmentId = a.AppointmentId, ServiceId = s.ServiceId, ServiceName = s.ServiceName, CreatedUtc = DateTime.UtcNow });
-        if (creating && f.IsWalkIn) await RecordIntakeArrival(a, references.Vehicle!, f.IdentityVerified, f.Odometer);
+        if (creating && f.IsWalkIn) await RecordIntakeArrival(a, references.Vehicle!, f.Odometer);
         else IntakeHistory(a, creating ? "Appointment created" : "Appointment updated");
         return RedirectToAction(nameof(Appointments), new { view = f.ViewMode });
     }, nameof(Appointments), new { view = f.ViewMode });
 
-    private async Task RecordIntakeArrival(Appointment a, Vehicle v, bool verified, int? odometer)
+    private async Task RecordIntakeArrival(Appointment a, Vehicle v, int? odometer)
     {
-        Require(verified, "Confirm the customer's identity and vehicle before check-in."); Require(odometer.HasValue, "Record the odometer reading at check-in.");
+        Require(odometer.HasValue, "Record the odometer reading at check-in.");
         await AppendOdometer(v, odometer.Value, a.AppointmentId);
         a.CheckedInUtc = DateTime.UtcNow; a.CheckedInByUserId = HttpContext.Session.GetString("UserId"); a.CheckedInByName = HttpContext.Session.GetString("UserName");
-        a.AppointmentStatus = "Arrived"; IntakeHistory(a, "Customer and vehicle verified; checked in");
+        a.AppointmentStatus = "Arrived"; IntakeHistory(a, "Customer checked in");
     }
     [HttpPost, ValidateAntiForgeryToken]
     public Task<IActionResult> CheckInAppointment(CheckInAppointmentForm f) => SaveWorkflow(async () => {
@@ -209,7 +273,7 @@ public partial class OwnerController
         Require(a.ScheduledStart.HasValue && a.ScheduledEnd.HasValue, "Reschedule this appointment with a valid start and end time.");
         var scheduleError = await ValidateAppointmentScheduleAsync(new AppointmentFormModel { AppointmentId = a.AppointmentId, VehicleId = v.VehicleId, BayId = a.BayId }, a.ScheduledStart.Value, a.ScheduledEnd.Value, assigned);
         Require(scheduleError is null, scheduleError ?? "Schedule conflict.");
-        await RecordIntakeArrival(a, v, f.IdentityVerified, f.Odometer);
+        await RecordIntakeArrival(a, v, f.Odometer);
         return RedirectToAction(nameof(Appointments), new { view = "list" });
     }, nameof(Appointments));
 

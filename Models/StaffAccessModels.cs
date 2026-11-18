@@ -11,7 +11,7 @@ public sealed class UserPermissionOverride
 }
 public sealed class StaffAccountForm
 {
-    [Range(1,int.MaxValue)] public int? EmployeeProfileId { get; set; }
+    [Range(1,int.MaxValue)] public int EmployeeProfileId { get; set; }
     [Required,EmailAddress,StringLength(256)] public string Email { get; set; } = "";
     [Required,StringLength(120)] public string UserName { get; set; } = "";
     [Required,StringLength(128,MinimumLength=12)] public string Password { get; set; } = "";
@@ -23,17 +23,13 @@ public sealed class UserAccessForm
 {
     [Range(1,int.MaxValue)] public int UserId { get; set; }
     [Required] [StringLength(100)] public string Expected { get; set; } = "";
-    public bool UpdateDetails { get; set; }
-    [EmailAddress, StringLength(256)] public string? Email { get; set; }
-    [StringLength(120)] public string? UserName { get; set; }
     [Required,StringLength(50)] public string RoleKey { get; set; } = "";
-    public bool IsActive { get; set; }
     public List<PermissionChoice> Permissions { get; set; } = new();
 }
-public sealed class StaffPasswordResetForm
+public sealed class AccountStatusForm
 {
-    [Range(1, int.MaxValue)] public int UserId { get; set; }
-    [Required, StringLength(100)] public string Expected { get; set; } = "";
+    [Range(1,int.MaxValue)] public int UserId { get; set; }
+    [Required,StringLength(100)] public string Expected { get; set; } = "";
 }
 public sealed class PermissionChoice
 {
@@ -48,13 +44,14 @@ public sealed class StaffAccountsPage
     public List<Permission> Permissions { get; set; } = new();
     public HashSet<string> Defaults { get; set; } = new();
     public Dictionary<string,string[]> RoleDefaults { get; set; } = new();
+    public Dictionary<int,string> ExpectedByAccount { get; set; } = new();
     public AppUser? Selected { get; set; }
     public string Expected { get; set; } = "";
     public bool CanCreate { get; set; }
+    public bool CanCreateGarageOwner { get; set; }
     public bool CanEdit { get; set; }
-    public bool CanResetPassword { get; set; }
-    public string? ResetPasswordPreview { get; set; }
-    public string? ResetPasswordValue { get; set; }
+    public bool CanActivateAccounts { get; set; }
+    public bool CanDeactivateAccounts { get; set; }
 }
 public sealed class AvailabilityExceptionForm
 {
@@ -74,3 +71,40 @@ public sealed class StaffAvailabilityPage
     public bool CanEdit { get; set; }
     public string TimeZone { get; set; } = "";
 }
+
+public sealed class WeeklyAvailabilityDayForm
+{
+    public int DayOfWeek { get; set; }
+    public string DayName { get; set; } = "";
+    public bool IsAvailable { get; set; }
+    public string StartTime { get; set; } = "08:00";
+    public string EndTime { get; set; } = "17:00";
+    public string BreakStart { get; set; } = "";
+    public string BreakEnd { get; set; } = "";
+}
+
+public sealed class EmployeeAvailabilityPage
+{
+    public int EmployeeProfileId { get; set; }
+    public string EmployeeName { get; set; } = "";
+    public List<WeeklyAvailabilityDayForm> Days { get; set; } = new();
+    public bool CanEdit { get; set; }
+}
+
+public sealed class AuditLogReportPage
+{
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? NameOrEmail { get; set; }
+    public string? Action { get; set; }
+    public string? Entity { get; set; }
+    public int? EmployeeProfileId { get; set; }
+    public int Page { get; set; } = 1;
+    public int TotalPages { get; set; } = 1;
+    public IReadOnlyList<AuditLogReportRow> Rows { get; set; } = Array.Empty<AuditLogReportRow>();
+    public IReadOnlyList<string> Actions { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Entities { get; set; } = Array.Empty<string>();
+    public int TotalCount { get; set; }
+}
+
+public sealed record AuditLogReportRow(string Name, string Email, string Action, DateTime Timestamp, string Entity, string EntityId);

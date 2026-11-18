@@ -34,8 +34,8 @@ public partial class OwnerController
         Require(form.ScheduledStart.HasValue && form.ScheduledEnd > form.ScheduledStart, "Completion must be after the start time.");
         var employee = await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
         Require(employee is { IsActive: true, IsArchived: false, IsDeleted: false }, "Select an active mechanic.");
-        var bay = await _dbContext.Bays.FindAsync(form.BayId);
-        Require(bay is { IsActive: true }, "Select an active bay.");
+        var bay = await _dbContext.Bays.FirstOrDefaultAsync(item => item.BayId == form.BayId && item.IsActive && !item.IsArchived && !item.IsDeleted);
+        Require(bay is not null, "Select an active bay.");
         var linkedAppointment = form.WorkOrderId == 0
             ? (await _dbContext.Estimates.FindAsync(form.EstimateId))?.AppointmentId
             : (await _dbContext.WorkOrders.FindAsync(form.WorkOrderId))?.AppointmentId;
@@ -68,7 +68,8 @@ public partial class OwnerController
             Require(appointment is not null && appointment.AppointmentStatus is not ("Cancelled" or "No Show" or "Completed"), "The originating appointment is unavailable.");
             Require(!await _dbContext.WorkOrders.AnyAsync(x => x.AppointmentId == estimate.AppointmentId && x.WorkOrderStatus != "Cancelled"), "This appointment already has a work order.");
             order = new WorkOrder { AppointmentId = estimate.AppointmentId, EstimateId = estimate.EstimateId,
-                ApprovedEstimateRevisionId = revision!.EstimateRevisionId, WorkOrderStatus = "Pending", CreatedUtc = DateTime.UtcNow };
+                ApprovedEstimateRevisionId = revision!.EstimateRevisionId, WorkOrderNumber = $"WO-{Guid.NewGuid():N}"[..15].ToUpperInvariant(),
+                WorkOrderStatus = "Pending", CreatedUtc = DateTime.UtcNow };
             _dbContext.WorkOrders.Add(order);
         }
         else

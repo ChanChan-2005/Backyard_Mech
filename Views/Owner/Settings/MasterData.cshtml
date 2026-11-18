@@ -13,7 +13,7 @@
 <section class="master-data">
     <header class="master-toolbar">
         <h2>@Model.Title</h2>
-        @if(Model.CanCreate) { <button class="master-primary" type="button" data-master-open="master-new">+ Add @(Model.Mode == "categories" ? "Category" : Model.Mode == "tax" ? "Tax Rate" : Model.Mode == "services" ? "Service" : "Supplier")</button> }
+        @if(Model.CanCreate && Model.Mode != "tax") { <button class="master-primary" type="button" data-master-open="master-new">+ Add @(Model.Mode == "categories" ? "Category" : Model.Mode == "services" ? "Service" : "Supplier")</button> }
     </header>
     <div class="master-toolbar master-filters">
         <div class="app-search-control">
@@ -34,10 +34,10 @@
                 @foreach(var cell in row.Cells){<td>@cell</td>}
                 <td><span class="master-status @(row.Active ? "is-active" : "")">@row.Status</span></td>
                 <td><div class="master-actions">
-                    <button type="button" data-master-open="master-view-@row.Form.Id">View</button>
+                    @if(Model.Mode != "tax") { <button type="button" data-master-open="master-view-@row.Form.Id">View</button> }
                     @if(Model.CanEdit) {
                         <button type="button" data-master-open="master-edit-@row.Form.Id">Edit</button>
-                        @if(Model.Mode!="tax" || row.Active){<button type="button" data-master-open="master-state-@row.Form.Id">@(row.Active?"Deactivate":"Reactivate")</button>}
+                        @if(Model.Mode!="tax"){<button type="button" data-master-open="master-state-@row.Form.Id">@(row.Active?"Deactivate":"Reactivate")</button>}
                     }
                     @if(Model.CanDelete) { <button type="button" class="master-delete-button" data-master-open="master-delete-@row.Form.Id">Delete</button> }
                 </div></td>
@@ -48,14 +48,14 @@
     <p data-master-empty hidden>No matching records.</p>
     <footer class="master-toolbar"><span data-master-count></span><div class="master-actions"><button type="button" data-master-prev>Previous</button><span data-master-page></span><button type="button" data-master-next>Next</button></div></footer>
 </section>
-@if(Model.CanCreate) {
+@if(Model.CanCreate && Model.Mode != "tax") {
     <dialog class="master-dialog app-modal" id="master-new" aria-label="Add record" role="dialog" aria-modal="true">@await Html.PartialAsync("_MasterDataEditor", new MasterEditor(Model, new MasterDataForm { Kind=Model.Kind, Start=DateTime.UtcNow.Date }))</dialog>
 }
 @foreach(var row in Model.Rows) {
-    <dialog class="master-dialog app-modal" id="master-view-@row.Form.Id" aria-label="View record" role="dialog" aria-modal="true">@await Html.PartialAsync("_MasterDataEditor",new MasterEditor(Model,row.Form,true))</dialog>
+    @if(Model.Mode != "tax") { <dialog class="master-dialog app-modal" id="master-view-@row.Form.Id" aria-label="View record" role="dialog" aria-modal="true">@await Html.PartialAsync("_MasterDataEditor",new MasterEditor(Model,row.Form,true))</dialog> }
     @if(Model.CanEdit) {
         <dialog class="master-dialog app-modal" id="master-edit-@row.Form.Id" aria-label="Edit record" role="dialog" aria-modal="true">@await Html.PartialAsync("_MasterDataEditor",new MasterEditor(Model,row.Form))</dialog>
-        @if(Model.Mode!="tax" || row.Active){
+        @if(Model.Mode!="tax"){
             <dialog class="master-dialog master-confirm app-modal app-modal--compact" id="master-state-@row.Form.Id" aria-label="Change status" role="dialog" aria-modal="true">
                 <form method="post" action="/Owner/@Model.StateAction">
                     @Html.AntiForgeryToken()

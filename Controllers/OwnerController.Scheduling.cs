@@ -17,7 +17,7 @@ public partial class OwnerController
             x.ScheduledStart < end && x.ScheduledEnd > start).ToListAsync();
         if (bayId.HasValue)
         {
-            if (!await _dbContext.Bays.AnyAsync(x => x.BayId == bayId && x.IsActive)) return "Select an active bay.";
+            if (!await _dbContext.Bays.AnyAsync(x => x.BayId == bayId && x.IsActive && !x.IsArchived && !x.IsDeleted)) return "Select an active bay.";
             if (appointments.Any(x => x.BayId == bayId) || orders.Any(x => x.BayId == bayId)) return "The bay is already booked during this time.";
             if (await _dbContext.BayMaintenanceSchedules.AnyAsync(x => x.BayId == bayId && !x.IsCompleted && x.StartDate < end && x.EstimatedReturnDate >= start))
                 return "The bay is under maintenance during this time.";
@@ -43,7 +43,18 @@ public partial class OwnerController
                     var a = day.Add(shift.StartTime!.Value.ToTimeSpan());
                     var b = day.Add(shift.EndTime!.Value.ToTimeSpan());
                     if (b <= a) b = b.AddDays(1);
-                    intervals.Add((a, b));
+                    if (shift.BreakStart.HasValue && shift.BreakEnd.HasValue)
+                    {
+                        var breakStart = day.Add(shift.BreakStart.Value.ToTimeSpan());
+                        var breakEnd = day.Add(shift.BreakEnd.Value.ToTimeSpan());
+                        if (breakEnd <= breakStart) breakEnd = breakEnd.AddDays(1);
+                        if (breakStart > a) intervals.Add((a, breakStart));
+                        if (breakEnd < b) intervals.Add((breakEnd, b));
+                    }
+                    else
+                    {
+                        intervals.Add((a, b));
+                    }
                 }
             foreach (var exception in exceptions.Where(x => x.IsAvailable && x.StartUtc.HasValue && x.EndUtc.HasValue))
                 intervals.Add((TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(exception.StartUtc!.Value, DateTimeKind.Utc), zone),

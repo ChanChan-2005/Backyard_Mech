@@ -9,6 +9,7 @@
 
     var customers = Model ?? Array.Empty<CustomerListItem>();
     var canViewVehicles = await IntakePermissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Vehicles", "View");
+    var canDeleteCustomers = await IntakePermissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Customers", "Delete");
     var activeCustomers = customers.Count(customer => string.Equals(customer.Status, "Active", StringComparison.OrdinalIgnoreCase));
     var newThisMonth = customers.Count(customer => string.Equals(customer.LastVisit, "No visits", StringComparison.OrdinalIgnoreCase));
     var totalSpend = customers.Sum(customer => decimal.TryParse(customer.TotalSpent.Replace("$", "").Replace(",", ""), out var value) ? value : 0);
@@ -23,6 +24,10 @@
 }
 
 <section class="customer-page">
+    <nav class="customer-module-tabs" aria-label="Customer and vehicle sections">
+        <a class="is-active" aria-current="page" asp-action="CustomerVehicle">Customers</a>
+        @if (canViewVehicles) { <a asp-action="VehicleHistory">Vehicle Records</a> }
+    </nav>
     <div class="customer-metric-grid">
         @foreach (var metric in metrics)
         {
@@ -52,9 +57,9 @@
                 <thead>
                     <tr>
                         <th>Customer Name</th>
+                        <th>Vehicles</th>
                         <th>Phone</th>
                         <th>Email</th>
-                        <th>Vehicles</th>
                         <th>Last Visit</th>
                         <th>Total Spent</th>
                         <th>Status</th>
@@ -74,15 +79,15 @@
                                     <strong>@customer.Name</strong>
                                 </div>
                             </td>
+                            <td>@if(canViewVehicles){<a class="customer-vehicles-button" asp-action="VehicleHistory" asp-route-customerId="@customer.CustomerId">@customer.Vehicles</a>}else{<span class="vehicle-pill">@customer.Vehicles</span>}</td>
                             <td>@customer.Phone</td>
                             <td>@customer.Email</td>
-                            <td>@if(canViewVehicles){<a class="customer-vehicles-button" asp-action="VehicleHistory" asp-route-customerId="@customer.CustomerId">@customer.Vehicles</a>}else{<span class="vehicle-pill">@customer.Vehicles</span>}</td>
                             <td>@customer.LastVisit</td>
                             <td class="spent-cell">@customer.TotalSpent</td>
                             <td><span class="status-pill @(isActive ? "active" : "inactive")">@customer.Status</span></td>
                             <td>
                                 <div class="customer-actions-cell">
-                                    <a href="/Owner/CustomerDetails/@customerSlug">View</a>
+                                    <a asp-action="CustomerDetails" asp-route-id="@customerSlug">View</a>
                                     <button type="button"
                                             data-customer-modal="edit-customer"
                                             data-customer-id="@customer.CustomerId"
@@ -92,6 +97,17 @@
                                             data-email="@customer.Email"
                                             data-address="@customer.StreetAddress"
                                         data-notes="@customer.Notes">Edit</button>
+                                    @if (canDeleteCustomers)
+                                    {
+                                        <form asp-action="ArchiveCustomer" method="post" data-confirm="Archive this customer? Their history will be preserved." data-confirm-title="Archive customer" data-confirm-action="Archive">
+                                            @Html.AntiForgeryToken()<input type="hidden" name="RecordType" value="Customer" /><input type="hidden" name="RecordId" value="@customer.CustomerId" />
+                                            <button type="submit">Archive</button>
+                                        </form>
+                                        <form asp-action="SoftDeleteCustomer" method="post" data-confirm="Move this customer to Records Disposition? Their history will be preserved." data-confirm-title="Delete customer" data-confirm-action="Move to disposition">
+                                            @Html.AntiForgeryToken()<input type="hidden" name="RecordType" value="Customer" /><input type="hidden" name="RecordId" value="@customer.CustomerId" />
+                                            <button type="submit">Delete</button>
+                                        </form>
+                                    }
                             </div>
                         </td>
                     </tr>

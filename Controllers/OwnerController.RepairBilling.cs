@@ -237,7 +237,7 @@ public partial class OwnerController
         await RecalculateAdjustedInvoice(invoice);
         WorkflowAudit("InvoiceAdjustment", adjustment.InvoiceAdjustmentId, "Save adjustment", form);
         return RedirectToAction(nameof(InvoiceDetails), new { id = invoice.InvoiceId });
-    }, nameof(InvoiceDetails), new { id = form.InvoiceId });
+    }, nameof(InvoiceDetails), new { id = form.InvoiceId, adjust = true, adjustmentId = form.InvoiceAdjustmentId > 0 ? form.InvoiceAdjustmentId : (int?)null });
 
     private async Task RecalculateAdjustedInvoice(Invoice invoice)
     {

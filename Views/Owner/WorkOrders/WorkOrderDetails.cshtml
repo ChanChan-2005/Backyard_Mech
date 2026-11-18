@@ -86,6 +86,33 @@
                 </table>
             </section>
 
+            <section class="wo-panel wo-evidence-panel">
+                <header class="wo-panel-header"><h2>Repair Condition Evidence</h2><span>Before &amp; after photos</span></header>
+                @if(Model.CanUploadEvidence && order.WorkOrderStatus is not ("Cancelled" or "Picked Up")) {
+                    <form asp-action="UploadWorkOrderEvidence" method="post" enctype="multipart/form-data" class="wo-evidence-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="WorkOrderId" value="@Model.WorkOrderId" />
+                        <label>Evidence stage<select name="Stage" required><option value="Before">Before repair</option><option value="After">After repair</option></select></label>
+                        <label>Description<textarea name="Description" required minlength="10" maxlength="2000" rows="3" placeholder="Describe the visible condition, damage, or completed repair; note the area shown."></textarea></label>
+                        <label>Photos<input type="file" name="Photos" accept="image/jpeg,image/png,image/webp" multiple required /></label>
+                        <small>Assigned mechanics/helpers and authorized Work Orders editors can upload. JPG, PNG, or WebP; up to 5 photos, 5 MB each. Uploads are attributed to your account.</small>
+                        <button type="submit" class="wo-button">Upload evidence</button>
+                    </form>
+                }
+                @if(Model.Evidence.Count > 0) {
+                    <div class="wo-evidence-grid">
+                        @foreach(var item in Model.Evidence) {
+                            <article class="wo-evidence-card">
+                                <a href="/Owner/WorkOrderEvidencePhoto/@item.WorkOrderEvidenceId" target="_blank" rel="noopener">
+                                    <img src="/Owner/WorkOrderEvidencePhoto/@item.WorkOrderEvidenceId" alt="@item.Stage repair photo: @item.Description" loading="lazy" />
+                                </a>
+                                <div><strong>@item.Stage repair</strong><p>@item.Description</p><small>@item.UploadedByName · @item.UploadedUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</small></div>
+                            </article>
+                        }
+                    </div>
+                } else { <p>No repair condition photos have been uploaded.</p> }
+            </section>
+
             <section class="wo-panel">
                 <header class="wo-panel-header">
                     <h2>Parts Consumption</h2>
@@ -129,8 +156,8 @@
                 <h2>Shop Allocation</h2>
                 <dl class="wo-detail-list">
                     <div><dt>Primary Bay</dt><dd>@Model.Bay</dd></div>
-                    <div><dt>Primary Mechanic</dt><dd>@Model.Mechanic</dd></div>
-                    <div><dt>Secondary Helper</dt><dd>@(Model.Mechanic.Contains(",") ? Model.Mechanic.Split(',').Last().Trim() : "None assigned")</dd></div>
+                    <div><dt>Lead Mechanic</dt><dd>@Model.LeadMechanic</dd></div>
+                    <div><dt>Helper</dt><dd>@Model.HelperMechanic</dd></div>
                     <div><dt>Odometer Reading</dt><dd>@Model.Odometer</dd></div>
                 </dl>
             </section>
@@ -166,7 +193,8 @@
 <input type="hidden" name="WorkOrderId" value="@order.WorkOrderId" /><input type="hidden" name="EstimateId" value="@order.EstimateId" />
 <div class="repair-fields">
 <label>Bay<select name="BayId" required>@foreach(var bay in (IReadOnlyList<ProductListingOption>)ViewData["BayOptions"]!) { <option value="@bay.Id" selected="@(bay.Id == order.BayId)">@bay.Label</option> }</select></label>
-<label>Lead mechanic<select name="EmployeeProfileId" required><option value="">Select mechanic</option>@foreach(var employee in (IReadOnlyList<ProductListingOption>)ViewData["EmployeeOptions"]!) { <option value="@employee.Id" selected="@(employee.Label == Model.Mechanic)">@employee.Label</option> }</select></label>
+@{ var unavailableMechanics = ViewData["UnavailableEmployeeIds"] as HashSet<int> ?? new(); var selectedLeadProfileId = ViewData["SelectedLeadEmployeeProfileId"] as int?; }
+<label>Lead mechanic<select name="EmployeeProfileId" required><option value="">Select available mechanic</option>@foreach(var employee in (IReadOnlyList<ProductListingOption>)ViewData["EmployeeOptions"]!) { var unavailable = unavailableMechanics.Contains(employee.Id); <option value="@employee.Id" selected="@(employee.Id == selectedLeadProfileId)" disabled="@unavailable">@employee.Label@(unavailable ? " (Unavailable for this schedule)" : "")</option> }</select></label>
 <label>Start<input name="ScheduledStart" type="datetime-local" required value="@order.ScheduledStart?.ToString("yyyy-MM-ddTHH:mm")" /></label>
 <label>Completion<input name="ScheduledEnd" type="datetime-local" required value="@order.ScheduledEnd?.ToString("yyyy-MM-ddTHH:mm")" /></label>
 <label class="repair-wide">Notes<textarea name="Notes" maxlength="2000"></textarea></label></div>

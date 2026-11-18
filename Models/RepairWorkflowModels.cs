@@ -69,6 +69,14 @@ public sealed class InitialInspectionForm
     public List<IFormFile> Photos { get; set; } = new();
 }
 
+public sealed class WorkOrderEvidenceForm
+{
+    [Range(1, int.MaxValue)] public int WorkOrderId { get; set; }
+    [Required, RegularExpression("Before|After")] public string Stage { get; set; } = "Before";
+    [Required, StringLength(2000, MinimumLength = 10)] public string Description { get; set; } = string.Empty;
+    public List<IFormFile> Photos { get; set; } = new();
+}
+
 public sealed class CustomerApprovalForm
 {
     public Guid Token { get; set; }
@@ -220,6 +228,7 @@ public sealed class InvoiceWorkflowViewModel
     public List<InvoiceAdjustment> Adjustments { get; set; } = new();
     public decimal Balance => (Invoice.Total ?? 0) - Payments.Sum(x => x.Amount ?? 0);
     public string? OpenModal { get; set; }
+    public AdjustmentSaveForm? AdjustmentForm { get; set; }
 }
 
 public sealed record WorkflowReasonDialog(string DialogId, string Title, string Action, int Id);

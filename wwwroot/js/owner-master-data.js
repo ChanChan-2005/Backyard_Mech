@@ -43,6 +43,10 @@
             const form = province.form;
             const city = form.querySelector('[data-supplier-city]');
             const status = form.querySelector('[data-supplier-location-status]');
+            const postal = form.querySelector('[data-supplier-postal]');
+            const postalList = form.querySelector('[data-supplier-postal-suggestions]');
+            const postalStatus = form.querySelector('[data-supplier-postal-status]');
+            let postalManuallyEdited = false;
             const savedProvince = province.dataset.current || '';
             const savedCity = city.dataset.current || '';
             const fill = (select, names, saved, placeholder) => {
@@ -59,8 +63,41 @@
                 city.disabled = !selected && !(initial && savedCity);
                 status.textContent = selected ? 'Select the supplier municipality in ' + selected.name + '.' : 'Choose a province to see its municipalities.';
             };
+            const loadPostalSuggestions = async () => {
+                if (!city.value || !province.value || !postalList) return;
+                postalStatus.textContent = 'Loading demo postal-code suggestions…';
+                const query = new URLSearchParams({ city: city.value, province: province.value });
+                try {
+                    const response = await fetch('/Owner/SupplierPostalCodeSuggestions?' + query);
+                    if (!response.ok) throw new Error('Postal-code list unavailable');
+                    const codes = await response.json();
+                    postalList.replaceChildren(...codes.map(code => new Option(code, code)));
+                    if (codes.length === 1 && !postal.value) {
+                        postal.value = codes[0];
+                        postal.dataset.autoFilled = 'true';
+                    }
+                    postalStatus.textContent = codes.length
+                        ? `${codes.length} demo suggestion${codes.length === 1 ? '' : 's'} for ${city.value}; verify and edit as needed.`
+                        : 'No demo match for this city. Enter the postal code manually.';
+                } catch {
+                    postalStatus.textContent = 'Demo list unavailable. You can still enter the postal code manually.';
+                }
+            };
             updateCities(true);
-            province.addEventListener('change', () => updateCities(false));
+            province.addEventListener('change', () => {
+                if (!postalManuallyEdited) postal.value = '';
+                postal.dataset.autoFilled = 'false';
+                updateCities(false);
+            });
+            city.addEventListener('change', () => {
+                if (!postalManuallyEdited) postal.value = '';
+                postal.dataset.autoFilled = 'false';
+                loadPostalSuggestions();
+            });
+            postal.addEventListener('input', () => {
+                postalManuallyEdited = true;
+                postal.dataset.autoFilled = 'false';
+            });
         });
     } catch {
         selectors.forEach(province => {

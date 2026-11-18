@@ -183,30 +183,18 @@ public partial class OwnerController
     private async Task<IActionResult> TaxMasterPage()
     {
         var now=DateTime.UtcNow;var rows=await _dbContext.TaxRates.AsNoTracking().OrderByDescending(x=>x.EffectiveFrom).ToListAsync();
-        return await MasterPage(new MasterDataPage {Mode="tax",Title="Tax Rates",CreateAction=nameof(CreateTax),EditAction=nameof(UpdateTax),StateAction=nameof(SetTaxState),
-            Headers=new[]{"Tax Name","Rate","Effective From","Effective To"},Rows=rows.Select(x=>new MasterRow(new MasterDataForm {Id=x.TaxRateId,Expected=MasterStamp(x),Name=x.Description??"",Percent=(x.Rate??0)*100,Start=x.EffectiveFrom,End=x.EffectiveTo},
+        return await MasterPage(new MasterDataPage {Mode="tax",Title="Tax Rates",EditAction=nameof(UpdateTax),
+            Headers=new[]{"Tax Name","Rate","Effectivity Date"},Rows=rows.Select(x=>new MasterRow(new MasterDataForm {Id=x.TaxRateId,Expected=MasterStamp(x),Name=x.Description??"",Percent=(x.Rate??0)*100,Start=x.EffectiveFrom,End=x.EffectiveTo},
                 !x.EffectiveTo.HasValue||x.EffectiveTo>now,x.EffectiveTo<=now?"Inactive":x.EffectiveFrom>now?"Scheduled":"Active",
-                new[]{x.Description??"",((x.Rate??0)*100).ToString("0.##")+"%",x.EffectiveFrom?.ToString("MMM dd, yyyy")??"Not set",x.EffectiveTo?.ToString("MMM dd, yyyy HH:mm")??"Ongoing"})).ToList()});
+                new[]{x.Description??"",((x.Rate??0)*100).ToString("0.##")+"%",x.EffectiveFrom?.ToString("MMM dd, yyyy")??"Not set"})).ToList()});
     }
-    [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> CreateTax(MasterDataForm f) {f.Id=0;return SaveTax(f);}
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> UpdateTax(MasterDataForm f) {if(f.Id<=0)ModelState.AddModelError("Id","Select a tax rate.");return SaveTax(f);}
     private Task<IActionResult> SaveTax(MasterDataForm f) => SaveWorkflow(async () => {
-        Require(f.Start.HasValue,"Enter the effective start date."); Require(f.Percent==Math.Round(f.Percent,2),"Use at most two decimal places for the percentage.");
-        Require(!f.End.HasValue || f.End.Value.Date<DateTime.MaxValue.Date,"Choose an end date before December 31, 9999.");
-        var start=f.Start!.Value.Date;var end=f.End?.Date.AddDays(1).AddTicks(-1);
-        Require(!end.HasValue||end>=start,"End date cannot be before start date.");
-        var row=f.Id==0?new TaxRate():await _dbContext.TaxRates.FindAsync(f.Id);Require(row is not null,"Tax rate not found.");
-        if(f.Id!=0) {CheckMaster(row!,f.Expected);Require(!await _dbContext.Invoices.AnyAsync(x=>x.TaxRateId==f.Id),"This tax rate is used by an invoice. Deactivate it and create a new effective-dated rate instead.");WorkflowAudit("TaxRate",f.Id,"Before edit",row);}
-        var others=await _dbContext.TaxRates.Where(x=>x.TaxRateId!=f.Id && x.Description==f.Name.Trim()).ToListAsync();
-        Require(!others.Any(x=>(x.EffectiveFrom??DateTime.MinValue)<=(end??DateTime.MaxValue)&&(x.EffectiveTo??DateTime.MaxValue)>=start),"A rate with this name already covers part of that date range.");
-        row!.Description=f.Name.Trim();row.Rate=f.Percent/100m;row.EffectiveFrom=start;row.EffectiveTo=end;
-        if(f.Id==0)_dbContext.TaxRates.Add(row);await _dbContext.SaveChangesAsync();WorkflowAudit("TaxRate",row.TaxRateId,f.Id==0?"Create":"Edit",row);return RedirectToAction(nameof(SettingsTax));
-    },nameof(SettingsTax));
-    [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> SetTaxState(MasterStateForm f) => SaveWorkflow(async () => {
-        Require(!f.Active,"Create a new effective-dated rate instead of reactivating an expired tax record.");
+        Require(f.Id>0,"The tax rate must be edited from the existing HST record.");
+        Require(f.Start.HasValue,"Enter the effectivity date."); Require(f.Percent==Math.Round(f.Percent,2),"Use at most two decimal places for the percentage.");
         var row=await _dbContext.TaxRates.FindAsync(f.Id);Require(row is not null,"Tax rate not found.");CheckMaster(row!,f.Expected);
-        WorkflowAudit("TaxRate",f.Id,"Deactivate",new{Before=row,f.Reason});
-        var now=DateTime.UtcNow; if(row!.EffectiveFrom>now) row.EffectiveFrom=now;
-        row.EffectiveTo=now;return RedirectToAction(nameof(SettingsTax));
+        var before=new {row!.Description,row.Rate,row.EffectiveFrom,row.EffectiveTo};
+        row.Description="Harmonized Sales Tax";row.Rate=f.Percent/100m;row.EffectiveFrom=f.Start!.Value.Date;
+        await _dbContext.SaveChangesAsync();WorkflowAudit("TaxRate",row.TaxRateId,"Edit",new {Before=before,After=row});return RedirectToAction(nameof(SettingsTax));
     },nameof(SettingsTax));
 }

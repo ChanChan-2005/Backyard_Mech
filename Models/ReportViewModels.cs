@@ -31,13 +31,26 @@ namespace Backyard_Mech.Models
     {
         public string PageDateLabel { get; set; } = string.Empty;
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
+        public IReadOnlySet<string> AvailableReports { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     public class SalesRevenueReportViewModel : ReportViewModelBase
     {
+        public string PeriodType { get; set; } = "month";
+        public bool ReadOnlyTransactions { get; set; }
         public IReadOnlyList<ReportMetricCard> Metrics { get; set; } = Array.Empty<ReportMetricCard>();
         public IReadOnlyList<SalesRevenueReportRow> Rows { get; set; } = Array.Empty<SalesRevenueReportRow>();
         public ReportChartData RevenueChart { get; set; } = new();
+        public IReadOnlyList<SalesRevenueBreakdownRow> ByService { get; set; } = Array.Empty<SalesRevenueBreakdownRow>();
+        public IReadOnlyList<SalesRevenueBreakdownRow> ByCashier { get; set; } = Array.Empty<SalesRevenueBreakdownRow>();
+        public IReadOnlyList<SalesRevenueBreakdownRow> ByPaymentMethod { get; set; } = Array.Empty<SalesRevenueBreakdownRow>();
+    }
+
+    public class SalesRevenueBreakdownRow
+    {
+        public string Name { get; set; } = string.Empty;
+        public int TransactionCount { get; set; }
+        public string Amount { get; set; } = string.Empty;
     }
 
     public class SalesRevenueReportRow
@@ -49,6 +62,10 @@ namespace Backyard_Mech.Models
         public string Vehicle { get; set; } = string.Empty;
         public string Service { get; set; } = string.Empty;
         public string Mechanic { get; set; } = string.Empty;
+        public string Cashier { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string Paid { get; set; } = string.Empty;
+        public string Balance { get; set; } = string.Empty;
         public string Amount { get; set; } = string.Empty;
         public decimal AmountValue { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -86,6 +103,7 @@ namespace Backyard_Mech.Models
         public string BayIdentifier { get; set; } = string.Empty;
         public string HoursAvailable { get; set; } = string.Empty;
         public string HoursOccupied { get; set; } = string.Empty;
+        public decimal OccupiedHoursValue { get; set; }
         public string UtilizationRate { get; set; } = string.Empty;
         public int JobsCompleted { get; set; }
         public string AverageJobDuration { get; set; } = string.Empty;
@@ -108,6 +126,7 @@ namespace Backyard_Mech.Models
         public string QuantityInStock { get; set; } = string.Empty;
         public string UnitCost { get; set; } = string.Empty;
         public string TotalValue { get; set; } = string.Empty;
+        public decimal TotalValueAmount { get; set; }
         public string ReorderLevel { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string StatusTone { get; set; } = "profit";
@@ -146,7 +165,7 @@ namespace Backyard_Mech.Models
         public string ServiceType { get; set; } = string.Empty;
         public string JobsCount { get; set; } = string.Empty;
         public string Revenue { get; set; } = string.Empty;
-        public decimal RevenueValue { get; set; }
+        public decimal RevenueAmount { get; set; }
         public string LabourCost { get; set; } = string.Empty;
         public string PartsCost { get; set; } = string.Empty;
         public string TotalCost { get; set; } = string.Empty;

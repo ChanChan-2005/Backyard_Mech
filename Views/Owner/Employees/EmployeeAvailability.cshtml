@@ -1,0 +1,63 @@
+@model EmployeeAvailabilityPage
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Weekly Availability";
+    ViewData["PageTitle"] = "Weekly Availability";
+    ViewData["PageSubtitle"] = $"USER MANAGEMENT > {Model.EmployeeName.ToUpperInvariant()} > AVAILABILITY";
+    ViewData["ActiveNav"] = "User Management";
+    ViewData["ShellClass"] = "users-shell";
+}
+
+@section TopbarActions {
+    <a class="users-button" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Back to Employee</a>
+    @if (Model.CanEdit) { <button class="users-button-blue" type="submit" form="weekly-availability-form">Save Availability</button> }
+}
+
+<section class="users-page">
+    @if (TempData["OwnerMessage"] is string message) { <div class="users-alert">@message</div> }
+    <section class="users-panel">
+        <header class="users-panel-header">
+            <h2>@Model.EmployeeName</h2>
+            <p>Set working days, hours, and breaks for each weekday. Uncheck a day to mark it as a day off. Break periods are excluded from availability. Use Availability Exceptions for one-time leave or extra hours.</p>
+        </header>
+        <form id="weekly-availability-form" asp-action="SaveEmployeeAvailability" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="EmployeeProfileId" value="@Model.EmployeeProfileId" />
+            <div class="table-responsive">
+                <table class="users-table">
+                    <thead><tr><th>Day</th><th>Work status</th><th>Start time</th><th>End time</th><th>Break starts</th><th>Break ends</th></tr></thead>
+                    <tbody>
+                    @for (var index = 0; index < Model.Days.Count; index++)
+                    {
+                        var day = Model.Days[index];
+                        <tr>
+                            <td>
+                                <strong>@day.DayName</strong>
+                                <input type="hidden" name="Days[@index].DayOfWeek" value="@day.DayOfWeek" />
+                                <input type="hidden" name="Days[@index].DayName" value="@day.DayName" />
+                            </td>
+                            <td><label><input type="checkbox" name="Days[@index].IsAvailable" value="true" checked="@day.IsAvailable" disabled="@(!Model.CanEdit)" data-workday-toggle /> <span data-workday-label>@(day.IsAvailable ? "Working day" : "Day off")</span></label><input type="hidden" name="Days[@index].IsAvailable" value="false" /></td>
+                            <td><input class="users-input" type="time" name="Days[@index].StartTime" value="@day.StartTime" disabled="@(!Model.CanEdit || !day.IsAvailable)" /></td>
+                            <td><input class="users-input" type="time" name="Days[@index].EndTime" value="@day.EndTime" disabled="@(!Model.CanEdit || !day.IsAvailable)" /></td>
+                            <td><input class="users-input" type="time" name="Days[@index].BreakStart" value="@day.BreakStart" disabled="@(!Model.CanEdit || !day.IsAvailable)" /></td>
+                            <td><input class="users-input" type="time" name="Days[@index].BreakEnd" value="@day.BreakEnd" disabled="@(!Model.CanEdit || !day.IsAvailable)" /></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </section>
+</section>
+
+@section Scripts {
+<script>
+  document.querySelectorAll('#weekly-availability-form input[type="checkbox"]').forEach(toggle => {
+    toggle.addEventListener('change', () => {
+      const row = toggle.closest('tr');
+      row.querySelectorAll('input[type="time"]').forEach(input => input.disabled = !toggle.checked);
+      row.querySelector('[data-workday-label]').textContent = toggle.checked ? 'Working day' : 'Day off';
+    });
+  });
+</script>
+}

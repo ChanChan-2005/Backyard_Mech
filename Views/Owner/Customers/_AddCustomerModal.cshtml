@@ -3,45 +3,84 @@
     <section class="customer-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="add-customer-title">
         <header class="customer-modal-header">
             <div>
-                <h2 id="add-customer-title">Add Customer</h2>
-                <p>Create a new customer profile.</p>
+                <h2 id="add-customer-title" data-intake-title>Customer information</h2>
+                <p data-intake-subtitle>Enter the customer's contact information.</p>
+                <small class="customer-intake-step" data-intake-step-label>Step 1 of 2</small>
             </div>
-            <button class="customer-modal-close" type="button" data-customer-modal-close aria-label="Close">x</button>
+            <button class="customer-modal-close" type="button" data-customer-modal-close aria-label="Close">×</button>
         </header>
 
-        <form class="customer-modal-form" asp-controller="Owner" asp-action="AddCustomer" method="post">
+        <form class="customer-modal-form" asp-controller="Owner" asp-action="AddCustomer" method="post" data-customer-intake-form>
             @Html.AntiForgeryToken()
-            <div class="customer-form-grid">
-                <label>
-                    <span data-required-label>First Name</span>
-                    <input name="FirstName" type="text" maxlength="120" placeholder="First name" required />
-                </label>
-                <label>
-                    <span data-required-label>Last Name</span>
-                    <input name="LastName" type="text" maxlength="120" placeholder="Last name" required />
-                </label>
-                <label>
-                    <span data-required-label>Mobile Phone</span>
-                    <input data-canadian-phone name="Phone" type="tel" inputmode="tel" placeholder="e.g., (416) 555-0123" required />
-                </label>
-                <label>
-                    <span data-required-label>Email Address</span>
-                    <input name="Email" type="email" maxlength="256" placeholder="customer@email.com" required />
-                </label>
-                <label class="customer-form-wide">
-                    <span data-required-label>Billing Address</span>
-                    <input name="StreetAddress" type="text" maxlength="250" placeholder="Street, city, state" required />
-                </label>
-                <label class="customer-form-wide">
-                    <span>Internal Notes</span>
-                    <textarea maxlength="2000" name="Notes" rows="3" placeholder="Preferred contact time, service notes, billing notes"></textarea>
-                </label>
-            </div>
+            <section class="customer-intake-step-panel" data-intake-step="customer">
+                <div class="customer-form-grid">
+                    <label>
+                        <span data-required-label>First Name</span>
+                        <input name="Customer.FirstName" type="text" maxlength="120" placeholder="First name" required />
+                    </label>
+                    <label>
+                        <span data-required-label>Last Name</span>
+                        <input name="Customer.LastName" type="text" maxlength="120" placeholder="Last name" required />
+                    </label>
+                    <label>
+                        <span data-required-label>Mobile Phone</span>
+                        <input data-canadian-phone name="Customer.Phone" type="tel" inputmode="tel" placeholder="e.g., (416) 555-0123" required />
+                    </label>
+                    <label>
+                        <span data-required-label>Email Address</span>
+                        <input name="Customer.Email" type="email" maxlength="256" placeholder="customer@email.com" required />
+                    </label>
+                    <label class="customer-form-wide">
+                        <span data-required-label>Customer address</span>
+                        <input name="Customer.StreetAddress" type="text" maxlength="250" placeholder="Street address, city, province, postal code" autocomplete="street-address" required />
+                    </label>
+                    <label class="customer-form-wide">
+                        <span>Notes (optional)</span>
+                        <textarea name="Customer.Notes" maxlength="2000" rows="3" placeholder="Add any useful details about this customer"></textarea>
+                    </label>
+                </div>
+                <footer class="customer-modal-actions">
+                    <button class="customer-modal-secondary" type="button" data-customer-modal-close>Cancel</button>
+                    <button class="customer-modal-primary" type="button" data-customer-next-step>Next</button>
+                </footer>
+            </section>
 
-            <footer class="customer-modal-actions">
-                <button class="customer-modal-secondary" type="button" data-customer-modal-close>Cancel</button>
-                <button class="customer-modal-primary" type="submit">Save Customer</button>
-            </footer>
+            <section class="customer-intake-step-panel" data-intake-step="vehicle" hidden>
+                <div class="customer-form-grid">
+                    <label>
+                        <span data-required-label>Vehicle manufacturer</span>
+                        <input name="Vehicle.Make" type="text" maxlength="100" placeholder="Ford, Toyota, Honda" required />
+                    </label>
+                    <label>
+                        <span data-required-label>Vehicle model</span>
+                        <input name="Vehicle.Model" type="text" maxlength="100" placeholder="F-150 SuperCrew" required />
+                    </label>
+                    <label>
+                        <span data-required-label>Model year</span>
+                        <input max="9999" name="Vehicle.Year" type="number" min="1886" placeholder="2018" required />
+                    </label>
+                    <label>
+                        <span>Color</span>
+                        <input name="Vehicle.Color" type="text" maxlength="50" placeholder="Magnetic Gray" />
+                    </label>
+                    <label>
+                        <span data-required-label>License plate number</span>
+                        <input name="Vehicle.LicensePlate" type="text" maxlength="40" placeholder="TX-BB89" required />
+                    </label>
+                    <label>
+                        <span>Current odometer reading (miles)</span>
+                        <input max="2147483647" name="Vehicle.Odometer" type="number" min="0" placeholder="e.g., 84,520" />
+                    </label>
+                    <label class="customer-form-wide">
+                        <span data-required-label>Vehicle Identification Number (VIN)</span>
+                        <input name="Vehicle.VIN" type="text" maxlength="40" placeholder="Enter the VIN shown on the vehicle" required />
+                    </label>
+                </div>
+                <footer class="customer-modal-actions">
+                    <button class="customer-modal-secondary" type="button" data-customer-prev-step>Back</button>
+                    <button class="customer-modal-primary" type="submit">Save</button>
+                </footer>
+            </section>
         </form>
     </section>
 </div>

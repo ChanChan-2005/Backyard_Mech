@@ -46,6 +46,7 @@ namespace Backyard_Mech.Data
         public DbSet<EstimateRevisionLineItem> EstimateRevisionLineItems => Set<EstimateRevisionLineItem>();
         public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
         public DbSet<WorkOrderAssignment> WorkOrderAssignments => Set<WorkOrderAssignment>();
+        public DbSet<WorkOrderEvidence> WorkOrderEvidence => Set<WorkOrderEvidence>();
         public DbSet<ServiceEntry> ServiceEntries => Set<ServiceEntry>();
         public DbSet<ServiceTimeSegment> ServiceTimeSegments => Set<ServiceTimeSegment>();
         public DbSet<ToolCategory> ToolCategories => Set<ToolCategory>();
@@ -76,6 +77,16 @@ namespace Backyard_Mech.Data
                 entity.Property(x => x.LogoContentType).HasMaxLength(30);
                 entity.Property(x => x.Revision).IsConcurrencyToken();
             });
+            modelBuilder.Entity<EmailDelivery>(entity => {
+                entity.ToTable("EmailDelivery");
+                entity.HasKey(x => x.DeliveryKey);
+                entity.Property(x => x.DeliveryKey).HasMaxLength(200);
+                entity.Property(x => x.Kind).HasMaxLength(40);
+                entity.Property(x => x.Recipient).HasMaxLength(256);
+                entity.Property(x => x.Status).HasMaxLength(16);
+                entity.Property(x => x.LastError).HasMaxLength(100);
+            });
+
             modelBuilder.Entity<EmailDelivery>(entity => {
                 entity.ToTable("EmailDelivery");
                 entity.HasKey(x => x.DeliveryKey);
@@ -166,6 +177,7 @@ namespace Backyard_Mech.Data
             modelBuilder.Entity<EstimateRevisionLineItem>().ToTable("EstimateRevisionLineItem");
             modelBuilder.Entity<WorkOrder>().ToTable("WorkOrder");
             modelBuilder.Entity<WorkOrderAssignment>().ToTable("WorkOrderAssignment");
+            modelBuilder.Entity<WorkOrderEvidence>().ToTable("WorkOrderEvidence");
             modelBuilder.Entity<ServiceEntry>(entity =>
             {
                 entity.ToTable("ServiceEntry");

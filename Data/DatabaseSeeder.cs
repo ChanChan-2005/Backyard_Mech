@@ -10,6 +10,8 @@ namespace Backyard_Mech.Data
         {
             await dbContext.Database.EnsureCreatedAsync();
             await EnsureBusinessSchemaAsync(dbContext);
+            await dbContext.Database.ExecuteSqlRawAsync("IF NOT EXISTS (SELECT 1 FROM dbo.TaxRate) INSERT INTO dbo.TaxRate (Description, Rate, EffectiveFrom, EffectiveTo) VALUES (N'Harmonized Sales Tax', 0.15, '2026-07-01T00:00:00', NULL);");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakStart') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakStart time NULL; IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakEnd') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakEnd time NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.InvoiceNumberCounter', N'U') IS NOT NULL
                    AND NOT EXISTS (SELECT 1 FROM dbo.InvoiceNumberCounter WHERE InvoiceNumberCounterId = 1)
@@ -85,8 +87,40 @@ namespace Backyard_Mech.Data
 
         private static async Task EnsureBusinessSchemaAsync(ApplicationDbContext dbContext)
         {
-            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'IsDeleted') IS NULL ALTER TABLE dbo.Service ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0);");
-            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'DeletedUtc') IS NULL ALTER TABLE dbo.Service ADD DeletedUtc DATETIME2 NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.WorkOrder', N'U') IS NOT NULL
+                   AND COL_LENGTH(N'dbo.WorkOrder', N'WorkOrderNumber') IS NULL
+                    ALTER TABLE dbo.WorkOrder ADD WorkOrderNumber NVARCHAR(32) NULL;
+                """);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.WorkOrder', N'U') IS NOT NULL
+                BEGIN
+                    UPDATE dbo.WorkOrder
+                    SET WorkOrderNumber = N'WO-' + LEFT(REPLACE(CONVERT(NVARCHAR(36), NEWID()), N'-', N''), 12)
+                    WHERE WorkOrderNumber IS NULL OR LTRIM(RTRIM(WorkOrderNumber)) = N'';
+                    ALTER TABLE dbo.WorkOrder ALTER COLUMN WorkOrderNumber NVARCHAR(32) NOT NULL;
+                    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.WorkOrder') AND name = N'UX_WorkOrder_WorkOrderNumber')
+                        CREATE UNIQUE INDEX UX_WorkOrder_WorkOrderNumber ON dbo.WorkOrder(WorkOrderNumber);
+                END;
+                """);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.WorkOrderEvidence', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE dbo.WorkOrderEvidence (
+                        WorkOrderEvidenceId INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WorkOrderEvidence PRIMARY KEY,
+                        WorkOrderId INT NOT NULL,
+                        Stage NVARCHAR(10) NOT NULL,
+                        Description NVARCHAR(2000) NOT NULL,
+                        FileType NVARCHAR(100) NOT NULL,
+                        BlobUrl NVARCHAR(260) NOT NULL,
+                        UploadedUtc DATETIME2 NOT NULL,
+                        UploadedByUserId NVARCHAR(450) NULL,
+                        UploadedByName NVARCHAR(256) NOT NULL,
+                        CONSTRAINT FK_WorkOrderEvidence_WorkOrder FOREIGN KEY (WorkOrderId) REFERENCES dbo.WorkOrder(WorkOrderId)
+                    );
+                    CREATE INDEX IX_WorkOrderEvidence_WorkOrderId_UploadedUtc ON dbo.WorkOrderEvidence(WorkOrderId, UploadedUtc);
+                END;
+                """);
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PartTransaction', N'SupplierId') IS NULL ALTER TABLE dbo.PartTransaction ADD SupplierId INT NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_PartTransaction_Supplier') ALTER TABLE dbo.PartTransaction WITH CHECK ADD CONSTRAINT FK_PartTransaction_Supplier FOREIGN KEY (SupplierId) REFERENCES dbo.Supplier(SupplierId);");
             await dbContext.Database.ExecuteSqlRawAsync("""
@@ -194,22 +228,18 @@ namespace Backyard_Mech.Data
                 MERGE dbo.AppRole AS target
                 USING (VALUES
                     (N'RootAdmin', N'Root Administrator', N'System-protected root administrator.', 0, 1, 1),
-                    (N'Owner', N'Garage Owner', N'Full access; oversees the business, manages employees and roles.', 10, 0, 1),
-                    (N'Administrator', N'Administrator', N'Manages employee accounts/roles; day-to-day system administration.', 20, 0, 1),
-                    (N'Service Advisor', N'Service Advisor', N'Handles check-in, scheduling, estimates, and customer communication.', 30, 0, 1),
-                    (N'Mechanic/Technician', N'Mechanic / Technician', N'Performs inspections and repairs; records labour time and parts used.', 40, 0, 1),
-                    (N'Parts Clerk', N'Parts Clerk', N'Manages parts inventory: receiving, reservation, issue, returns.', 50, 0, 1),
-                    (N'Supervisor/QC Inspector', N'Supervisor / QC Inspector', N'Signs off completed repairs before invoicing.', 60, 0, 1),
-                    (N'Accounting/Cashier', N'Accounting / Cashier', N'Handles invoicing, payments, and financial reporting.', 70, 0, 1)
+                    (N'Owner', N'Garage Owner', N'Full garage operations access; permissions are editable.', 10, 0, 1),
+                    (N'Administrator', N'Administrator', N'Administrative garage operations access.', 20, 0, 1),
+                    (N'Service Advisor', N'Service Advisor', N'Customer intake and service queue access.', 30, 0, 1),
+                    (N'Mechanic/Technician', N'Mechanic/Technician', N'Work order and repair workflow access.', 40, 0, 1),
+                    (N'Parts Clerk', N'Parts Clerk', N'Inventory and parts workflow access.', 50, 0, 1),
+                    (N'Supervisor/QC Inspector', N'Supervisor/QC Inspector', N'Quality control and supervisor access.', 60, 0, 1),
+                    (N'Accounting/Cashier', N'Accounting/Cashier', N'Invoice and payment workflow access.', 70, 0, 1)
                 ) AS source(RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                 ON target.RoleKey = source.RoleKey
-                WHEN MATCHED THEN
+                WHEN MATCHED AND source.RoleKey = N'RootAdmin' THEN
                     UPDATE SET
-                        IsSystemProtected = CASE WHEN source.RoleKey = N'RootAdmin' THEN source.IsSystemProtected ELSE target.IsSystemProtected END,
-                        RoleName = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.RoleName ELSE source.RoleName END,
-                        Description = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.Description ELSE source.Description END,
-                        DisplayOrder = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.DisplayOrder ELSE source.DisplayOrder END,
-                        IsActive = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.IsActive ELSE source.IsActive END
+                        IsSystemProtected = source.IsSystemProtected
                 WHEN NOT MATCHED THEN
                     INSERT (RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                     VALUES (source.RoleKey, source.RoleName, source.Description, source.DisplayOrder, source.IsSystemProtected, source.IsActive);
@@ -260,6 +290,7 @@ namespace Backyard_Mech.Data
                     (N'Estimates', N'View', N'estimates.view', N'View estimates.'),
                     (N'Estimates', N'Create', N'estimates.create', N'Create estimates.'),
                     (N'Estimates', N'Edit', N'estimates.edit', N'Edit estimates.'),
+                    (N'Estimates', N'Delete', N'estimates.delete', N'Delete estimates.'),
                     (N'Estimates', N'Approve', N'estimates.approve', N'Approve estimates.'),
                     (N'Work Orders', N'View', N'workorders.view', N'View work orders.'),
                     (N'Work Orders', N'Create', N'workorders.create', N'Create work orders.'),
@@ -315,6 +346,7 @@ namespace Backyard_Mech.Data
                     (N'Services', N'Edit', N'services.edit', N'Edit and deactivate services.'),
                     (N'Settings', N'Create', N'settings.create', N'Create settings records.'),
                     (N'Settings', N'Edit', N'settings.edit', N'Edit settings.'),
+                    (N'Settings', N'Delete', N'settings.delete', N'Delete settings records.'),
                     (N'Settings', N'Approve', N'settings.approve', N'Approve settings changes.')
                 ) AS source(ModuleName, ActionName, PermissionCode, Description)
                 ON target.PermissionCode = source.PermissionCode
@@ -334,6 +366,13 @@ namespace Backyard_Mech.Data
                     BEGIN
                         ALTER TABLE dbo.Bay ADD BayNumber NVARCHAR(50) NULL;
                     END;
+
+                    IF COL_LENGTH(N'dbo.Bay', N'IsArchived') IS NULL ALTER TABLE dbo.Bay ADD IsArchived BIT NOT NULL CONSTRAINT DF_Bay_IsArchived DEFAULT (0);
+                    IF COL_LENGTH(N'dbo.Bay', N'ArchivedUtc') IS NULL ALTER TABLE dbo.Bay ADD ArchivedUtc DATETIME2 NULL;
+                    IF COL_LENGTH(N'dbo.Bay', N'ArchiveReason') IS NULL ALTER TABLE dbo.Bay ADD ArchiveReason NVARCHAR(500) NULL;
+                    IF COL_LENGTH(N'dbo.Bay', N'IsDeleted') IS NULL ALTER TABLE dbo.Bay ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Bay_IsDeleted DEFAULT (0);
+                    IF COL_LENGTH(N'dbo.Bay', N'DeletedUtc') IS NULL ALTER TABLE dbo.Bay ADD DeletedUtc DATETIME2 NULL;
+                    IF COL_LENGTH(N'dbo.Bay', N'DeleteReason') IS NULL ALTER TABLE dbo.Bay ADD DeleteReason NVARCHAR(500) NULL;
 
                     EXEC(N'UPDATE dbo.Bay
                         SET BayNumber = CONCAT(N''Bay '', BayId)

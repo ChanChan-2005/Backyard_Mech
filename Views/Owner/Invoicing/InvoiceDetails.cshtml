@@ -11,7 +11,7 @@
 <nav class="repair-toolbar"><a class="app-action-link" href="/Owner/InvoiceRegistry">Invoice Registry</a><div class="repair-actions">
     <button type="button" data-print-invoice>Print</button>
     @if(open && Can("Create") && Model.Balance > 0) { <button type="button" class="primary" data-dialog-open="payment-new">Record Payment</button> }
-    @if(open && Can("Edit")) { <button type="button" data-dialog-open="adjustment-new">Adjust Invoice</button> }
+    @if(open && Can("Edit")) { <a class="repair-button" asp-action="ApplyInvoiceAdjustment" asp-route-id="@Model.Invoice.InvoiceNumber">Adjust Invoice</a> }
     @if(open && Can("Delete")) { <button type="button" data-dialog-open="void-invoice">Void Invoice</button> }
 </div></nav>
 <section class="repair-section"><header><div><h2>@Model.Invoice.InvoiceNumber</h2><p>@Model.Invoice.CustomerFirstName @Model.Invoice.CustomerMiddleName @Model.Invoice.CustomerLastName</p></div><div><span class="repair-status">@Model.Invoice.InvoiceStatus</span><p>Issued: @Model.Invoice.IssuedUtc.ToString("MMM dd, yyyy") | @(isPartsPos ? "Parts POS" : $"WO-{Model.Invoice.WorkOrderId}")</p></div></header>
@@ -20,16 +20,17 @@
 </tbody></table></div>
 <p>Subtotal: @CurrencyDisplay.Cad(Model.Invoice.Subtotal) | Tax: @CurrencyDisplay.Cad(Model.Invoice.TaxAmount)</p><p>Adjusted total: @CurrencyDisplay.Cad(Model.Invoice.Total) | Paid: @CurrencyDisplay.Cad(Model.Payments.Sum(x => x.Amount ?? 0))</p>
 <p class="repair-total">@(open ? "Balance due" : "Voided balance"): @CurrencyDisplay.Cad(open ? Model.Balance : 0m)</p></section>
-<section class="repair-section"><h2>Payments</h2><div class="repair-table-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
-@foreach(var row in Model.Payments) { <tr><td>@row.PaidUtc?.ToString("d")</td><td>@row.PaymentMethod</td><td>@row.ReferenceNumber</td><td>@CurrencyDisplay.Cad(row.Amount)</td><td>@row.Notes</td><td><div class="repair-actions">
+@if(Model.AdjustmentForm is not null && open && Can("Edit")) { @await Html.PartialAsync("_AdjustmentEditor", Model.AdjustmentForm) }
+<section class="repair-section"><h2>Payments</h2><div class="repair-table-wrap"><table><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead><tbody>
+@foreach(var row in Model.Payments) { <tr><td>@row.PaidUtc?.ToString("d")</td><td>@row.PaymentMethod</td><td>@row.ReferenceNumber</td><td>@CurrencyDisplay.Cad(row.Amount)</td><td><span class="repair-status">@(row.Amount > 0 ? "Recorded" : "Voided")</span></td><td>@row.Notes</td><td><div class="repair-actions">
 @if(open && row.Amount > 0 && Can("Edit")) { <button type="button" data-dialog-open="payment-@row.PaymentId">Edit</button> }
 @if(open && row.Amount > 0 && Can("Delete")) { <button type="button" data-dialog-open="void-payment-@row.PaymentId">Void</button> }
 </div></td></tr> }
-@if(Model.Payments.Count == 0) { <tr><td colspan="6">No payments recorded.</td></tr> }
+@if(Model.Payments.Count == 0) { <tr><td colspan="7">No payments recorded.</td></tr> }
 </tbody></table></div></section>
 <section class="repair-section"><h2>Adjustments</h2><div class="repair-table-wrap"><table><thead><tr><th>Date (UTC)</th><th>Type</th><th>Amount</th><th>Reason</th><th>Actions</th></tr></thead><tbody>
 @foreach(var row in Model.Adjustments) { <tr><td>@row.PerformedUtc.ToString("g")</td><td>@row.AdjustmentType</td><td>@CurrencyDisplay.Cad(row.Amount)</td><td>@row.Reason</td><td><div class="repair-actions">
-@if(open && row.AdjustmentType != "Voided" && Can("Edit")) { <button type="button" data-dialog-open="adjustment-@row.InvoiceAdjustmentId">Edit</button> }
+@if(open && row.AdjustmentType != "Voided" && Can("Edit")) { <a class="app-action-link" asp-action="ApplyInvoiceAdjustment" asp-route-id="@Model.Invoice.InvoiceNumber" asp-route-adjustmentId="@row.InvoiceAdjustmentId">Edit</a> }
 @if(open && row.AdjustmentType != "Voided" && Can("Delete")) { <button type="button" data-dialog-open="void-adjustment-@row.InvoiceAdjustmentId">Void</button> }
 </div></td></tr> }
 @if(Model.Adjustments.Count == 0) { <tr><td colspan="5">No adjustments recorded.</td></tr> }
@@ -37,14 +38,13 @@
 </div>
 @if(open) {
     if(Can("Create") && Model.Balance > 0) { @await Html.PartialAsync("_PaymentEditor", new PaymentSaveForm { InvoiceId = Model.Invoice.InvoiceId, Amount = Model.Balance, PaidUtc = DateTime.UtcNow.Date }) }
-    if(Can("Edit")) { @await Html.PartialAsync("_AdjustmentEditor", new AdjustmentSaveForm { InvoiceId = Model.Invoice.InvoiceId }) }
     if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("void-invoice", "Void Invoice", "VoidInvoice", Model.Invoice.InvoiceId)) }
     foreach(var row in Model.Payments.Where(x => x.Amount > 0)) {
         if(Can("Edit")) { @await Html.PartialAsync("_PaymentEditor", new PaymentSaveForm { InvoiceId = Model.Invoice.InvoiceId, PaymentId = row.PaymentId, Amount = row.Amount ?? 0, PaymentMethod = row.PaymentMethod ?? "Cash", ReferenceNumber = row.ReferenceNumber, PaidUtc = row.PaidUtc, Notes = row.Notes ?? "" }) }
         if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"void-payment-{row.PaymentId}", "Void Payment", "VoidInvoicePayment", row.PaymentId)) }
     }
     foreach(var row in Model.Adjustments.Where(x => x.AdjustmentType != "Voided")) {
-        if(Can("Edit")) { @await Html.PartialAsync("_AdjustmentEditor", new AdjustmentSaveForm { InvoiceId = Model.Invoice.InvoiceId, InvoiceAdjustmentId = row.InvoiceAdjustmentId, AdjustmentType = row.AdjustmentType ?? "Credit", Amount = row.Amount ?? 0, Reason = row.Reason ?? "" }) }
         if(Can("Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog($"void-adjustment-{row.InvoiceAdjustmentId}", "Void Adjustment", "VoidInvoiceAdjustment", row.InvoiceAdjustmentId)) }
     }
 }
+@if(Model.AdjustmentForm is not null) { <script>document.getElementById('invoice-adjustment-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });</script> }

@@ -979,6 +979,22 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
   padding: 0;
 }
 
+.shift-day-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid #d9e1eb;
+  border-radius: 8px;
+}
+
+.shift-day-picker legend { padding: 0 5px; }
+.shift-day-picker label { display: flex; align-items: center; gap: 6px; }
+.shift-day-picker input { width: 16px; height: 16px; min-height: 0; }
+.shift-time-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) { .shift-day-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 .users-modal-header {
   display: flex;
   align-items: center;

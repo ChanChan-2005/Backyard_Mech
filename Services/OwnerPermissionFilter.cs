@@ -27,7 +27,10 @@ namespace Backyard_Mech.Services
             var actionName = context.ActionDescriptor.RouteValues["action"] ?? "";
             var requirement = OwnerPermissionCatalog.Resolve(actionName);
             var codes = await _permissionService.GetPermissionCodesAsync(role);
-            if (!OwnerPermissionCatalog.CanAccessAction(codes, actionName))
+            var reportType = context.ActionArguments.TryGetValue("reportType", out var requestedType)
+                ? Convert.ToString(requestedType)
+                : null;
+            if (!OwnerPermissionCatalog.CanAccessRequest(role, codes, actionName, reportType))
             {
                 if (HttpMethods.IsPost(context.HttpContext.Request.Method))
                 {
@@ -40,51 +43,6 @@ namespace Backyard_Mech.Services
                 return;
             }
 
-            if (actionName == "ViewGovernanceRecord" &&
-                !SubTabPermissionCatalog.CanAccessRecordType(codes, "ArchiveRecords", context.HttpContext.Request.Query["type"]) &&
-                !SubTabPermissionCatalog.CanAccessRecordType(codes, "RecordsDisposition", context.HttpContext.Request.Query["type"]))
-            {
-                context.Result = new RedirectToActionResult("AccessDenied", "Account", new { module = "this record" });
-                return;
-            }
-
-            if (context.ActionArguments.TryGetValue("form", out var recordForm) &&
-                recordForm is Backyard_Mech.Models.RecordActionFormModel record)
-            {
-                var recordPage = actionName is "DeleteArchivedRecord" or "RestoreArchivedRecord" ? "ArchiveRecords" :
-                    actionName is "DeleteDispositionRecordPermanently" or "RestoreDispositionRecord" ? "RecordsDisposition" : null;
-                if (recordPage is not null && !SubTabPermissionCatalog.CanAccessRecordType(codes, recordPage, record.RecordType))
-                {
-                    context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
-                    return;
-                }
-            }
-            if (actionName == "SaveRecordsDispositionPolicy" &&
-                !SubTabPermissionCatalog.CanAccess(codes, "RecordsDisposition", "all"))
-            {
-                context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
-                return;
-            }
-
-            if (SubTabPermissionCatalog.Selected(actionName, context.HttpContext.Request.Query) is { } selectedTab &&
-                !SubTabPermissionCatalog.CanAccess(codes, selectedTab.Page, selectedTab.Value))
-            {
-                var explicitlySelected = context.HttpContext.Request.Query.ContainsKey(selectedTab.QueryName);
-                var firstAllowed = SubTabPermissionCatalog.Tabs.FirstOrDefault(tab =>
-                    tab.Page == selectedTab.Page && SubTabPermissionCatalog.CanAccess(codes, tab.Page, tab.Value));
-                if (!explicitlySelected && firstAllowed is not null)
-                {
-                    var routeValues = context.HttpContext.Request.Query
-                        .ToDictionary(item => item.Key, item => (object?)item.Value.ToString());
-                    routeValues[firstAllowed.QueryName] = firstAllowed.Value;
-                    context.Result = new RedirectToActionResult(actionName, "Owner",
-                        routeValues);
-                    return;
-                }
-                context.Result = new RedirectToActionResult("AccessDenied", "Account", new { module = selectedTab.Label });
-                return;
-            }
-
             await next();
         }
     }
@@ -94,10 +52,11 @@ namespace Backyard_Mech.Services
         // Module View opens its navigation pages; other operations retain explicit grants.
         private static readonly HashSet<string> ModulePages = new(StringComparer.OrdinalIgnoreCase)
         {
-            "Dashboard", "ServiceQueue", "CustomerVehicle", "VehicleHistory", "Appointments",
+            "Dashboard", "ServiceQueue", "CustomerVehicle", "VehicleHistory", "Appointments", "WorkOrderEvidencePhoto",
             "EstimateApprovals", "WorkOrders", "BayManagement", "PartsManagement", "PartsPos", "Suppliers",
             "ServiceCatalog", "LabourTimeTracking", "QualityControl", "ToolTracking", "InvoiceRegistry",
-            "ArchiveRecords", "RecordsDisposition", "Reports", "Employees", "StaffAccounts", "Settings"
+            "ArchiveRecords", "RecordsDisposition", "Reports", "Employees", "StaffAccounts", "Settings",
+            "SupplierPostalCodeSuggestions"
         };
 
         public static bool CanAccessAction(ISet<string> codes, string actionName)
@@ -105,16 +64,24 @@ namespace Backyard_Mech.Services
             var requirement = Resolve(actionName);
             if (requirement is null) return false;
             if (codes.Contains("*")) return true;
-            if (actionName.Equals("ViewGovernanceRecord", StringComparison.OrdinalIgnoreCase))
-                return codes.Contains("archive.view") || codes.Contains("recordsdisposition.view");
-            if (SubTabPermissionCatalog.RequiredForAction(actionName) is { } tab &&
-                !SubTabPermissionCatalog.CanAccess(codes, tab.Page, tab.Value)) return false;
-            if (actionName is "AddStockMovement" or "EditStockMovement" or "ReverseStockMovement" &&
-                !codes.Contains(ActionPermissionCode("SparesAllocation"))) return false;
-            var needsModuleAction = !HasSingleActionBase(requirement.Value.Module, requirement.Value.Action);
             return codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
-                && (!needsModuleAction || codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action)))
+                && codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
                 && (ModulePages.Contains(actionName) || codes.Contains(ActionPermissionCode(actionName)));
+        }
+
+        public static bool CanAccessRequest(string? roleKey, ISet<string> codes, string actionName, string? reportType = null)
+        {
+            var isAdministrator = string.Equals(roleKey, "Administrator", StringComparison.OrdinalIgnoreCase);
+            if (isAdministrator &&
+                (actionName.Equals("ProfitabilityReport", StringComparison.OrdinalIgnoreCase)
+                 || actionName.Equals("ExportReport", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(reportType, "profitability", StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            if (isAdministrator && DashboardPermissions.Sections.Contains(actionName))
+                return codes.Contains(PermissionService.BuildPermissionCode("Dashboard", "View"));
+
+            return CanAccessAction(codes, actionName);
         }
 
         public static string ActionPermissionCode(string actionName) => $"owneraction.{actionName.ToLowerInvariant()}";
@@ -125,11 +92,10 @@ namespace Backyard_Mech.Services
                 .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType)
                     || method.ReturnType == typeof(Task<IActionResult>))
                 .Select(method => (method.Name, Requirement: Resolve(method.Name)))
-                .Where(item => item.Requirement.HasValue && !ModulePages.Contains(item.Name)
-                    && item.Name is not ("ViewGovernanceRecord" or "CreateRole" or "EditRole" or "DeleteRole"))
+                .Where(item => item.Requirement.HasValue && !ModulePages.Contains(item.Name))
                 .Select(item => (item.Name, item.Requirement!.Value.Module, item.Requirement.Value.Action))
                 .Concat(DashboardPermissions.Sections.Select(name => (Name: name, Module: "Dashboard", Action: "View")))
-                .Concat(new[] { (Name: "ManageStaffRolePermissions", Module: "User Access", Action: "Edit"), (Name: "ManageStockTransactions", Module: "Parts Management", Action: "Create") })
+                .Concat(new[] { (Name: "ManageStaffRolePermissions", Module: "User Access", Action: "Edit"), (Name: "ManageStockTransactions", Module: "Inventory", Action: "Create") })
                 .Distinct()
                 .OrderBy(item => item.Module)
                 .ThenBy(item => item.Name)
@@ -145,19 +111,10 @@ namespace Backyard_Mech.Services
         public static bool HasSingleActionBase(string module, string action) =>
             SingleActionBaseCodes.Contains(PermissionService.BuildPermissionCode(module, action));
 
-        public static string ActionLabel(string actionName) => actionName switch
-        {
-            "SparesAllocation" => "Stock Transactions",
-            "ArchivedEmployees" => "Archived Employees",
-            "SoftDeletedEmployees" => "Soft Deleted Employees",
-            "SettingsTax" => "Tax",
-            "SettingsSystemPreferences" => "System Preferences",
-            "SettingsCategories" => "Categories",
-            "SettingsRoles" => "Roles & Permissions",
-            _ => System.Text.RegularExpressions.Regex.Replace(
+        public static string ActionLabel(string actionName) =>
+            System.Text.RegularExpressions.Regex.Replace(
                 System.Text.RegularExpressions.Regex.Replace(actionName, "([A-Z])([A-Z][a-z])", "$1 $2"),
-                "([a-z0-9])([A-Z])", "$1 $2")
-        };
+                "([a-z0-9])([A-Z])", "$1 $2");
 
         public static (string Module, string Action)? Resolve(string actionName)
         {
@@ -167,28 +124,34 @@ namespace Backyard_Mech.Services
                 "Dashboard" => ("Dashboard", "View"),
                 "StaffAccounts" => ("User Access", "View"),
                 "ManageStaffRolePermissions" => ("User Access", "Edit"),
-                "ManageStockTransactions" => ("Parts Management", "Create"),
+                "ManageStockTransactions" => ("Inventory", "Create"),
                 "CreateStaffAccount" => ("User Access", "Create"),
-                "SaveUserAccess" or "ResetStaffPassword" => ("User Access", "Edit"),
+                "SaveUserAccess" => ("User Access", "Edit"),
+                "ActivateStaffAccount" or "DeactivateStaffAccount" => ("User Access", "Edit"),
                 "StaffAvailability" => ("Employees", "View"),
                 "CreateAvailabilityException" or "UpdateAvailabilityException" or "DeleteAvailabilityException" => ("Employees", "Edit"),
                 "Suppliers" => ("Suppliers", "View"),
+                "SupplierPostalCodeSuggestions" => ("Suppliers", "View"),
                 "CreateSupplier" => ("Suppliers", "Create"),
                 "UpdateSupplier" or "SetSupplierState" => ("Suppliers", "Edit"),
                 "ServiceCatalog" => ("Services", "View"),
                 "CreateService" => ("Services", "Create"),
                 "UpdateService" or "SetServiceState" => ("Services", "Edit"),
-                "DeleteService" => ("Services", "Delete"),
                 "SettingsCategories" => ("Settings", "View"),
-                "CreateCategory" or "CreateTax" => ("Settings", "Create"),
-                "UpdateCategory" or "SetCategoryState" or "UpdateTax" or "SetTaxState" => ("Settings", "Edit"),
+                "CreateCategory" => ("Settings", "Create"),
+                "UpdateCategory" or "SetCategoryState" or "UpdateTax" => ("Settings", "Edit"),
 
                 "CustomerVehicle" or "CustomerDetails" or "CustomerVehicles" or "CustomerServiceHistory" => ("Customers", "View"),
                 "AddCustomer" => ("Customers", "Create"),
                 "EditCustomer" => ("Customers", "Edit"),
+                "ArchiveCustomer" => ("Customers", "Delete"),
+                "SoftDeleteCustomer" => ("Customers", "Delete"),
                 "AddVehicle" => ("Vehicles", "Create"),
+                "UpdateVehicle" => ("Vehicles", "Edit"),
                 "VehicleHistory" => ("Vehicles", "View"),
                 "TransferVehicleOwnership" or "RecordVehicleOdometer" => ("Vehicles", "Edit"),
+                "ArchiveVehicle" => ("Vehicles", "Delete"),
+                "SoftDeleteVehicle" => ("Vehicles", "Delete"),
 
                 "ServiceQueue" or "ServiceQueueDetails" => ("Service Queue", "View"),
                 "AssignQueueBay" or "AssignQueueMechanic" or "UpdateQueueStatus" => ("Service Queue", "Edit"),
@@ -205,6 +168,7 @@ namespace Backyard_Mech.Services
                 "CancelEstimate" => ("Estimates", "Delete"),
 
                 "WorkOrders" or "WorkOrderDetails" or "WorkOrderStatus" or "BayDispatchMatrix" or "StaffDispatchMatrix" => ("Work Orders", "View"),
+                "WorkOrderEvidencePhoto" or "UploadWorkOrderEvidence" => ("Work Orders", "View"),
                 "CreateWorkOrder" or "GenerateWorkOrder" => ("Work Orders", "Create"),
                 "EditWorkOrder" or "ReopenWorkOrder" => ("Work Orders", "Edit"),
                 "CancelWorkOrder" => ("Work Orders", "Delete"),
@@ -216,16 +180,17 @@ namespace Backyard_Mech.Services
                 "BayManagement" or "BayDetails" => ("Bays", "View"),
                 "AddBay" => ("Bays", "Create"),
                 "EditBay" or "SetBayMaintenance" => ("Bays", "Edit"),
+                "ArchiveBay" or "DeleteBay" => ("Bays", "Delete"),
 
-                "PartsManagement" or "PartDetails" or "PartAuditLog" or "SparesAllocation" => ("Parts Management", "View"),
-                "PartsPos" or "PartsPosReceipt" => ("Parts POS", "View"),
-                "CheckoutParts" => ("Parts POS", "Create"),
-                "PartEntry" or "AddPart" or "AddProductListing" => ("Parts Management", "Create"),
-                "EditPart" or "EditProductListing" => ("Parts Management", "Edit"),
-                "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Parts Management", "Delete"),
-                "AddStockMovement" => ("Parts Management", "Create"),
-                "EditStockMovement" => ("Parts Management", "Edit"),
-                "ReverseStockMovement" => ("Parts Management", "Delete"),
+                "PartsManagement" or "PartDetails" or "PartAuditLog" or "SparesAllocation" => ("Inventory", "View"),
+                "PartsPos" or "PartsPosReceipt" => ("Inventory", "View"),
+                "CheckoutParts" => ("Inventory", "Create"),
+                "PartEntry" or "AddPart" or "AddProductListing" => ("Inventory", "Create"),
+                "EditPart" or "EditProductListing" => ("Inventory", "Edit"),
+                "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Inventory", "Delete"),
+                "AddStockMovement" => ("Inventory", "Create"),
+                "EditStockMovement" => ("Inventory", "Edit"),
+                "ReverseStockMovement" => ("Inventory", "Delete"),
 
                 "LabourTimeTracking" or "ServiceTimer" or "LabourHistory" or "WorkOrderLaborTracking" => ("Labour", "View"),
                 "AddLabour" or "StartLabourTimer" => ("Labour", "Create"),
@@ -250,19 +215,16 @@ namespace Backyard_Mech.Services
                 "EditInvoicePayment" or "AddInvoiceAdjustment" or "EditInvoiceAdjustment" => ("Invoices", "Edit"),
                 "VoidInvoice" or "VoidInvoicePayment" or "VoidInvoiceAdjustment" => ("Invoices", "Delete"),
 
-                "ArchiveRecords" => ("Archive", "View"),
-                "RecordsDisposition" or "ViewGovernanceRecord" => ("Records Disposition", "View"),
-                "RestoreArchivedRecord" => ("Archive", "Edit"),
-                "SaveRecordsDispositionPolicy" or "RestoreDispositionRecord" => ("Records Disposition", "Edit"),
-                "DeleteArchivedRecord" => ("Archive", "Delete"),
-                "DeleteDispositionRecordPermanently" => ("Records Disposition", "Delete"),
+                "ArchiveRecords" or "RecordsDisposition" or "ViewGovernanceRecord" => ("Records", "View"),
+                "SaveRecordsDispositionPolicy" or "RestoreArchivedRecord" or "RestoreDispositionRecord" => ("Records", "Edit"),
+                "DeleteDispositionRecordPermanently" or "DeleteArchivedRecord" => ("Records", "Delete"),
 
-                "Employees" or "ArchivedEmployees" or "SoftDeletedEmployees" or "EmployeeDetails" or "EmployeeAccountDetails" or "EmployeeSecurityActivity" or "EmployeeSchedule" or "EmployeePerformance" => ("Employees", "View"),
+                "Employees" or "ArchivedEmployees" or "SoftDeletedEmployees" or "EmployeeDetails" or "EmployeeAccountDetails" or "EmployeeSecurityActivity" or "EmployeeSchedule" or "EmployeeAvailability" or "EmployeePerformance" => ("Employees", "View"),
                 "AddEmployee" => ("Employees", "Create"),
-                "EditEmployee" or "RestoreEmployee" or "SetEmployeeShift" => ("Employees", "Edit"),
+                "EditEmployee" or "RestoreEmployee" or "SetEmployeeShift" or "SaveEmployeeAvailability" => ("Employees", "Edit"),
                 "ArchiveEmployee" or "SoftDeleteEmployee" => ("Employees", "Delete"),
 
-                "Reports" or "SalesRevenueReport" or "LabourProductivityReport" or "BayUtilizationReport" or "InventoryValueReport" or "LowStockPartsReport" or "ToolLossesReport" or "ProfitabilityReport" or "ExportReport" => ("Reports", "View"),
+                "Reports" or "AuditLogReport" or "SalesRevenueReport" or "LabourProductivityReport" or "BayUtilizationReport" or "InventoryValueReport" or "LowStockPartsReport" or "ToolLossesReport" or "ProfitabilityReport" or "ExportReport" => ("Reports", "View"),
 
                 "Settings" or "SettingsLogo" or "SettingsTax" or "SettingsRoles" or "SettingsSystemPreferences" => ("Settings", "View"),
                 "CreateRole" => ("Settings", "Create"),
@@ -279,31 +241,27 @@ namespace Backyard_Mech.Services
             "useraccess.view", "useraccess.create", "useraccess.edit",
             "suppliers.view", "suppliers.create", "suppliers.edit",
             "services.view", "services.create", "services.edit",
-            "customers.view", "customers.create", "customers.edit",
-            "vehicles.view", "vehicles.create", "vehicles.edit",
+            "customers.view", "customers.create", "customers.edit", "customers.delete",
+            "vehicles.view", "vehicles.create", "vehicles.edit", "vehicles.delete",
             "appointments.view", "appointments.create", "appointments.edit", "appointments.delete",
             "servicequeue.view", "servicequeue.edit",
-            "estimates.view", "estimates.create", "estimates.edit", "estimates.approve",
+            "estimates.view", "estimates.create", "estimates.edit", "estimates.delete", "estimates.approve",
             "workorders.view", "workorders.create", "workorders.edit", "workorders.delete", "workorders.approve",
-            "bays.view", "bays.create", "bays.edit",
-            "partsmanagement.view", "partsmanagement.create", "partsmanagement.edit", "partsmanagement.delete",
-            "partspos.view", "partspos.create",
+            "bays.view", "bays.create", "bays.edit", "bays.delete",
+            "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
             "labour.view", "labour.create", "labour.edit", "labour.delete",
             "inspections.view", "inspections.create", "inspections.approve", "inspections.delete",
             "tools.view", "tools.create", "tools.edit", "tools.delete",
             "invoices.view", "invoices.create", "invoices.edit", "invoices.delete",
-            "archive.view", "archive.edit", "archive.delete",
-            "recordsdisposition.view", "recordsdisposition.edit", "recordsdisposition.delete",
+            "records.view", "records.edit", "records.delete",
             "employees.view", "employees.create", "employees.edit", "employees.delete",
             "reports.view",
-            "settings.view", "settings.create", "settings.edit"
+            "settings.view", "settings.create", "settings.edit", "settings.delete"
         };
 
         public static bool IsSupportedPermission(string module, string action)
         {
-            return (SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action)) &&
-                    !HasSingleActionBase(module, action))
-                || (SubTabPermissionCatalog.ByActionName(action) is { } tab && tab.Module.Equals(module, StringComparison.OrdinalIgnoreCase))
+            return SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action))
                 || DetailedActions.Any(item => item.Module.Equals(module, StringComparison.OrdinalIgnoreCase)
                     && item.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
         }

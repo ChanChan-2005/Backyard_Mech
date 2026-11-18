@@ -53,7 +53,6 @@
         new { Icon = "dashboard", Label = "Dashboard", Href = "/Owner/Dashboard", Module = "Dashboard", AlternateModule = "" },
         new { Icon = "queue", Label = "Service Queue", Href = "/Owner/ServiceQueue", Module = "Service Queue", AlternateModule = "" },
         new { Icon = "vehicle", Label = "Customer and Vehicle", Href = "/Owner/CustomerVehicle", Module = "Customers", AlternateModule = "" },
-        new { Icon = "vehicle", Label = "Vehicle Records", Href = "/Owner/VehicleHistory", Module = "Vehicles", AlternateModule = "" },
         new { Icon = "calendar", Label = "Appointments and Check-In", Href = "/Owner/Appointments", Module = "Appointments", AlternateModule = "" },
         new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals", Module = "Estimates", AlternateModule = "" },
         new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders", Module = "Work Orders", AlternateModule = "" },
@@ -131,6 +130,7 @@
     <link rel="stylesheet" href="~/css/layout/app-typography-tables.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/table-pagination.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-button-colors.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout/app-table-actions.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout/app-page-header.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/owner/modal-system.css" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -244,5 +244,6 @@
     <script src="~/js/owner-repair-workflow.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
     <script src="~/js/table-pagination.js" asp-append-version="true"></script>
+    <script src="~/js/app-table-actions.js" asp-append-version="true"></script>
 </body>
 </html>

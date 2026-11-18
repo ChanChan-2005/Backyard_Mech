@@ -63,7 +63,7 @@
                         <td class="users-table-actions">
                             <a class="users-small-button" asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@employee.EmployeeProfileId">View</a>
                             <button class="users-small-button" type="button" data-users-modal="restore" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Restore</button>
-                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Soft Delete</button>
+                            <button class="users-small-button users-link-danger" type="button" data-users-modal="soft-delete" data-employee-id="@employee.EmployeeProfileId" data-employee-name="@employee.Name (@employee.Role)">Delete</button>
                         </td>
                     </tr>
                 }

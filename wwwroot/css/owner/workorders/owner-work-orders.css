@@ -294,6 +294,81 @@
   overflow: hidden;
 }
 
+.wo-evidence-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.wo-evidence-form label {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wo-evidence-form input,
+.wo-evidence-form select,
+.wo-evidence-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  background: #fff;
+  color: #263445;
+  font: inherit;
+}
+
+.wo-evidence-form small {
+  color: #718096;
+  font-size: 11px;
+}
+
+.wo-evidence-form .wo-button {
+  justify-self: start;
+}
+
+.wo-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  padding: 16px;
+}
+
+.wo-evidence-card {
+  overflow: hidden;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.wo-evidence-card img {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  background: #f3f5f8;
+}
+
+.wo-evidence-card > div {
+  padding: 11px;
+}
+
+.wo-evidence-card p {
+  margin: 6px 0;
+  color: #566274;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.wo-evidence-card small {
+  color: #718096;
+  font-size: 10px;
+}
+
 .wo-panel-header,
 .wo-form-section-header {
   display: flex;

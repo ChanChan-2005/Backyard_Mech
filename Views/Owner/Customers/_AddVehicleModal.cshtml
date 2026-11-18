@@ -14,15 +14,15 @@
             <input type="hidden" name="CustomerId" value="@(ViewContext.RouteData.Values["id"])" />
             <div class="customer-form-grid">
                 <label>
-                    <span data-required-label>Make</span>
-                    <input name="Make" type="text" maxlength="100" placeholder="Ford" required />
+                    <span data-required-label>Vehicle manufacturer</span>
+                    <input name="Make" type="text" maxlength="100" placeholder="Ford, Toyota, Honda" required />
                 </label>
                 <label>
-                    <span data-required-label>Model</span>
+                    <span data-required-label>Vehicle model</span>
                     <input name="Model" type="text" maxlength="100" placeholder="F-150 SuperCrew" required />
                 </label>
                 <label>
-                    <span data-required-label>Year</span>
+                    <span data-required-label>Model year</span>
                     <input max="9999" name="Year" type="number" min="1886" placeholder="2018" required />
                 </label>
                 <label>
@@ -30,16 +30,16 @@
                     <input name="Color" type="text" maxlength="50" placeholder="Magnetic Gray" />
                 </label>
                 <label>
-                    <span data-required-label>License Plate</span>
+                    <span data-required-label>License plate number</span>
                     <input name="LicensePlate" type="text" maxlength="40" placeholder="TX-BB89" required />
                 </label>
                 <label>
-                    <span>Mileage</span>
-                    <input max="2147483647" name="Odometer" type="number" min="0" placeholder="84520" />
+                    <span>Current odometer reading (miles)</span>
+                    <input max="2147483647" name="Odometer" type="number" min="0" placeholder="e.g., 84,520" />
                 </label>
                 <label class="customer-form-wide">
-                    <span data-required-label>VIN</span>
-                    <input name="VIN" type="text" maxlength="40" placeholder="1FTFW1EF5JFA882319" required />
+                    <span data-required-label>Vehicle Identification Number (VIN)</span>
+                    <input name="VIN" type="text" maxlength="40" placeholder="Enter the VIN shown on the vehicle" required />
                 </label>
             </div>
 

@@ -12,9 +12,10 @@ public static class DashboardPermissions
     };
 
     // Strip restricted data before the view receives it; hiding markup alone is insufficient.
-    public static void Apply(DashboardViewModel model, ISet<string> codes)
+    public static void Apply(DashboardViewModel model, ISet<string> codes, string? roleKey = null)
     {
-        model.VisibleSections = Sections.Where(section => codes.Contains("*") ||
+        var fullOperationalDashboard = string.Equals(roleKey, "Administrator", StringComparison.OrdinalIgnoreCase);
+        model.VisibleSections = Sections.Where(section => fullOperationalDashboard || codes.Contains("*") ||
             (codes.Contains("dashboard.view") && codes.Contains(OwnerPermissionCatalog.ActionPermissionCode(section))))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         model.Metrics = model.Metrics.Where(metric => model.VisibleSections.Contains(metric.Permission)).ToArray();

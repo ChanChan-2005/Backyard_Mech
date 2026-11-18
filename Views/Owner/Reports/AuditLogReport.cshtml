@@ -1,0 +1,45 @@
+@model AuditLogReportPage
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Activity Log";
+    ViewData["PageTitle"] = "Activity Log";
+    ViewData["PageSubtitle"] = "REPORTS > ACTIVITY LOG";
+    ViewData["ActiveNav"] = "Reports";
+    ViewData["ShellClass"] = "reports-shell";
+}
+
+<section class="reports-page">
+    <form class="reports-filter-card reports-date-filter" method="get" asp-action="AuditLogReport">
+        @if (Model.EmployeeProfileId.HasValue) { <input type="hidden" name="employeeProfileId" value="@Model.EmployeeProfileId" /> }
+        <label class="reports-date-field"><span>From</span><input type="date" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>To</span><input type="date" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" /></label>
+        <label class="reports-date-field"><span>Name or email</span><input type="search" name="nameOrEmail" value="@Model.NameOrEmail" placeholder="Search staff" /></label>
+        <label class="reports-date-field"><span>Action</span><select name="action"><option value="">All actions</option>@foreach (var item in Model.Actions) { <option value="@item" selected="@(Model.Action == item)">@item</option> }</select></label>
+        <label class="reports-date-field"><span>Entity</span><select name="entity"><option value="">All entities</option>@foreach (var item in Model.Entities) { <option value="@item" selected="@(Model.Entity == item)">@item</option> }</select></label>
+        <button class="reports-button-blue" type="submit">Filter</button>
+        <a class="reports-button" asp-action="AuditLogReport">Clear</a>
+    </form>
+    <section class="reports-panel">
+        <header class="reports-panel-header"><h2>System Activity</h2><span>@Model.TotalCount records</span></header>
+        <div class="table-responsive">
+            <table class="reports-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Action</th><th>Timestamp</th><th>Entity</th></tr></thead>
+                <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr><td>@row.Name</td><td>@row.Email</td><td>@row.Action</td><td>@row.Timestamp.ToString("MMM dd, yyyy hh:mm:ss tt")</td><td>@row.Entity @if (row.EntityId != "—") { <span>#@row.EntityId</span> }</td></tr>
+                }
+                @if (Model.Rows.Count == 0) { <tr><td colspan="5">No activity matches these filters.</td></tr> }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.TotalPages > 1)
+        {
+            <nav class="reports-pagination" aria-label="Activity log pages">
+                @if (Model.Page > 1) { <a class="reports-button" href="@Url.Action("AuditLogReport", new { startDate = Model.StartDate, endDate = Model.EndDate, nameOrEmail = Model.NameOrEmail, action = Model.Action, entity = Model.Entity, employeeProfileId = Model.EmployeeProfileId, page = Model.Page - 1 })">Previous</a> }
+                <span>Page @Model.Page of @Model.TotalPages</span>
+                @if (Model.Page < Model.TotalPages) { <a class="reports-button" href="@Url.Action("AuditLogReport", new { startDate = Model.StartDate, endDate = Model.EndDate, nameOrEmail = Model.NameOrEmail, action = Model.Action, entity = Model.Entity, employeeProfileId = Model.EmployeeProfileId, page = Model.Page + 1 })">Next</a> }
+            </nav>
+        }
+    </section>
+</section>

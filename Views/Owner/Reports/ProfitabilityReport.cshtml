@@ -1,9 +1,9 @@
 @model ProfitabilityReportViewModel
 @{
     Layout = "_AppLayout";
-    ViewData["Title"] = "Profitability Report";
-    ViewData["PageTitle"] = "Profitability Report";
-    ViewData["PageSubtitle"] = "Labor rate markup and service margin breakdown MTD";
+    ViewData["Title"] = "Financial Summary";
+    ViewData["PageTitle"] = "Financial Summary";
+    ViewData["PageSubtitle"] = "Tracked service revenue and direct labour/parts costs for the selected period";
     ViewData["ActiveNav"] = "Reports";
     ViewData["ShellClass"] = "reports-shell";
 }
@@ -17,6 +17,7 @@
 }
 
 <section class="reports-page">
+    <aside class="reports-data-limit" role="note"><strong>Data coverage:</strong> This summary only calculates gross profit from invoice revenue and tracked labour/parts costs. Salaries, rent/utilities, equipment maintenance, supplier payments, administrative expenses, and cash flow are not recorded by the system yet; net profit cannot be reported accurately.</aside>
     <form class="reports-filter-card reports-date-filter" method="get" asp-action="ProfitabilityReport">
         <label class="reports-date-field"><span>Start date</span><input type="date" name="startDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" /></label>
         <label class="reports-date-field"><span>End date</span><input type="date" name="endDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" /></label>
@@ -29,7 +30,7 @@
             <article class="reports-stat"><header><span>@metric.Title</span><small class="reports-pill @metric.BadgeTone">@metric.Badge</small></header><strong>@metric.Value</strong><p>@metric.Detail</p></article>
         }
     </div>
-    <section class="reports-card reports-chart-card"><h2>Daily Profit Trend (MTD)</h2><canvas id="profitabilityChart" height="190"></canvas></section>
+    <section class="reports-card reports-chart-card"><h2>Estimated Gross Profit by Day</h2><canvas id="profitabilityChart" height="190"></canvas></section>
     <section class="reports-panel">
         <table class="reports-table" data-report-table>
             <thead><tr><th>Service Type</th><th>Jobs Count</th><th>Revenue</th><th>Labour Cost</th><th>Parts Cost</th><th>Total Cost</th><th>Profit</th><th>Margin %</th></tr></thead>
