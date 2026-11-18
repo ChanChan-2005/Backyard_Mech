@@ -42,6 +42,21 @@ namespace Backyard_Mech.Data
                 IF NOT EXISTS (SELECT 1 FROM dbo.GarageSettings WHERE Id = 1)
                     INSERT dbo.GarageSettings (Id, ValuesJson, Revision) VALUES (1, N'{{}}', NEWID());
                 """);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.EmailDelivery', N'U') IS NULL
+                    CREATE TABLE dbo.EmailDelivery (
+                        DeliveryKey nvarchar(200) NOT NULL PRIMARY KEY,
+                        Kind nvarchar(40) NOT NULL,
+                        Recipient nvarchar(256) NOT NULL,
+                        Status nvarchar(16) NOT NULL,
+                        AttemptCount int NOT NULL,
+                        CreatedUtc datetime2 NOT NULL,
+                        NextAttemptUtc datetime2 NULL,
+                        LeaseUntilUtc datetime2 NULL,
+                        SentUtc datetime2 NULL,
+                        LastError nvarchar(100) NULL
+                    );
+                """);
 
 
             if (await dbContext.Users.AnyAsync())
@@ -177,18 +192,22 @@ namespace Backyard_Mech.Data
                 MERGE dbo.AppRole AS target
                 USING (VALUES
                     (N'RootAdmin', N'Root Administrator', N'System-protected root administrator.', 0, 1, 1),
-                    (N'Owner', N'Garage Owner', N'Full garage operations access; permissions are editable.', 10, 0, 1),
-                    (N'Administrator', N'Administrator', N'Administrative garage operations access.', 20, 0, 1),
-                    (N'Service Advisor', N'Service Advisor', N'Customer intake and service queue access.', 30, 0, 1),
-                    (N'Mechanic/Technician', N'Mechanic/Technician', N'Work order and repair workflow access.', 40, 0, 1),
-                    (N'Parts Clerk', N'Parts Clerk', N'Inventory and parts workflow access.', 50, 0, 1),
-                    (N'Supervisor/QC Inspector', N'Supervisor/QC Inspector', N'Quality control and supervisor access.', 60, 0, 1),
-                    (N'Accounting/Cashier', N'Accounting/Cashier', N'Invoice and payment workflow access.', 70, 0, 1)
+                    (N'Owner', N'Garage Owner', N'Full access; oversees the business, manages employees and roles.', 10, 0, 1),
+                    (N'Administrator', N'Administrator', N'Manages employee accounts/roles; day-to-day system administration.', 20, 0, 1),
+                    (N'Service Advisor', N'Service Advisor', N'Handles check-in, scheduling, estimates, and customer communication.', 30, 0, 1),
+                    (N'Mechanic/Technician', N'Mechanic / Technician', N'Performs inspections and repairs; records labour time and parts used.', 40, 0, 1),
+                    (N'Parts Clerk', N'Parts Clerk', N'Manages parts inventory: receiving, reservation, issue, returns.', 50, 0, 1),
+                    (N'Supervisor/QC Inspector', N'Supervisor / QC Inspector', N'Signs off completed repairs before invoicing.', 60, 0, 1),
+                    (N'Accounting/Cashier', N'Accounting / Cashier', N'Handles invoicing, payments, and financial reporting.', 70, 0, 1)
                 ) AS source(RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                 ON target.RoleKey = source.RoleKey
-                WHEN MATCHED AND source.RoleKey = N'RootAdmin' THEN
+                WHEN MATCHED THEN
                     UPDATE SET
-                        IsSystemProtected = source.IsSystemProtected
+                        IsSystemProtected = CASE WHEN source.RoleKey = N'RootAdmin' THEN source.IsSystemProtected ELSE target.IsSystemProtected END,
+                        RoleName = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.RoleName ELSE source.RoleName END,
+                        Description = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.Description ELSE source.Description END,
+                        DisplayOrder = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.DisplayOrder ELSE source.DisplayOrder END,
+                        IsActive = CASE WHEN source.RoleKey = N'RootAdmin' THEN target.IsActive ELSE source.IsActive END
                 WHEN NOT MATCHED THEN
                     INSERT (RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
                     VALUES (source.RoleKey, source.RoleName, source.Description, source.DisplayOrder, source.IsSystemProtected, source.IsActive);

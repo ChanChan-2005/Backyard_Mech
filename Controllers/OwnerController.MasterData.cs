@@ -98,7 +98,10 @@ public partial class OwnerController
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> CreateCategory(MasterDataForm f) { f.Id=0; return SaveCategory(f); }
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> UpdateCategory(MasterDataForm f) { if(f.Id<=0) ModelState.AddModelError("Id","Select a category."); return SaveCategory(f); }
     private Task<IActionResult> SaveCategory(MasterDataForm f) => SaveWorkflow(async () => {
-        Require(ValidKind(f.Kind),"Select a category type."); Require(f.Name.Trim().Length<=120,"Category name must be at most 120 characters.");
+        Require(ValidKind(f.Kind),"Select a category type.");
+        var codes = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+        Require(Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(codes, "SettingsCategories", f.Kind!), "You cannot edit this category tab.");
+        Require(f.Name.Trim().Length<=120,"Category name must be at most 120 characters.");
         Require((f.Description?.Length ?? 0)<=500,"Category description must be at most 500 characters.");
         var rows=await CategoryRows(f.Kind!); var original=rows.FirstOrDefault(x=>x.Id==f.Id);
         if(f.Id!=0) { Require(original is not null,"Category not found."); CheckMaster(original!.Entity,f.Expected); }
@@ -121,7 +124,10 @@ public partial class OwnerController
     },nameof(SettingsCategories),new{kind=ValidKind(f.Kind)?f.Kind:"services"});
 
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> SetCategoryState(MasterStateForm f) => SaveWorkflow(async () => {
-        Require(ValidKind(f.Kind),"Select a category type."); var rows=await CategoryRows(f.Kind!); var row=rows.SingleOrDefault(x=>x.Id==f.Id);
+        Require(ValidKind(f.Kind),"Select a category type.");
+        var codes = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+        Require(Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(codes, "SettingsCategories", f.Kind!), "You cannot edit this category tab.");
+        var rows=await CategoryRows(f.Kind!); var row=rows.SingleOrDefault(x=>x.Id==f.Id);
         Require(row is not null,"Category not found."); CheckMaster(row!.Entity,f.Expected);
         if(!f.Active) Require(!rows.Any(x=>x.Parent==f.Id && x.Active),"Deactivate or move the active subcategories first.");
         if(f.Active && row.Parent.HasValue) Require(rows.Any(x=>x.Id==row.Parent && x.Active),"Reactivate the parent category first.");

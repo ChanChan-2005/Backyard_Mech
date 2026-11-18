@@ -1,4 +1,5 @@
 @model RecordGovernanceViewModel
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Records Disposition";
@@ -10,6 +11,7 @@
     var pageModel = Model ?? new RecordGovernanceViewModel();
     var records = pageModel.Records;
     var activeTab = pageModel.ActiveTab;
+    var permissionCodes = await PermissionService.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 <section class="records-page">
@@ -26,10 +28,11 @@
     </div>
 
     <nav class="records-subtabs" aria-label="Disposition record filters">
-        <a class="@(activeTab == "all" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="all">All (@pageModel.AllCount)</a>
-        <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="parts">Parts (@pageModel.PartsCount)</a>
-        <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="product-listings">Product Listings (@pageModel.ProductListingsCount)</a>
-        <a class="@(activeTab == "tools" ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="tools">Tools (@pageModel.ToolsCount)</a>
+        @foreach (var tab in new[] { (Key: "all", Label: "All", Count: pageModel.AllCount), (Key: "parts", Label: "Parts", Count: pageModel.PartsCount), (Key: "product-listings", Label: "Product Listings", Count: pageModel.ProductListingsCount), (Key: "tools", Label: "Tools", Count: pageModel.ToolsCount) })
+        {
+            if (!Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "RecordsDisposition", tab.Key)) continue;
+            <a class="@(activeTab == tab.Key ? "active" : "")" asp-controller="Owner" asp-action="RecordsDisposition" asp-route-tab="@tab.Key">@tab.Label (@tab.Count)</a>
+        }
     </nav>
 
     <section class="records-policy-card">

@@ -1,4 +1,5 @@
 @model IReadOnlyList<EmployeeListItem>
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "Archived Employees";
@@ -8,6 +9,7 @@
     ViewData["ShellClass"] = "users-shell";
 
     var archived = Model ?? Array.Empty<EmployeeListItem>();
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
@@ -28,10 +30,10 @@
     </div>
 
     <nav class="users-tabs">
-        <a href="/Owner/Employees">All</a>
-        <a href="/Owner/Employees">Active</a>
-        <a href="/Owner/Employees">Inactive</a>
-        <a href="/Owner/SoftDeletedEmployees">Soft Deleted</a>
+        @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "all")) { <a href="/Owner/Employees?view=all">All</a> }
+        @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "active")) { <a href="/Owner/Employees?view=active">Active</a> }
+        @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "inactive")) { <a href="/Owner/Employees?view=inactive">Inactive</a> }
+        @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "SoftDeletedEmployees")) { <a href="/Owner/SoftDeletedEmployees">Soft Deleted</a> }
         <a class="active" href="/Owner/ArchivedEmployees">Archived (@archived.Count)</a>
     </nav>
 

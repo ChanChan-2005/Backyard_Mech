@@ -1,14 +1,18 @@
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     var activeTab = ViewData["SettingsTab"]?.ToString() ?? "General";
+    var permissionCodes = await PermissionService.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool CanOpen(string action) => Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, action);
+    bool CanCategory(string kind) => CanOpen("SettingsCategories") && Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "SettingsCategories", kind);
 }
 
 <nav class="settings-tabs">
-    <a class="@(activeTab == "General" ? "active" : "")" href="/Owner/Settings">General</a>
-    <a class="@(activeTab == "Tax" ? "active" : "")" href="/Owner/SettingsTax">Tax</a>
+    @if (CanOpen("Settings")) { <a class="@(activeTab == "General" ? "active" : "")" href="/Owner/Settings">General</a> }
+    @if (CanOpen("SettingsTax")) { <a class="@(activeTab == "Tax" ? "active" : "")" href="/Owner/SettingsTax">Tax</a> }
     @foreach (var category in new[] { ("services", "Service Categories"), ("parts", "Part Categories"), ("tools", "Tool Categories") })
     {
-        <a class="@(activeTab == category.Item1 ? "active" : "")" href="/Owner/SettingsCategories?kind=@category.Item1">@category.Item2</a>
+        if (CanCategory(category.Item1)) { <a class="@(activeTab == category.Item1 ? "active" : "")" href="/Owner/SettingsCategories?kind=@category.Item1">@category.Item2</a> }
     }
-    <a class="@(activeTab == "Roles" ? "active" : "")" href="/Owner/SettingsRoles">Roles & Permissions</a>
-    <a class="@(activeTab == "System" ? "active" : "")" href="/Owner/SettingsSystemPreferences">System Preferences</a>
+    @if (CanOpen("SettingsRoles") && new[] { "roles", "permissions" }.Any(tab => Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "SettingsRoles", tab))) { <a class="@(activeTab == "Roles" ? "active" : "")" href="/Owner/SettingsRoles">Roles & Permissions</a> }
+    @if (CanOpen("SettingsSystemPreferences")) { <a class="@(activeTab == "System" ? "active" : "")" href="/Owner/SettingsSystemPreferences">System Preferences</a> }
 </nav>

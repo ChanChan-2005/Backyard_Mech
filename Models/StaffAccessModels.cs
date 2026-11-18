@@ -11,7 +11,7 @@ public sealed class UserPermissionOverride
 }
 public sealed class StaffAccountForm
 {
-    [Range(1,int.MaxValue)] public int EmployeeProfileId { get; set; }
+    [Range(1,int.MaxValue)] public int? EmployeeProfileId { get; set; }
     [Required,EmailAddress,StringLength(256)] public string Email { get; set; } = "";
     [Required,StringLength(120)] public string UserName { get; set; } = "";
     [Required,StringLength(128,MinimumLength=12)] public string Password { get; set; } = "";

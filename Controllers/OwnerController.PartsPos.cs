@@ -77,11 +77,7 @@ public partial class OwnerController
         Require(form.PaymentMethod == "Cash" || form.AmountTendered == 0, "Tendered amount applies to cash payments only.");
         Require(form.PaymentMethod == "Cash" || !string.IsNullOrWhiteSpace(form.ReferenceNumber), "Enter a payment reference.");
 
-        var counter = await _dbContext.InvoiceNumberCounters.FirstOrDefaultAsync(row => row.InvoiceNumberCounterId == 1);
-        Require(counter is not null, "The invoice numbering counter is missing.");
-        string number;
-        do { counter!.LastNumber++; number = $"{counter.Prefix}{counter.LastNumber:000000}"; }
-        while (await _dbContext.Invoices.AnyAsync(row => row.InvoiceNumber == number));
+        var number = await NextInvoiceNumberAsync(now);
 
         var invoice = new Invoice { InvoiceNumber = number, CustomerFirstName = "Walk-in customer",
             IssuedUtc = now, TaxRateId = form.TaxRateId,

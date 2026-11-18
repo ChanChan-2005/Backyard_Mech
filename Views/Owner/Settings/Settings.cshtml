@@ -49,7 +49,7 @@
                 <label class="settings-toggle-row" for="EmailAppointmentReminders"><span><strong>Email Appointment Reminders</strong><span class="settings-muted">Remind customers 24 hours before their scheduled appointment.</span></span><input asp-for="EmailAppointmentReminders" type="checkbox" role="switch" class="general-switch" /></label>
                 <label class="settings-toggle-row" for="LowStockAlerts"><span><strong>Low Stock Inventory Alerts</strong><span class="settings-muted">Daily summary when parts fall below their stock threshold.</span></span><input asp-for="LowStockAlerts" type="checkbox" role="switch" class="general-switch" /></label>
                 <label class="settings-toggle-row" for="OverdueInvoiceReminders"><span><strong>Overdue Invoice Reminders</strong><span class="settings-muted">Remind customers about invoices overdue by 15 days.</span></span><input asp-for="OverdueInvoiceReminders" type="checkbox" role="switch" class="general-switch" /></label>
-                <p class="settings-muted">Preferences are saved here. Automatic email delivery is not available yet.</p>
+                <p class="settings-muted">Enabled notifications are checked every 15 minutes. Gmail SMTP status and sender address are shown under System Preferences.</p>
             </section>
             @if(Model.CanEdit){<div class="settings-actions"><a asp-action="Settings" class="settings-button">Cancel</a><button class="settings-button-dark" type="submit">Save Changes</button></div>}
         </fieldset>

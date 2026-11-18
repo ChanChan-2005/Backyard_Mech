@@ -61,6 +61,9 @@ builder.Services.AddRateLimiter(options => {
 });
 builder.Services.AddScoped<RecordsDispositionService>();
 builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<GmailSmtpSender>();
+builder.Services.AddScoped<AutomaticEmailService>();
+builder.Services.AddHostedService<AutomaticEmailWorker>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<OwnerPermissionFilter>();
 builder.Services.AddSingleton<ReportExportService>();

@@ -40,6 +40,51 @@ namespace Backyard_Mech.Services
                 return;
             }
 
+            if (actionName == "ViewGovernanceRecord" &&
+                !SubTabPermissionCatalog.CanAccessRecordType(codes, "ArchiveRecords", context.HttpContext.Request.Query["type"]) &&
+                !SubTabPermissionCatalog.CanAccessRecordType(codes, "RecordsDisposition", context.HttpContext.Request.Query["type"]))
+            {
+                context.Result = new RedirectToActionResult("AccessDenied", "Account", new { module = "this record" });
+                return;
+            }
+
+            if (context.ActionArguments.TryGetValue("form", out var recordForm) &&
+                recordForm is Backyard_Mech.Models.RecordActionFormModel record)
+            {
+                var recordPage = actionName is "DeleteArchivedRecord" or "RestoreArchivedRecord" ? "ArchiveRecords" :
+                    actionName is "DeleteDispositionRecordPermanently" or "RestoreDispositionRecord" ? "RecordsDisposition" : null;
+                if (recordPage is not null && !SubTabPermissionCatalog.CanAccessRecordType(codes, recordPage, record.RecordType))
+                {
+                    context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
+                    return;
+                }
+            }
+            if (actionName == "SaveRecordsDispositionPolicy" &&
+                !SubTabPermissionCatalog.CanAccess(codes, "RecordsDisposition", "all"))
+            {
+                context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
+                return;
+            }
+
+            if (SubTabPermissionCatalog.Selected(actionName, context.HttpContext.Request.Query) is { } selectedTab &&
+                !SubTabPermissionCatalog.CanAccess(codes, selectedTab.Page, selectedTab.Value))
+            {
+                var explicitlySelected = context.HttpContext.Request.Query.ContainsKey(selectedTab.QueryName);
+                var firstAllowed = SubTabPermissionCatalog.Tabs.FirstOrDefault(tab =>
+                    tab.Page == selectedTab.Page && SubTabPermissionCatalog.CanAccess(codes, tab.Page, tab.Value));
+                if (!explicitlySelected && firstAllowed is not null)
+                {
+                    var routeValues = context.HttpContext.Request.Query
+                        .ToDictionary(item => item.Key, item => (object?)item.Value.ToString());
+                    routeValues[firstAllowed.QueryName] = firstAllowed.Value;
+                    context.Result = new RedirectToActionResult(actionName, "Owner",
+                        routeValues);
+                    return;
+                }
+                context.Result = new RedirectToActionResult("AccessDenied", "Account", new { module = selectedTab.Label });
+                return;
+            }
+
             await next();
         }
     }
@@ -60,6 +105,12 @@ namespace Backyard_Mech.Services
             var requirement = Resolve(actionName);
             if (requirement is null) return false;
             if (codes.Contains("*")) return true;
+            if (actionName.Equals("ViewGovernanceRecord", StringComparison.OrdinalIgnoreCase))
+                return codes.Contains("archive.view") || codes.Contains("recordsdisposition.view");
+            if (SubTabPermissionCatalog.RequiredForAction(actionName) is { } tab &&
+                !SubTabPermissionCatalog.CanAccess(codes, tab.Page, tab.Value)) return false;
+            if (actionName is "AddStockMovement" or "EditStockMovement" or "ReverseStockMovement" &&
+                !codes.Contains(ActionPermissionCode("SparesAllocation"))) return false;
             return codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
                 && codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
                 && (ModulePages.Contains(actionName) || codes.Contains(ActionPermissionCode(actionName)));
@@ -73,19 +124,29 @@ namespace Backyard_Mech.Services
                 .Where(method => typeof(IActionResult).IsAssignableFrom(method.ReturnType)
                     || method.ReturnType == typeof(Task<IActionResult>))
                 .Select(method => (method.Name, Requirement: Resolve(method.Name)))
-                .Where(item => item.Requirement.HasValue && !ModulePages.Contains(item.Name))
+                .Where(item => item.Requirement.HasValue && !ModulePages.Contains(item.Name)
+                    && item.Name is not ("ViewGovernanceRecord" or "CreateRole" or "EditRole" or "DeleteRole"))
                 .Select(item => (item.Name, item.Requirement!.Value.Module, item.Requirement.Value.Action))
                 .Concat(DashboardPermissions.Sections.Select(name => (Name: name, Module: "Dashboard", Action: "View")))
-                .Concat(new[] { (Name: "ManageStaffRolePermissions", Module: "User Access", Action: "Edit"), (Name: "ManageStockTransactions", Module: "Inventory", Action: "Create") })
+                .Concat(new[] { (Name: "ManageStaffRolePermissions", Module: "User Access", Action: "Edit"), (Name: "ManageStockTransactions", Module: "Parts Management", Action: "Create") })
                 .Distinct()
                 .OrderBy(item => item.Module)
                 .ThenBy(item => item.Name)
                 .ToArray();
 
-        public static string ActionLabel(string actionName) =>
-            System.Text.RegularExpressions.Regex.Replace(
+        public static string ActionLabel(string actionName) => actionName switch
+        {
+            "SparesAllocation" => "Stock Transactions",
+            "ArchivedEmployees" => "Archived Employees",
+            "SoftDeletedEmployees" => "Soft Deleted Employees",
+            "SettingsTax" => "Tax",
+            "SettingsSystemPreferences" => "System Preferences",
+            "SettingsCategories" => "Categories",
+            "SettingsRoles" => "Roles & Permissions",
+            _ => System.Text.RegularExpressions.Regex.Replace(
                 System.Text.RegularExpressions.Regex.Replace(actionName, "([A-Z])([A-Z][a-z])", "$1 $2"),
-                "([a-z0-9])([A-Z])", "$1 $2");
+                "([a-z0-9])([A-Z])", "$1 $2")
+        };
 
         public static (string Module, string Action)? Resolve(string actionName)
         {
@@ -95,7 +156,7 @@ namespace Backyard_Mech.Services
                 "Dashboard" => ("Dashboard", "View"),
                 "StaffAccounts" => ("User Access", "View"),
                 "ManageStaffRolePermissions" => ("User Access", "Edit"),
-                "ManageStockTransactions" => ("Inventory", "Create"),
+                "ManageStockTransactions" => ("Parts Management", "Create"),
                 "CreateStaffAccount" => ("User Access", "Create"),
                 "SaveUserAccess" => ("User Access", "Edit"),
                 "StaffAvailability" => ("Employees", "View"),
@@ -144,15 +205,15 @@ namespace Backyard_Mech.Services
                 "AddBay" => ("Bays", "Create"),
                 "EditBay" or "SetBayMaintenance" => ("Bays", "Edit"),
 
-                "PartsManagement" or "PartDetails" or "PartAuditLog" or "SparesAllocation" => ("Inventory", "View"),
-                "PartsPos" or "PartsPosReceipt" => ("Inventory", "View"),
-                "CheckoutParts" => ("Inventory", "Create"),
-                "PartEntry" or "AddPart" or "AddProductListing" => ("Inventory", "Create"),
-                "EditPart" or "EditProductListing" => ("Inventory", "Edit"),
-                "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Inventory", "Delete"),
-                "AddStockMovement" => ("Inventory", "Create"),
-                "EditStockMovement" => ("Inventory", "Edit"),
-                "ReverseStockMovement" => ("Inventory", "Delete"),
+                "PartsManagement" or "PartDetails" or "PartAuditLog" or "SparesAllocation" => ("Parts Management", "View"),
+                "PartsPos" or "PartsPosReceipt" => ("Parts POS", "View"),
+                "CheckoutParts" => ("Parts POS", "Create"),
+                "PartEntry" or "AddPart" or "AddProductListing" => ("Parts Management", "Create"),
+                "EditPart" or "EditProductListing" => ("Parts Management", "Edit"),
+                "ArchivePart" or "SoftDeletePart" or "ArchiveProductListing" or "SoftDeleteProductListing" => ("Parts Management", "Delete"),
+                "AddStockMovement" => ("Parts Management", "Create"),
+                "EditStockMovement" => ("Parts Management", "Edit"),
+                "ReverseStockMovement" => ("Parts Management", "Delete"),
 
                 "LabourTimeTracking" or "ServiceTimer" or "LabourHistory" or "WorkOrderLaborTracking" => ("Labour", "View"),
                 "AddLabour" or "StartLabourTimer" => ("Labour", "Create"),
@@ -177,9 +238,12 @@ namespace Backyard_Mech.Services
                 "EditInvoicePayment" or "AddInvoiceAdjustment" or "EditInvoiceAdjustment" => ("Invoices", "Edit"),
                 "VoidInvoice" or "VoidInvoicePayment" or "VoidInvoiceAdjustment" => ("Invoices", "Delete"),
 
-                "ArchiveRecords" or "RecordsDisposition" or "ViewGovernanceRecord" => ("Records", "View"),
-                "SaveRecordsDispositionPolicy" or "RestoreArchivedRecord" or "RestoreDispositionRecord" => ("Records", "Edit"),
-                "DeleteDispositionRecordPermanently" or "DeleteArchivedRecord" => ("Records", "Delete"),
+                "ArchiveRecords" => ("Archive", "View"),
+                "RecordsDisposition" or "ViewGovernanceRecord" => ("Records Disposition", "View"),
+                "RestoreArchivedRecord" => ("Archive", "Edit"),
+                "SaveRecordsDispositionPolicy" or "RestoreDispositionRecord" => ("Records Disposition", "Edit"),
+                "DeleteArchivedRecord" => ("Archive", "Delete"),
+                "DeleteDispositionRecordPermanently" => ("Records Disposition", "Delete"),
 
                 "Employees" or "ArchivedEmployees" or "SoftDeletedEmployees" or "EmployeeDetails" or "EmployeeAccountDetails" or "EmployeeSecurityActivity" or "EmployeeSchedule" or "EmployeePerformance" => ("Employees", "View"),
                 "AddEmployee" => ("Employees", "Create"),
@@ -190,7 +254,7 @@ namespace Backyard_Mech.Services
 
                 "Settings" or "SettingsLogo" or "SettingsTax" or "SettingsRoles" or "SettingsSystemPreferences" => ("Settings", "View"),
                 "CreateRole" => ("Settings", "Create"),
-                "EditRole" or "SaveRolePermissions" or "SaveGeneralSettings" => ("Settings", "Edit"),
+                "EditRole" or "SaveRolePermissions" or "SaveGeneralSettings" or "SaveEmailNotifications" => ("Settings", "Edit"),
                 "DeleteRole" => ("Settings", "Delete"),
 
                 _ => null
@@ -210,12 +274,14 @@ namespace Backyard_Mech.Services
             "estimates.view", "estimates.create", "estimates.edit", "estimates.delete", "estimates.approve",
             "workorders.view", "workorders.create", "workorders.edit", "workorders.delete", "workorders.approve",
             "bays.view", "bays.create", "bays.edit",
-            "inventory.view", "inventory.create", "inventory.edit", "inventory.delete",
+            "partsmanagement.view", "partsmanagement.create", "partsmanagement.edit", "partsmanagement.delete",
+            "partspos.view", "partspos.create",
             "labour.view", "labour.create", "labour.edit", "labour.delete",
             "inspections.view", "inspections.create", "inspections.approve", "inspections.delete",
             "tools.view", "tools.create", "tools.edit", "tools.delete",
             "invoices.view", "invoices.create", "invoices.edit", "invoices.delete",
-            "records.view", "records.edit", "records.delete",
+            "archive.view", "archive.edit", "archive.delete",
+            "recordsdisposition.view", "recordsdisposition.edit", "recordsdisposition.delete",
             "employees.view", "employees.create", "employees.edit", "employees.delete",
             "reports.view",
             "settings.view", "settings.create", "settings.edit", "settings.delete"
@@ -224,6 +290,7 @@ namespace Backyard_Mech.Services
         public static bool IsSupportedPermission(string module, string action)
         {
             return SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action))
+                || (SubTabPermissionCatalog.ByActionName(action) is { } tab && tab.Module.Equals(module, StringComparison.OrdinalIgnoreCase))
                 || DetailedActions.Any(item => item.Module.Equals(module, StringComparison.OrdinalIgnoreCase)
                     && item.Name.Equals(action, StringComparison.OrdinalIgnoreCase));
         }

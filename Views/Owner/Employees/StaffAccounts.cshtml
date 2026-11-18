@@ -9,11 +9,13 @@
     var canEditProfile = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Employees", "Edit");
     var canDeleteProfile = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Employees", "Delete");
     var eligible=Model.Profiles.Where(x=>x.IsActive && string.IsNullOrWhiteSpace(x.UserId)).ToList();
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    var canCreateProfile = Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "AddEmployee");
 }
 <link rel="stylesheet" href="~/css/owner/settings/owner-master-data.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/owner/employees/owner-staff-access.css" asp-append-version="true" />
 <section class="master-data staff-access">
-    <header class="master-toolbar"><h2>Staff Profiles</h2><div class="master-actions"><a class="app-action-link" href="/Owner/Employees">Employee Directory</a>@if(Model.CanCreate){<button class="master-primary" data-staff-open="create-account" type="button" disabled="@(eligible.Count==0)">+ Create Account</button>}</div></header>
+    <header class="master-toolbar"><h2>Staff Profiles</h2><div class="master-actions"><a class="app-action-link" href="/Owner/Employees">Employee Directory</a>@if(Model.CanCreate){<button class="master-primary" data-staff-open="create-account" type="button">+ Create Account</button>}</div></header>
     <div class="master-table-wrap staff-profiles-table-wrap" tabindex="0" role="region" aria-label="Staff profiles"><table class="staff-profiles-table"><colgroup><col class="staff-name-column" /><col class="staff-job-column" /><col class="staff-status-column" /><col class="staff-login-column" /><col class="staff-role-column" /><col class="staff-actions-column" /></colgroup><thead><tr><th>Name</th><th>Job Title / Position<small class="app-field-help">Work performed in the shop</small></th><th>Staff Status</th><th>Login Account</th><th>System Access Role<small class="app-field-help">Pages and actions allowed</small></th><th>Action</th></tr></thead><tbody>
     @foreach(var profile in Model.Profiles){
         var account=Model.Accounts.FirstOrDefault(x=>x.Id.ToString()==profile.UserId);
@@ -88,15 +90,15 @@
     </dialog>
 }
 @if(Model.CanCreate){
-<dialog class="master-dialog staff-account-dialog app-modal" id="create-account" aria-labelledby="create-account-title" role="dialog" aria-modal="true">
+<dialog class="master-dialog staff-account-dialog app-modal" id="create-account" data-new-profile-id="@Context.Request.Query["newProfileId"]" aria-labelledby="create-account-title" role="dialog" aria-modal="true">
     <form id="create-account-form" method="post" asp-action="CreateStaffAccount" data-create-staff-account novalidate>
         @Html.AntiForgeryToken()
         <header class="master-toolbar"><div><h2 id="create-account-title">Create Staff Account</h2><p>Create login credentials and assign the employee's access role.</p></div><button type="button" data-staff-close aria-label="Close">&#215;</button></header>
         <div class="master-fields">
             <div class="master-wide staff-profile-field" data-staff-profile-combobox>
-                <label for="staff-profile-search"><span>Staff Profile <span class="modal-required-indicator" aria-hidden="true">*</span></span></label>
+                <label for="staff-profile-search"><span>Staff Profile (optional)</span></label>
                 <div class="staff-profile-control">
-                    <input maxlength="256" id="staff-profile-search" class="staff-profile-search" type="text" role="combobox" aria-autocomplete="list" aria-controls="eligible-staff-profiles" aria-expanded="false" placeholder="Type or choose a staff member" autocomplete="off" required data-staff-profile-search />
+                    <input maxlength="256" id="staff-profile-search" class="staff-profile-search" type="text" role="combobox" aria-autocomplete="list" aria-controls="eligible-staff-profiles" aria-expanded="false" placeholder="Choose an unlinked staff member, if applicable" autocomplete="off" data-staff-profile-search />
                     <button type="button" class="staff-profile-toggle" aria-label="Show staff profiles" data-staff-profile-toggle></button>
                     <div id="eligible-staff-profiles" class="staff-profile-options" role="listbox" hidden>
                         @foreach(var p in eligible){<button type="button" role="option" id="staff-profile-option-@p.EmployeeProfileId" data-profile-id="@p.EmployeeProfileId" data-profile-name="@p.FirstName @p.LastName" aria-selected="false">@p.FirstName @p.LastName</button>}
@@ -104,7 +106,7 @@
                     </div>
                 </div>
                 <input type="hidden" name="EmployeeProfileId" data-staff-profile-id />
-                <small class="master-field-hint">Type a name, then select a staff member from the list.</small>
+                <small class="master-field-hint">Leave blank to create a login account without a staff profile.@if (eligible.Count == 0 && canCreateProfile) { <text> You can <a href="/Owner/Employees?newProfileForAccount=1">add a staff profile</a> first if needed.</text> }</small>
             </div>
             <label><span>Login Email <span class="modal-required-indicator" aria-hidden="true">*</span></span><input type="email" name="Email" maxlength="256" required autocomplete="off" placeholder="name@company.ca" /><small class="master-field-hint">Use the employee's work email address.</small></label>
             <label><span>Username <span class="modal-required-indicator" aria-hidden="true">*</span></span><input name="UserName" maxlength="120" required autocomplete="off" placeholder="e.g., alex.chen" /><small class="master-field-hint">The name they will enter when signing in.</small></label>

@@ -18,13 +18,13 @@ IF NOT EXISTS (SELECT 1 FROM dbo.AppRole WHERE RoleKey = N'Owner')
 BEGIN
     INSERT INTO dbo.AppRole (RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)
     VALUES
-        (N'Owner', N'Garage Owner', N'Full system owner access.', 10, 1, 1),
-        (N'Administrator', N'Administrator', N'Administrative garage operations access.', 20, 0, 1),
-        (N'Service Advisor', N'Service Advisor', N'Customer intake and service queue access.', 30, 0, 1),
-        (N'Mechanic/Technician', N'Mechanic/Technician', N'Work order and repair workflow access.', 40, 0, 1),
-        (N'Parts Clerk', N'Parts Clerk', N'Inventory and parts workflow access.', 50, 0, 1),
-        (N'Supervisor/QC Inspector', N'Supervisor/QC Inspector', N'Quality control and supervisor access.', 60, 0, 1),
-        (N'Accounting/Cashier', N'Accounting/Cashier', N'Invoice and payment workflow access.', 70, 0, 1);
+        (N'Owner', N'Garage Owner', N'Full access; oversees the business, manages employees and roles.', 10, 0, 1),
+        (N'Administrator', N'Administrator', N'Manages employee accounts/roles; day-to-day system administration.', 20, 0, 1),
+        (N'Service Advisor', N'Service Advisor', N'Handles check-in, scheduling, estimates, and customer communication.', 30, 0, 1),
+        (N'Mechanic/Technician', N'Mechanic / Technician', N'Performs inspections and repairs; records labour time and parts used.', 40, 0, 1),
+        (N'Parts Clerk', N'Parts Clerk', N'Manages parts inventory: receiving, reservation, issue, returns.', 50, 0, 1),
+        (N'Supervisor/QC Inspector', N'Supervisor / QC Inspector', N'Signs off completed repairs before invoicing.', 60, 0, 1),
+        (N'Accounting/Cashier', N'Accounting / Cashier', N'Handles invoicing, payments, and financial reporting.', 70, 0, 1);
 END
 GO
 

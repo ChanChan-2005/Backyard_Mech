@@ -1,4 +1,5 @@
 @model EmployeeDetailViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = Model.Name;
@@ -6,11 +7,12 @@
     ViewData["PageSubtitle"] = $"EMPLOYEES > {Model.Name.ToUpperInvariant()}";
     ViewData["ActiveNav"] = "User Management";
     ViewData["ShellClass"] = "users-shell users-reference-shell";
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
-    <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a>
-    <a class="users-icon-button" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId" aria-label="View employee activity">Activity</a>
+    @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeAccountDetails")) { <a class="users-button" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Employee</a> }
+    @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeSecurityActivity")) { <a class="users-icon-button" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId" aria-label="View employee activity">Activity</a> }
 }
 
 <section class="users-reference-page users-employee-detail">

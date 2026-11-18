@@ -1,4 +1,5 @@
 @model EmployeeSecurityActivityViewModel
+@inject Backyard_Mech.Services.PermissionService Permissions
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = $"{Model.Name} Security Activity";
@@ -7,6 +8,7 @@
     ViewData["ActiveNav"] = "User Management";
     ViewData["ShellClass"] = "users-shell users-reference-shell";
     ViewData["SearchPlaceholder"] = "Search security activity...";
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
@@ -35,8 +37,8 @@
 
         <section class="users-tab-card">
             <nav class="users-tabs">
-                <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a>
-                <a asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
+                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeDetails")) { <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a> }
+                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeAccountDetails")) { <a asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a> }
                 <a class="active" asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a>
             </nav>
 

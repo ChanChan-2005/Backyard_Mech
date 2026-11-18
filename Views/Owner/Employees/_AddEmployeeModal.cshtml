@@ -6,6 +6,7 @@
 
     <form class="users-modal-form" asp-controller="Owner" asp-action="AddEmployee" method="post" data-staff-address-form>
         @Html.AntiForgeryToken()
+        <input type="hidden" name="ReturnToStaffAccounts" value="@(Context.Request.Query.ContainsKey("newProfileForAccount") ? "true" : "false")" />
         <input type="hidden" name="StreetAddress" data-staff-address-value />
         <div class="users-employee-form-grid">
             <h3 class="users-form-section-title">Personal Information</h3>

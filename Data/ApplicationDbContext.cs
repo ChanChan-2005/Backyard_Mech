@@ -11,6 +11,7 @@ namespace Backyard_Mech.Data
         }
 
         public DbSet<GarageSettings> GarageSettings => Set<GarageSettings>();
+        public DbSet<EmailDelivery> EmailDeliveries => Set<EmailDelivery>();
         public DbSet<AppUser> Users => Set<AppUser>();
         public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
         public DbSet<AccountSecurity> AccountSecurity => Set<AccountSecurity>();
@@ -74,6 +75,15 @@ namespace Backyard_Mech.Data
                 entity.Property(x => x.Id).ValueGeneratedNever();
                 entity.Property(x => x.LogoContentType).HasMaxLength(30);
                 entity.Property(x => x.Revision).IsConcurrencyToken();
+            });
+            modelBuilder.Entity<EmailDelivery>(entity => {
+                entity.ToTable("EmailDelivery");
+                entity.HasKey(x => x.DeliveryKey);
+                entity.Property(x => x.DeliveryKey).HasMaxLength(200);
+                entity.Property(x => x.Kind).HasMaxLength(40);
+                entity.Property(x => x.Recipient).HasMaxLength(256);
+                entity.Property(x => x.Status).HasMaxLength(16);
+                entity.Property(x => x.LastError).HasMaxLength(100);
             });
 
 

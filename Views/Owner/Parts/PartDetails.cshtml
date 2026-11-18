@@ -8,7 +8,7 @@
     ViewData["ActiveNav"] = "Parts Management";
     ViewData["ShellClass"] = "parts-shell";
     var editPart = ViewData["EditPart"] as Part;
-    var canEditPart = editPart is not null && await PermissionService.HasPermissionAsync(Context.Session.GetString("UserRole"), "Inventory", "Edit");
+    var canEditPart = editPart is not null && await PermissionService.HasPermissionAsync(Context.Session.GetString("UserRole"), "Parts Management", "Edit");
 }
 
 @section TopbarActions {

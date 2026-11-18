@@ -2698,11 +2698,12 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
+            var activeTab = string.Equals(tab, "product-listings", StringComparison.OrdinalIgnoreCase) ? "product-listings" : "parts";
             var model = new PartsManagementViewModel
             {
-                ActiveTab = string.Equals(tab, "product-listings", StringComparison.OrdinalIgnoreCase) ? "product-listings" : "parts",
-                Parts = await LoadPartRowsAsync(),
-                ProductListings = await LoadProductListingRowsAsync(),
+                ActiveTab = activeTab,
+                Parts = activeTab == "parts" ? await LoadPartRowsAsync() : Array.Empty<PartListItem>(),
+                ProductListings = activeTab == "product-listings" ? await LoadProductListingRowsAsync() : Array.Empty<ProductListingListItem>(),
                 PartOptions = await LoadProductListingPartOptionsAsync(),
                 ServiceOptions = await LoadProductListingServiceOptionsAsync(),
                 PartCategoryOptions = await LoadPartCategoryOptionsAsync(),
@@ -3627,7 +3628,7 @@ namespace Backyard_Mech.Controllers
             };
         }
 
-        public async Task<IActionResult> Employees()
+        public async Task<IActionResult> Employees(string view = "all")
         {
             if (!IsOwnerSession())
             {
@@ -3635,7 +3636,16 @@ namespace Backyard_Mech.Controllers
             }
 
             var employees = await LoadEmployeesAsync(includeArchived: false, includeDeleted: false);
-            return View(employees);
+            ViewData["EmployeeAllCount"] = employees.Count;
+            ViewData["EmployeeActiveCount"] = employees.Count(employee => employee.Status == "Active");
+            ViewData["EmployeeInactiveCount"] = employees.Count(employee => employee.Status != "Active");
+            ViewData["EmployeeView"] = view is "active" or "inactive" ? view : "all";
+            return View(view switch
+            {
+                "active" => employees.Where(employee => employee.Status == "Active").ToList(),
+                "inactive" => employees.Where(employee => employee.Status != "Active").ToList(),
+                _ => employees
+            });
         }
 
         public async Task<IActionResult> ArchivedEmployees()
@@ -3706,7 +3716,7 @@ namespace Backyard_Mech.Controllers
             ViewData["EmployeeAccountRole"] = account?.Role ?? "";
             ViewData["EmployeeHasLoginAccount"] = account is not null;
             ViewData["EmployeeRoleOptions"] = await _dbContext.AppRoles.AsNoTracking()
-                .Where(role => role.IsActive)
+                .Where(role => role.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(role.RoleKey))
                 .OrderBy(role => role.DisplayOrder)
                 .ThenBy(role => role.RoleName)
                 .Select(role => new SettingsRoleOption
@@ -3790,7 +3800,9 @@ namespace Backyard_Mech.Controllers
             await _dbContext.SaveChangesAsync();
             WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Create staff profile",new{EmployeeNumber=nextNumber,form.FirstName,form.LastName});
             TempData["OwnerMessage"] = "Employee saved.";
-            return RedirectToAction(nameof(Employees));
+            return form.ReturnToStaffAccounts && employee.IsActive
+                ? RedirectToAction(nameof(StaffAccounts), new { newProfileId = employee.EmployeeProfileId })
+                : RedirectToAction(nameof(Employees));
             },nameof(Employees));
         }
 
@@ -5085,6 +5097,7 @@ namespace Backyard_Mech.Controllers
                     Service = service,
                     Mechanic = mechanic,
                     Amount = FormatMoney(invoice.Total),
+                    AmountValue = invoice.Total ?? 0,
                     Status = status,
                     Tone = GetReportInvoiceTone(status)
                 };
@@ -5280,7 +5293,7 @@ namespace Backyard_Mech.Controllers
             var parts = await _dbContext.Parts.AsNoTracking().Where(part => !part.IsArchived && !part.IsDeleted).ToListAsync();
             var categories = await _dbContext.PartCategories.AsNoTracking().ToDictionaryAsync(category => category.PartCategoryId);
             var suppliers = await _dbContext.Suppliers.AsNoTracking().ToDictionaryAsync(supplier => supplier.SupplierId);
-            var rows = parts.Select(part =>
+            var rows = parts.OrderByDescending(part => (part.UnitCost ?? 0) * part.QuantityOnHand).Select(part =>
             {
                 categories.TryGetValue(part.PartCategoryId ?? 0, out var category);
                 suppliers.TryGetValue(part.SupplierId ?? 0, out var supplier);
@@ -5301,7 +5314,7 @@ namespace Backyard_Mech.Controllers
                     Status = lowStock ? "Low Stock" : "In Stock",
                     StatusTone = lowStock ? "red" : "profit"
                 };
-            }).OrderByDescending(row => decimal.Parse(row.TotalValue.Replace("$", "").Replace(",", ""))).ToList();
+            }).ToList();
 
             var totalValue = parts.Sum(part => (part.UnitCost ?? 0) * part.QuantityOnHand);
             var totalUnits = parts.Sum(part => part.QuantityOnHand);
@@ -5409,7 +5422,7 @@ namespace Backyard_Mech.Controllers
             var labourCost = serviceEntries.Sum(entry => entry.ServiceCost ?? ((entry.HourlyRate ?? 0) * (entry.DurationMinutes is > 0 ? entry.DurationMinutes.Value / 60m : entry.EstimatedHours ?? 0)));
             var partsCost = partTransactions.Where(x => x.TransactionType is "Installed" or "Returned" or "Wasted")
                 .Sum(x => (x.UnitCostAtTransaction ?? 0) * (x.Quantity ?? 0) * (x.TransactionType == "Returned" ? -1 : 1));
-            var totalRevenue = sales.Rows.Sum(row => decimal.Parse(row.Amount.Replace("$", "").Replace(",", "")));
+            var totalRevenue = sales.Rows.Sum(row => row.AmountValue);
             var totalCost = labourCost + partsCost;
             var profit = totalRevenue - totalCost;
             var margin = totalRevenue == 0 ? 0 : profit / totalRevenue * 100;
@@ -5418,7 +5431,7 @@ namespace Backyard_Mech.Controllers
                 .GroupBy(row => NormalizeText(row.Service, "Service"))
                 .Select(group =>
                 {
-                    var revenue = group.Sum(row => decimal.Parse(row.Amount.Replace("$", "").Replace(",", "")));
+                    var revenue = group.Sum(row => row.AmountValue);
                     var serviceLabourCost = totalRevenue == 0 ? 0 : labourCost * (revenue / totalRevenue);
                     var servicePartsCost = totalRevenue == 0 ? 0 : partsCost * (revenue / totalRevenue);
                     var serviceCost = serviceLabourCost + servicePartsCost;
@@ -5430,6 +5443,7 @@ namespace Backyard_Mech.Controllers
                         ServiceType = group.Key,
                         JobsCount = FormatCount(group.Count(), "Job", "Jobs"),
                         Revenue = FormatMoney(revenue),
+                        RevenueValue = revenue,
                         LabourCost = FormatMoney(serviceLabourCost),
                         PartsCost = FormatMoney(servicePartsCost),
                         TotalCost = FormatMoney(serviceCost),
@@ -5438,7 +5452,7 @@ namespace Backyard_Mech.Controllers
                         MarginTone = serviceMargin >= 0 ? "green" : "red"
                     };
                 })
-                .OrderByDescending(row => decimal.Parse(row.Revenue.Replace("$", "").Replace(",", "")))
+                .OrderByDescending(row => row.RevenueValue)
                 .ToList();
 
             var chartLabels = sales.RevenueChart.Labels;
@@ -5777,42 +5791,15 @@ namespace Backyard_Mech.Controllers
             return NormalizeText(role, "Owner");
         }
 
-        private static string ClassifyPermissionAction(Permission permission)
-        {
-            var value = NormalizeText($"{permission.ActionName} {permission.PermissionCode}", "").ToLowerInvariant();
-            if (value.Contains("approve") || value.Contains("approval"))
-            {
-                return "Approve";
-            }
-
-            if (value.Contains("delete") || value.Contains("remove") || value.Contains("archive"))
-            {
-                return "Delete";
-            }
-
-            if (value.Contains("edit") || value.Contains("update") || value.Contains("manage") || value.Contains("write"))
-            {
-                return "Edit";
-            }
-
-            if (value.Contains("create") || value.Contains("add") || value.Contains("new"))
-            {
-                return "Create";
-            }
-
-            return "View";
-        }
-
         private async Task<SettingsRolesViewModel> LoadSettingsRolesAsync(string? role)
         {
             var selectedRoleId = NormalizeSettingsRoleId(role);
             var roleRows = await _dbContext.AppRoles.AsNoTracking()
-                .Where(roleRow => roleRow.IsActive)
+                .Where(roleRow => roleRow.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(roleRow.RoleKey))
                 .OrderBy(roleRow => roleRow.DisplayOrder)
                 .ThenBy(roleRow => roleRow.RoleName)
                 .ToListAsync();
             var selectedRole = roleRows.FirstOrDefault(roleRow => string.Equals(roleRow.RoleKey, selectedRoleId, StringComparison.OrdinalIgnoreCase))
-                ?? roleRows.FirstOrDefault(roleRow => roleRow.IsSystemProtected)
                 ?? roleRows.FirstOrDefault();
 
             selectedRoleId = selectedRole?.RoleKey ?? selectedRoleId;
@@ -5850,14 +5837,14 @@ namespace Backyard_Mech.Controllers
             var rows = permissions
                 .Where(permission => SettingsPermissionActions.Contains(permission.ActionName, StringComparer.OrdinalIgnoreCase))
                 .GroupBy(permission => NormalizeText(permission.ModuleName, "General"))
-                .OrderBy(group => group.Key)
+                .OrderBy(group => SidebarPermissionCatalog.OrderForModule(group.Key))
                 .Select(group =>
                 {
                     var cells = SettingsPermissionActions.ToDictionary(
                         action => action,
                         action =>
                         {
-                            var permission = group.FirstOrDefault(item => string.Equals(ClassifyPermissionAction(item), action, StringComparison.OrdinalIgnoreCase));
+                            var permission = group.FirstOrDefault(item => string.Equals(item.ActionName, action, StringComparison.OrdinalIgnoreCase));
                             return new SettingsPermissionCell
                             {
                                 PermissionId = permission?.PermissionId,
@@ -5869,19 +5856,21 @@ namespace Backyard_Mech.Controllers
                     return new SettingsPermissionRow
                     {
                         ModuleName = group.Key,
+                        DisplayName = SidebarPermissionCatalog.LabelForModule(group.Key),
                         Actions = cells
                     };
                 })
                 .ToList();
 
             var detailedPermissions = permissions
-                .Where(permission => OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is not null)
+                .Where(permission => OwnerPermissionCatalog.Resolve(permission.ActionName ?? "") is not null ||
+                    SubTabPermissionCatalog.ByActionName(permission.ActionName) is not null)
                 .Select(permission => new SettingsDetailedPermission
                 {
                     PermissionId = permission.PermissionId,
                     ModuleName = permission.ModuleName ?? "General",
-                    Label = OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
-                    Action = OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
+                    Label = SubTabPermissionCatalog.ByActionName(permission.ActionName)?.Label ?? OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
+                    Action = SubTabPermissionCatalog.ByActionName(permission.ActionName) is not null ? "View" : OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
                     IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId)
                 })
                 .OrderBy(permission => permission.ModuleName)
@@ -5899,9 +5888,9 @@ namespace Backyard_Mech.Controllers
                 PermissionRows = rows,
                 DetailedPermissions = detailedPermissions,
                 TotalPermissionCount = permissions.Count,
-                CanCreateRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Create"),
+                CanCreateRole = false,
                 CanEditRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Edit"),
-                CanDeleteRole = await _permissionService.HasPermissionAsync(sessionRole, "Settings", "Delete")
+                CanDeleteRole = false
             };
         }
 
@@ -5925,12 +5914,16 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
+            var actorPermissions = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
+            Require(SubTabPermissionCatalog.CanAccess(actorPermissions, "SettingsRoles", "permissions"),
+                "You cannot edit the Permissions tab.");
+
             form.RoleId = NormalizeSettingsRoleId(form.RoleId);
             var role = await _dbContext.AppRoles.AsNoTracking()
                 .FirstOrDefaultAsync(roleRow => roleRow.RoleKey == form.RoleId && roleRow.IsActive);
-            if (role is null)
+            if (role is null || !StandardRoleProfiles.IsBusinessRole(role.RoleKey))
             {
-                TempData["OwnerMessage"] = "Role was not found.";
+                TempData["OwnerMessage"] = "Choose one of the seven standard roles.";
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(SettingsRoles));
             }
@@ -5975,188 +5968,59 @@ namespace Backyard_Mech.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateRole(SettingsRoleFormModel form)
+        public IActionResult CreateRole()
         {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            var roleName = form.RoleName?.Trim() ?? "";
-            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roleName))
-            {
-                TempData["OwnerMessage"] = "Role was not created. Enter a role name.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
-
-            if (await _dbContext.AppRoles.AnyAsync(role => role.IsActive && role.RoleName == roleName))
-            {
-                TempData["OwnerMessage"] = "An active role with that name already exists.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
-
-            var requestedPermissionIds = form.PermissionIds.Distinct().ToList();
-            var validPermissions = await _dbContext.Permissions.AsNoTracking()
-                .Where(permission => permission.IsActive && requestedPermissionIds.Contains(permission.PermissionId))
-                .Select(permission => new { permission.PermissionId, permission.PermissionCode })
-                .ToListAsync();
-            if (validPermissions.Count != requestedPermissionIds.Count)
-            {
-                TempData["OwnerMessage"] = "One or more selected permissions are no longer available. Please choose again.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
-
-            var actorCodes = await _permissionService.GetPermissionCodesAsync(HttpContext.Session.GetString("UserRole"));
-            var requestedCodes = validPermissions.Select(permission => permission.PermissionCode!).ToList();
-            if (!PermissionService.CanDelegateStaffPermissions(actorCodes, requestedCodes))
-            {
-                TempData["OwnerMessage"] = "You cannot grant role permissions beyond your own access.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
-
-            var nextDisplayOrder = (await _dbContext.AppRoles.MaxAsync(role => (int?)role.DisplayOrder) ?? 0) + 10;
-            var role = new AppRole
-            {
-                RoleKey = $"custom-{Guid.NewGuid():N}"[..19],
-                RoleName = roleName,
-                Description = form.Description?.Trim(),
-                DisplayOrder = nextDisplayOrder,
-                IsSystemProtected = false,
-                IsActive = true
-            };
-            _dbContext.AppRoles.Add(role);
-            _dbContext.RolePermissions.AddRange(validPermissions.Select(permission => new RolePermission
-            {
-                RoleId = role.RoleKey,
-                PermissionId = permission.PermissionId
-            }));
-            _dbContext.AuditLogEntries.Add(new AuditLogEntry
-            {
-                UserId = HttpContext.Session.GetString("UserId"),
-                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
-                Action = "Role Created",
-                EntityName = "AppRole",
-                EntityId = role.RoleKey,
-                TimestampUtc = DateTime.UtcNow,
-                Details = System.Text.Json.JsonSerializer.Serialize(new { role.RoleName, PermissionIds = validPermissions.Select(permission => permission.PermissionId).ToArray() })
-            });
-            await _dbContext.SaveChangesAsync();
-            _permissionService.ClearCache(role.RoleKey);
-
-            TempData["OwnerMessage"] = $"{role.RoleName} created with its default permissions.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
+            if (!IsOwnerSession()) return LoginRedirect();
+            return StatusCode(405, "Only the seven standard roles are allowed.");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditRole(SettingsRoleFormModel form)
+        public IActionResult EditRole()
         {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            var role = await _dbContext.AppRoles.FirstOrDefaultAsync(item => item.AppRoleId == form.AppRoleId && item.IsActive);
-            var roleName = form.RoleName?.Trim() ?? "";
-            if (role is null || role.IsSystemProtected)
-            {
-                TempData["OwnerMessage"] = role?.IsSystemProtected == true ? "System-protected roles cannot be edited." : "Role was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
-
-            if (!ModelState.IsValid || string.IsNullOrWhiteSpace(roleName))
-            {
-                TempData["OwnerMessage"] = "Role was not updated. Enter a role name.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
-            }
-
-            if (await _dbContext.AppRoles.AnyAsync(item => item.AppRoleId != role.AppRoleId && item.IsActive && item.RoleName == roleName))
-            {
-                TempData["OwnerMessage"] = "An active role with that name already exists.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
-            }
-
-            role.RoleName = roleName;
-            role.Description = form.Description?.Trim();
-            _dbContext.AuditLogEntries.Add(new AuditLogEntry
-            {
-                UserId = HttpContext.Session.GetString("UserId"),
-                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
-                Action = "Role Updated",
-                EntityName = "AppRole",
-                EntityId = role.RoleKey,
-                TimestampUtc = DateTime.UtcNow,
-                Details = $"Updated role {role.RoleName}."
-            });
-            await _dbContext.SaveChangesAsync();
-
-            TempData["OwnerMessage"] = $"{role.RoleName} updated.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
+            if (!IsOwnerSession()) return LoginRedirect();
+            return StatusCode(405, "The seven standard role names are fixed.");
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteRole(DeleteSettingsRoleFormModel form)
+        public IActionResult DeleteRole()
+        {
+            if (!IsOwnerSession()) return LoginRedirect();
+            return StatusCode(405, "The seven standard roles cannot be deleted.");
+        }
+        public async Task<IActionResult> SettingsSystemPreferences()
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
-            var role = await _dbContext.AppRoles.FirstOrDefaultAsync(item => item.RoleKey == form.RoleId && item.IsActive);
-            if (role is null || role.IsSystemProtected)
-            {
-                TempData["OwnerMessage"] = role?.IsSystemProtected == true ? "System-protected roles cannot be deleted." : "Role was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles));
-            }
+            var json = await _dbContext.GarageSettings.AsNoTracking()
+                .Where(settings => settings.Id == 1).Select(settings => settings.ValuesJson).SingleAsync();
+            return View(System.Text.Json.JsonSerializer.Deserialize<GeneralSettingsValues>(json) ?? new());
+        }
 
-            var assignedUsers = await _dbContext.Users.CountAsync(user => user.Role == role.RoleKey);
-            if (assignedUsers > 0)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveEmailNotifications(NotificationPreferencesForm form)
+        {
+            if (!IsOwnerSession()) return LoginRedirect();
+            var row = await _dbContext.GarageSettings.SingleAsync(settings => settings.Id == 1);
+            var values = System.Text.Json.JsonSerializer.Deserialize<GeneralSettingsValues>(row.ValuesJson) ?? new();
+            values.EmailAppointmentReminders = form.EmailAppointmentReminders;
+            values.LowStockAlerts = form.LowStockAlerts;
+            values.OverdueInvoiceReminders = form.OverdueInvoiceReminders;
+            row.ValuesJson = System.Text.Json.JsonSerializer.Serialize(values);
+            row.Revision = Guid.NewGuid();
+            WorkflowAudit("GarageSettings", 1, "Update email notifications", new
             {
-                TempData["OwnerMessage"] = $"Cannot delete {role.RoleName}. Reassign its {assignedUsers} user(s) first.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(SettingsRoles), new { role = role.RoleKey });
-            }
-
-            role.IsActive = false;
-            var permissions = await _dbContext.RolePermissions.Where(item => item.RoleId == role.RoleKey).ToListAsync();
-            _dbContext.RolePermissions.RemoveRange(permissions);
-            _dbContext.AuditLogEntries.Add(new AuditLogEntry
-            {
-                UserId = HttpContext.Session.GetString("UserId"),
-                UserName = HttpContext.Session.GetString("UserName") ?? "Owner",
-                Action = "Role Deleted",
-                EntityName = "AppRole",
-                EntityId = role.RoleKey,
-                TimestampUtc = DateTime.UtcNow,
-                Details = $"Deleted role {role.RoleName}."
+                values.EmailAppointmentReminders, values.LowStockAlerts, values.OverdueInvoiceReminders
             });
             await _dbContext.SaveChangesAsync();
-            _permissionService.ClearCache(role.RoleKey);
-
-            TempData["OwnerMessage"] = $"{role.RoleName} deleted.";
-            TempData["OwnerMessageTone"] = "success";
-            return RedirectToAction(nameof(SettingsRoles));
+            TempData["SmtpMessage"] = "Email notification settings saved. Enabled messages are checked every 15 minutes.";
+            return RedirectToAction(nameof(SettingsSystemPreferences));
         }
 
-        public IActionResult SettingsSystemPreferences()
-        {
-            if (!IsOwnerSession())
-            {
-                return LoginRedirect();
-            }
-
-            return View();
-        }
     }
 }

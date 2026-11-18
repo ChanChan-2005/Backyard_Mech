@@ -27,26 +27,43 @@ function AccessForm($id,$role,$choices){
 }
 function ExceptionStamp($id){[regex]::Match((GetPage '/Owner/StaffAvailability').Content,"(?s)id=`"exception-$id`".*?name=`"Expected`" value=`"([^`"]+)`"").Groups[1].Value}
 $mark='StaffSmoke-'+[Guid]::NewGuid().ToString('N').Substring(0,16)
-$role=$mark
+$role='Parts Clerk'
+$originalRolePermissions=[string](Sql "SELECT STRING_AGG(CONVERT(nvarchar(20), PermissionId), ',') FROM RolePermission WHERE RoleId=N'$role'")
 $owner=$profile=$second=$account=$other=$appointment=$workorder=0
 try {
     $owner=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark-owner',N'$mark-owner',PasswordHash,N'Owner',1,GETUTCDATE() FROM Users WHERE Email=N'$Login'; SELECT CAST(SCOPE_IDENTITY() AS int);")
     SignIn "$mark-owner" $Password
     $ownerSession=$session
     Check ((GetPage '/Owner/StaffAccounts').Content.Contains('Create Staff Account')) 'Create-account modal renders'
+    $accountPage=(GetPage '/Owner/StaffAccounts').Content
+    Check ($accountPage -match 'data-staff-open="create-account" type="button"(?! disabled)') 'Create Account remains available when all profiles are linked'
+    Check ((GetPage '/Owner/Employees?newProfileForAccount=1').Content.Contains('name="ReturnToStaffAccounts" value="true"')) 'Add-profile flow returns to account creation'
     Check ((GetPage '/Owner/StaffAvailability').Content.Contains('Special Availability')) 'Exceptions page renders'
     Check ((Sql "SELECT COLUMNPROPERTY(OBJECT_ID('AccountSecurity'),'UserId','IsIdentity')") -eq 0) 'Login security uses the existing user key, not an independent identity'
-    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId='Mechanic/Technician'") -gt 0) 'Legacy mechanic role has initial permissions'
+    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId='Mechanic/Technician'") -gt 0) 'Mechanic role has initial permissions'
     Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId='Service Advisor'") -gt 0) 'Existing unconfigured service-advisor role receives defaults'
-    Check ((Sql "SELECT COUNT(*) FROM AppRole WHERE RoleName IN ('Shop Manager','Service Advisor','Mechanic','Parts Clerk','Tool Room Attendant','Quality Control Inspector','Accounting Clerk')") -eq 7) 'Seven PDF roles present'
+    Check ((Sql "SELECT COUNT(*) FROM AppRole WHERE IsActive=1 AND RoleKey<>'RootAdmin' AND RoleKey IN ('Owner','Administrator','Service Advisor','Mechanic/Technician','Parts Clerk','Supervisor/QC Inspector','Accounting/Cashier')") -eq 7) 'Seven standard roles are active'
+    Check ((Sql "SELECT COUNT(*) FROM AppRole WHERE IsActive=1 AND RoleKey NOT IN ('RootAdmin','Owner','Administrator','Service Advisor','Mechanic/Technician','Parts Clerk','Supervisor/QC Inspector','Accounting/Cashier')") -eq 0) 'Extra roles are inactive'
+    $permissionPage=(GetPage '/Owner/SettingsRoles?role=Owner&tab=permissions').Content
+    $permissionGroups=[regex]::Matches($permissionPage,'<summary>([^<]+)</summary>') | ForEach-Object { $_.Groups[1].Value }
+    $sidebarGroups=@('Dashboard','Service Queue','Customer and Vehicle','Vehicle Records','Appointments and Check-In','Estimates / Customers Approval','Work Order and Assignment','Bay Management','Parts Management','Parts POS','Suppliers','Service Catalog','Labour Time Tracking','Quality Control','Tools Tracking','Invoicing and Payments','Archive','Records Disposition','Reports','User Management','Settings','Account Access')
+    Check (($permissionGroups -join '|') -eq ($sidebarGroups -join '|')) 'Permission groups match sidebar labels and order'
+    $renderedIds=[regex]::Matches($permissionPage,'name="PermissionIds" value="(\d+)"') | ForEach-Object { $_.Groups[1].Value }
+    $availableCount=[int]([regex]::Match($permissionPage,'(\d+) available permissions').Groups[1].Value)
+    Check ($renderedIds.Count -eq $availableCount -and ($renderedIds | Select-Object -Unique).Count -eq $availableCount) 'Every available permission has one editor control'
+    Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode LIKE 'subtab.%'") -eq 18) 'Every navigation sub-tab has a permission'
+    foreach($label in @('Inventory Registry','Product Listing','All Archived Records','Archived Parts','Archived Product Listings','Archived Tools','All Disposition Records','Disposition Parts','Disposition Product Listings','Disposition Tools','Service Categories','Part Categories','Tool Categories','Roles','Permissions','All Employees','Active Employees','Inactive Employees')) {
+        Check ($permissionPage.Contains(">$label<")) "Sub-tab permission appears in editor: $label"
+    }
+    Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode IN ('partsmanagement.view','partspos.view','archive.view','recordsdisposition.view')") -eq 4) 'Shared legacy groups have separate sidebar access permissions'
     $body=@{FirstName=$mark;LastName='Staff';StreetAddress='1 Test Street';City='St. John''s';Province='Newfoundland and Labrador';PostalCode='A1A 1A1';Phone='7095550100';Email="$mark@example.com";JobTitle='Mechanic';EmploymentType='Full-time';EmploymentStatus='Active';HourlyRate=100}
     $null=Post 'AddEmployee' $body
     $profile=[int](Sql "SELECT EmployeeProfileId FROM EmployeeProfile WHERE FirstName=N'$mark'")
     Check ($profile -gt 0 -and [DBNull]::Value.Equals((Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile"))) 'Creating a profile does not create an account'
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE Email=N'$mark@example.com'") -eq 0) 'Profile contact email is not a login'
-    $null=Post 'CreateRole' @{RoleName=$mark;Description='Account login regression role'}
-    $role=[string](Sql "SELECT RoleKey FROM AppRole WHERE RoleName=N'$mark'")
-    Check (![string]::IsNullOrWhiteSpace($role)) 'Role creation through Settings saves a selectable role'
+    $roleCreateStatus=0
+    try { $null=Post 'CreateRole' @{RoleName=$mark;Description='Account login regression role'} } catch { $roleCreateStatus=[int]$_.Exception.Response.StatusCode }
+    Check ($roleCreateStatus -eq 405 -and (Sql "SELECT COUNT(*) FROM AppRole WHERE RoleName=N'$mark'") -eq 0) 'Custom role creation is blocked'
     $viewPermission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode='suppliers.view'"
     $createPermission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode='suppliers.create'"
     $null=Post 'SaveRolePermissions' @{RoleId=$role;PermissionIds=@($viewPermission,$createPermission)}
@@ -73,7 +90,9 @@ try {
     $session=$ownerSession
     $null=Post 'CreateStaffAccount' $accountForm
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE UserName=N'$mark'") -eq 1) 'Duplicate account for profile rejected'
-    $other=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark-other@example.com',N'$mark-other',PasswordHash,Role,1,GETUTCDATE() FROM Users WHERE Id=$account; SELECT CAST(SCOPE_IDENTITY() AS int);")
+    $null=Post 'CreateStaffAccount' @{Email="$mark-other@example.com";UserName="$mark-other";Password='Test-Only!Password123';ConfirmPassword='Test-Only!Password123';RoleKey=$role}
+    $other=[int](Sql "SELECT Id FROM Users WHERE Email=N'$mark-other@example.com'")
+    Check ($other -gt 0 -and (Sql "SELECT COUNT(*) FROM EmployeeProfile WHERE UserId=N'$other'") -eq 0) 'Create Account supports a login without a staff profile'
     $form=AccessForm $account $role @{'suppliers.view'='Deny';'services.view'='Allow'}
     $null=Post 'SaveUserAccess' $form
     Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 0) 'Individual permission submissions rejected'
@@ -159,6 +178,7 @@ try {
     Check ($deniedPage.Contains('Account signed in') -and $deniedPage.Contains('no module access yet')) 'No-permission login explains missing access instead of suggesting invalid credentials'
     Write-Output 'Staff accounts, overrides and availability checks completed.'
 } finally {
-    $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder; DELETE Appointment WHERE AppointmentId=$appointment; DELETE EmployeeAvailabilityException WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeAvailability WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeProfile WHERE EmployeeProfileId IN ($profile,$second); DELETE UserPermissionOverride WHERE UserId IN ($owner,$account,$other); DELETE AccountSecurity WHERE UserId IN ($owner,$account,$other); DELETE Users WHERE Id IN ($owner,$account,$other); DELETE RolePermission WHERE RoleId=N'$role'; DELETE AppRole WHERE RoleKey=N'$role';"
+    $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder; DELETE Appointment WHERE AppointmentId=$appointment; DELETE EmployeeAvailabilityException WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeAvailability WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeProfile WHERE EmployeeProfileId IN ($profile,$second); DELETE UserPermissionOverride WHERE UserId IN ($owner,$account,$other); DELETE AccountSecurity WHERE UserId IN ($owner,$account,$other); DELETE Users WHERE Id IN ($owner,$account,$other); DELETE RolePermission WHERE RoleId=N'$role';"
+    if ($originalRolePermissions) { $null=Sql "INSERT RolePermission(RoleId,PermissionId) SELECT N'$role', PermissionId FROM Permission WHERE PermissionId IN ($originalRolePermissions);" }
     $db.Dispose()
 }

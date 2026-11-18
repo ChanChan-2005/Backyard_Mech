@@ -328,4 +328,11 @@
         const term = event.detail.value.toLowerCase();
         document.querySelectorAll('[data-staff-row]').forEach(row => { row.hidden = !row.textContent.toLowerCase().includes(term); });
     });
+    const newAccountDialog = document.getElementById('create-account');
+    const newProfileOption = staffProfileOptions.find(option =>
+        option.dataset.profileId === newAccountDialog?.dataset.newProfileId);
+    if (newProfileOption) {
+        selectStaffOption(newProfileOption);
+        newAccountDialog.showModal();
+    }
 })();

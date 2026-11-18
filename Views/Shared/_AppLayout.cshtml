@@ -58,16 +58,16 @@
         new { Icon = "estimate", Label = "Estimates / Customers Approval", Href = "/Owner/EstimateApprovals", Module = "Estimates", AlternateModule = "" },
         new { Icon = "workorder", Label = "Work Order and Assignment", Href = "/Owner/WorkOrders", Module = "Work Orders", AlternateModule = "" },
         new { Icon = "bay", Label = "Bay Management", Href = "/Owner/BayManagement", Module = "Bays", AlternateModule = "" },
-        new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement", Module = "Inventory", AlternateModule = "" },
-        new { Icon = "invoice", Label = "Parts POS", Href = "/Owner/PartsPos", Module = "Inventory", AlternateModule = "" },
+        new { Icon = "parts", Label = "Parts Management", Href = "/Owner/PartsManagement", Module = "Parts Management", AlternateModule = "" },
+        new { Icon = "invoice", Label = "Parts POS", Href = "/Owner/PartsPos", Module = "Parts POS", AlternateModule = "" },
         new { Icon = "users", Label = "Suppliers", Href = "/Owner/Suppliers", Module = "Suppliers", AlternateModule = "" },
         new { Icon = "estimate", Label = "Service Catalog", Href = "/Owner/ServiceCatalog", Module = "Services", AlternateModule = "" },
         new { Icon = "time", Label = "Labour Time Tracking", Href = "/Owner/LabourTimeTracking", Module = "Labour", AlternateModule = "" },
         new { Icon = "quality", Label = "Quality Control", Href = "/Owner/QualityControl", Module = "Inspections", AlternateModule = "" },
         new { Icon = "tools", Label = "Tools Tracking", Href = "/Owner/ToolTracking", Module = "Tools", AlternateModule = "" },
         new { Icon = "invoice", Label = "Invoicing and Payments", Href = "/Owner/InvoiceRegistry", Module = "Invoices", AlternateModule = "" },
-        new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords", Module = "Records", AlternateModule = "" },
-        new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition", Module = "Records", AlternateModule = "" },
+        new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords", Module = "Archive", AlternateModule = "" },
+        new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition", Module = "Records Disposition", AlternateModule = "" },
         new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports", Module = "Reports", AlternateModule = "" },
         new { Icon = "users", Label = "User Management", Href = "/Owner/Employees", Module = "Employees", AlternateModule = "" },
         new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings", Module = "Settings", AlternateModule = "" },
@@ -155,6 +155,14 @@
                 {
                     var canViewItem = !item.Href.StartsWith("/Owner/", StringComparison.OrdinalIgnoreCase)
                         || Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, item.Href["/Owner/".Length..]);
+                    var itemAction = item.Href.StartsWith("/Owner/", StringComparison.OrdinalIgnoreCase)
+                        ? item.Href["/Owner/".Length..]
+                        : "";
+                    if (canViewItem && Backyard_Mech.Services.SubTabPermissionCatalog.Tabs.Any(tab => tab.Page == itemAction))
+                    {
+                        canViewItem = Backyard_Mech.Services.SubTabPermissionCatalog.Tabs.Any(tab =>
+                            tab.Page == itemAction && Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, tab.Page, tab.Value));
+                    }
                     if (!canViewItem)
                     {
                         continue;

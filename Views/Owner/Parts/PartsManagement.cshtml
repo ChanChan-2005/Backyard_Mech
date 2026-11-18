@@ -14,9 +14,10 @@
     var activeTab = Model?.ActiveTab ?? "parts";
     ViewData["SearchPlaceholder"] = "Search parts by SKU, category, name...";
     var userRole = Context.Session.GetString("UserRole") ?? string.Empty;
-    var canCreateInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Create");
-    var canEditInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Edit");
-    var canDeleteInventory = await PermissionService.HasPermissionAsync(userRole, "Inventory", "Delete");
+    var permissionCodes = await PermissionService.GetPermissionCodesAsync(userRole);
+    var canCreateInventory = await PermissionService.HasPermissionAsync(userRole, "Parts Management", "Create");
+    var canEditInventory = await PermissionService.HasPermissionAsync(userRole, "Parts Management", "Edit");
+    var canDeleteInventory = await PermissionService.HasPermissionAsync(userRole, "Parts Management", "Delete");
     var canManageProductListings = canEditInventory || canDeleteInventory;
 }
 
@@ -27,11 +28,22 @@
     }
 
     <nav class="parts-subtabs" aria-label="Parts management views">
-        <a asp-controller="Owner" asp-action="SparesAllocation">Stock Transactions</a>
-        <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="parts">Inventory Registry</a>
-        <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="product-listings">Product Listing</a>
+        @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "SparesAllocation"))
+        {
+            <a asp-controller="Owner" asp-action="SparesAllocation">Stock Transactions</a>
+        }
+        @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "PartsManagement", "parts"))
+        {
+            <a class="@(activeTab == "parts" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="parts">Inventory Registry</a>
+        }
+        @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "PartsManagement", "product-listings"))
+        {
+            <a class="@(activeTab == "product-listings" ? "active" : "")" asp-controller="Owner" asp-action="PartsManagement" asp-route-tab="product-listings">Product Listing</a>
+        }
     </nav>
 
+    @if (activeTab == "parts")
+    {
     <div class="parts-stat-grid">
         <article class="parts-stat clean">
             <span>Total Parts</span>
@@ -54,6 +66,7 @@
             <small>Halt Maintenance</small>
         </article>
     </div>
+    }
 
     @if (activeTab == "product-listings")
     {

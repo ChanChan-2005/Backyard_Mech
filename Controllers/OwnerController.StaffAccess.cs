@@ -1,3 +1,4 @@
+using Backyard_Mech.Data;
 using Backyard_Mech.Models;
 using Backyard_Mech.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ public partial class OwnerController
         var model=new StaffAccountsPage {
             Profiles=await _dbContext.EmployeeProfiles.AsNoTracking().Where(x=>!x.IsArchived && !x.IsDeleted).OrderBy(x=>x.FirstName).ToListAsync(),
             Accounts=await _dbContext.Users.AsNoTracking().Where(x=>!_dbContext.EmployeeProfiles.Any(p=>p.UserId==x.Id.ToString() && (p.IsArchived || p.IsDeleted))).OrderBy(x=>x.UserName).ToListAsync(),
-            Roles=await _dbContext.AppRoles.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.RoleName).ToListAsync(),
+            Roles=await _dbContext.AppRoles.AsNoTracking().Where(x=>x.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(x.RoleKey)).OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.RoleName).ToListAsync(),
             Permissions=await AssignablePermissions(),
             CanCreate=await _permissionService.HasPermissionAsync(role,"User Access","Create"),
             CanEdit=await _permissionService.HasPermissionAsync(role,"User Access","Edit")
@@ -50,23 +51,27 @@ public partial class OwnerController
     public Task<IActionResult> CreateStaffAccount(StaffAccountForm form) => SaveWorkflow(async () => {
         Require(form.Password.Length>=12,"Use a password with at least 12 characters.");
         Require(form.Password==form.ConfirmPassword,"Passwords do not match.");
-        var profile=await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
-        Require(profile is not null && profile.IsActive && !profile.IsArchived && !profile.IsDeleted,"Choose an active staff profile.");
-        Require(string.IsNullOrWhiteSpace(profile.UserId),"This profile already has an account link.");
+        EmployeeProfile? profile = null;
+        if (form.EmployeeProfileId.HasValue)
+        {
+            profile = await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId.Value);
+            Require(profile is not null && profile.IsActive && !profile.IsArchived && !profile.IsDeleted,"Choose an active staff profile.");
+            Require(string.IsNullOrWhiteSpace(profile.UserId),"This profile already has an account link.");
+        }
         var email=form.Email.Trim(); var name=form.UserName.Trim();
         Require(!await _dbContext.Users.AnyAsync(x=>x.Email==email || x.UserName==name),"Login email or username is already in use.");
         Require(form.Password.Any(char.IsUpper) && form.Password.Any(char.IsLower) && form.Password.Any(char.IsDigit) && form.Password.Any(x=>!char.IsLetterOrDigit(x)),
             "Use at least 12 characters with uppercase, lowercase, a number and a symbol.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
-        Require(role is not null,"Choose an active role.");
+        Require(role is not null && StandardRoleProfiles.IsBusinessRole(role.RoleKey),"Choose one of the seven standard roles.");
         Require(!role.IsSystemProtected,"Choose a staff role.");
         Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
         var effective=await _permissionService.GetRolePermissionCodesAsync(role.RoleKey);
         await ValidateDelegation(role,effective);
         var user=new AppUser {Email=email,UserName=name,Role=role.RoleKey,PasswordHash=PasswordHasher.Hash(form.Password),IsActive=true};
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
-        profile.UserId=user.Id.ToString();
-        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role});
+        if (profile is not null) profile.UserId=user.Id.ToString();
+        WorkflowAudit("Account",user.Id,"Create staff account",new{ProfileId=profile?.EmployeeProfileId,user.UserName,user.Email,user.Role});
         return RedirectToAction(nameof(StaffAccounts));
     },nameof(StaffAccounts));
 
@@ -78,7 +83,7 @@ public partial class OwnerController
         Require(previousRole?.IsSystemProtected!=true,"Protected root administrator access cannot be overridden here.");
         Require(AccessStamp(user)==form.Expected,"Account access changed. Refresh before saving.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
-        Require(role is not null,"Choose an active role.");
+        Require(role is not null && StandardRoleProfiles.IsBusinessRole(role.RoleKey),"Choose one of the seven standard roles.");
         Require(!role.IsSystemProtected,"Choose a staff role.");
         Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
         await ValidateDelegation(role,await _permissionService.GetRolePermissionCodesAsync(role.RoleKey));

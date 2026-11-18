@@ -13,6 +13,7 @@
     var assignedRole = ViewData["EmployeeAccountRole"]?.ToString() ?? "";
     var hasLoginAccount = ViewData["EmployeeHasLoginAccount"] as bool? == true;
     var canEdit = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"),"Employees","Edit");
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
 }
 
 @section TopbarActions {
@@ -41,9 +42,9 @@
 
         <section class="users-tab-card">
             <nav class="users-tabs">
-                <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a>
+                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeDetails")) { <a asp-controller="Owner" asp-action="EmployeeDetails" asp-route-id="@Model.EmployeeProfileId">Profile</a> }
                 <a class="active" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Account & Security</a>
-                <a asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a>
+                @if (Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "EmployeeSecurityActivity")) { <a asp-controller="Owner" asp-action="EmployeeSecurityActivity" asp-route-id="@Model.EmployeeProfileId">Security Activity</a> }
             </nav>
             <div class="users-tab-content">
                 <form id="employeeEditForm" asp-controller="Owner" asp-action="EditEmployee" method="post">

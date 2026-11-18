@@ -1,3 +1,5 @@
+@model Backyard_Mech.Models.GeneralSettingsValues
+@inject Backyard_Mech.Services.PermissionService PermissionService
 @{
     Layout = "_AppLayout";
     ViewData["Title"] = "System Preferences";
@@ -6,6 +8,8 @@
     ViewData["ActiveNav"] = "Settings";
     ViewData["ShellClass"] = "settings-shell";
     ViewData["SettingsTab"] = "System";
+    var permissionCodes = await PermissionService.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    var canSaveNotifications = Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "SaveEmailNotifications");
 }
 
 @await Html.PartialAsync("_SettingsTabs")
@@ -14,7 +18,20 @@
     <article class="settings-card">
         <section class="settings-section">
             <h2>System Preferences</h2>
-            <p class="settings-muted">No system-preferences table exists in the current database schema yet, so this page is intentionally not showing saved sample values.</p>
+            <p class="settings-muted">The app checks for enabled email notifications every 15 minutes.</p>
+        </section>
+        @if (TempData["SmtpMessage"] is string message) { <p role="status">@message</p> }
+        <section class="settings-section">
+            <h2>Automatic Email Notifications</h2>
+            <form asp-action="SaveEmailNotifications" method="post">
+                @Html.AntiForgeryToken()
+                <fieldset disabled="@(!canSaveNotifications)">
+                    <label class="settings-toggle-row" for="EmailAppointmentReminders"><span><strong>Appointment reminders</strong><span class="settings-muted">Email customers when a scheduled appointment is within 24 hours.</span></span><input asp-for="EmailAppointmentReminders" type="checkbox" role="switch" class="general-switch" /></label>
+                    <label class="settings-toggle-row" for="LowStockAlerts"><span><strong>Low-stock summary</strong><span class="settings-muted">Email the garage once a day when parts are at or below their reorder level.</span></span><input asp-for="LowStockAlerts" type="checkbox" role="switch" class="general-switch" /></label>
+                    <label class="settings-toggle-row" for="OverdueInvoiceReminders"><span><strong>Invoice reminders</strong><span class="settings-muted">Email customers once when an unpaid invoice reaches 15 days old.</span></span><input asp-for="OverdueInvoiceReminders" type="checkbox" role="switch" class="general-switch" /></label>
+                    @if (canSaveNotifications) { <div class="settings-actions"><button class="settings-button-dark" type="submit">Save Notifications</button></div> }
+                </fieldset>
+            </form>
         </section>
     </article>
 </section>

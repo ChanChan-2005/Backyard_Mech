@@ -106,15 +106,12 @@ public partial class OwnerController
                 LineTotal = entry.ServiceCost ?? 0 });
         Require(lines.Count > 0 && lines.Sum(x => x.LineTotal ?? 0) > 0, "Record installed parts or completed labour before issuing an invoice.");
         var subtotal = lines.Sum(x => x.LineTotal ?? 0);
-        var tax = Math.Round(subtotal * await TaxFraction(form.TaxRateId, DateTime.UtcNow), 2, MidpointRounding.AwayFromZero);
-        var counter = await _dbContext.InvoiceNumberCounters.FirstOrDefaultAsync(x => x.InvoiceNumberCounterId == 1);
-        Require(counter is not null, "The invoice numbering counter is missing. Run the database setup script.");
-        string number;
-        do { counter!.LastNumber++; number = $"{counter.Prefix}{counter.LastNumber:000000}"; }
-        while (await _dbContext.Invoices.AnyAsync(x => x.InvoiceNumber == number));
+        var issuedUtc = DateTime.UtcNow;
+        var tax = Math.Round(subtotal * await TaxFraction(form.TaxRateId, issuedUtc), 2, MidpointRounding.AwayFromZero);
+        var number = await NextInvoiceNumberAsync(issuedUtc);
         var invoice = new Invoice { WorkOrderId = order.WorkOrderId, CustomerId = customer?.CustomerId,
             CustomerFirstName = customer?.FirstName ?? appointment.CustomerName, CustomerMiddleName = customer?.MiddleName, CustomerLastName = customer?.LastName,
-            InvoiceNumber = number, IssuedUtc = DateTime.UtcNow, TaxRateId = form.TaxRateId, Subtotal = subtotal, TaxAmount = tax,
+            InvoiceNumber = number, IssuedUtc = issuedUtc, TaxRateId = form.TaxRateId, Subtotal = subtotal, TaxAmount = tax,
             Total = subtotal + tax, InvoiceStatus = "Issued" };
         _dbContext.Invoices.Add(invoice);
         await _dbContext.SaveChangesAsync();

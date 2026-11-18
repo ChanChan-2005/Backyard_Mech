@@ -50,6 +50,7 @@ namespace Backyard_Mech.Models
         public string Service { get; set; } = string.Empty;
         public string Mechanic { get; set; } = string.Empty;
         public string Amount { get; set; } = string.Empty;
+        public decimal AmountValue { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Tone { get; set; } = "gray";
     }
@@ -145,6 +146,7 @@ namespace Backyard_Mech.Models
         public string ServiceType { get; set; } = string.Empty;
         public string JobsCount { get; set; } = string.Empty;
         public string Revenue { get; set; } = string.Empty;
+        public decimal RevenueValue { get; set; }
         public string LabourCost { get; set; } = string.Empty;
         public string PartsCost { get; set; } = string.Empty;
         public string TotalCost { get; set; } = string.Empty;

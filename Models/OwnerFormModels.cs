@@ -209,6 +209,7 @@ namespace Backyard_Mech.Models
     {
         [Required, RegularExpression("Active|Inactive")]
         public string EmploymentStatus { get; set; } = string.Empty;
+        public bool ReturnToStaffAccounts { get; set; }
     }
 
     public class EmployeeStateFormModel
@@ -538,6 +539,7 @@ namespace Backyard_Mech.Models
     public class SettingsPermissionRow
     {
         public string ModuleName { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
         public Dictionary<string, SettingsPermissionCell> Actions { get; set; } = new();
     }
 

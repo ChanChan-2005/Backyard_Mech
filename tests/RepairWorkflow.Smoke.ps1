@@ -240,6 +240,10 @@ try {
     $invoice = [int](Sql "SELECT InvoiceId FROM Invoice WHERE WorkOrderId=$order")
     if ($invoice -eq 0) { Write-Output ("Invoice response: " + [regex]::Match($invoiceResponse.Content, '(?is)<p>([^<]+)</p>').Groups[1].Value) }
     Check ($invoice -gt 0 -and (Sql "SELECT Total FROM Invoice WHERE InvoiceId=$invoice") -eq 142.56) 'Invoice uses approved pricing, net installed parts, completed labour and tax'
+    $issuedUtc=[DateTime]::SpecifyKind([DateTime](Sql "SELECT IssuedUtc FROM Invoice WHERE InvoiceId=$invoice"),[DateTimeKind]::Utc)
+    $garageDate=[TimeZoneInfo]::ConvertTimeFromUtc($issuedUtc,[TimeZoneInfo]::FindSystemTimeZoneById('Asia/Manila'))
+    $invoiceNumber=[string](Sql "SELECT InvoiceNumber FROM Invoice WHERE InvoiceId=$invoice")
+    Check ($invoiceNumber -match ('^INV-\d{4,}-'+$garageDate.ToString('MMddyy')+'$')) 'Invoice number uses four-digit sequence and garage-local MMDDYY date'
     $null = Post 'IssueInvoice' @{WorkOrderId=$order}
     Check ((Sql "SELECT COUNT(*) FROM Invoice WHERE WorkOrderId=$order") -eq 1) 'Duplicate invoice blocked'
     $pay = @{InvoiceId=$invoice;SubmissionToken=[Guid]::NewGuid().ToString(); Amount=200; PaymentMethod='Cash'; PaidUtc=[DateTime]::UtcNow.ToString('yyyy-MM-dd');Notes=$marker}
@@ -334,7 +338,7 @@ try {
     Check ((Sql "SELECT QuantityOnHand FROM Part WHERE PartId=$part") -eq 9) 'Receipt reversal preserves separately recorded waste loss'
 
     $null = Sql "INSERT AppRole(RoleKey,RoleName,DisplayOrder,IsSystemProtected,IsActive) VALUES(N'$role',N'$role',99,0,1);
-        INSERT RolePermission(RoleId,PermissionId) SELECT N'$role',PermissionId FROM Permission WHERE PermissionCode IN ('estimates.view','inventory.view','inventory.create');"
+        INSERT RolePermission(RoleId,PermissionId) SELECT N'$role',PermissionId FROM Permission WHERE PermissionCode IN ('estimates.view','partsmanagement.view','partsmanagement.create');"
     $testUser = [int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$role',N'$role',PasswordHash,N'$role',1,GETUTCDATE() FROM Users WHERE Email=N'admin123'; SELECT CAST(SCOPE_IDENTITY() AS int);")
     $ownerSession = $session
     $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession

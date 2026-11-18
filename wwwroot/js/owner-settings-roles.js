@@ -110,6 +110,10 @@
     continueRoleCreation();
   });
 
+  document.querySelector("[data-permission-role-picker] select[name='role']")?.addEventListener("change", event => {
+    event.target.form.requestSubmit();
+  });
+
   document.querySelector("[data-settings-action-search]")?.addEventListener("input", event => {
     const query = event.target.value.trim().toLocaleLowerCase();
     document.querySelectorAll("[data-settings-action-group]").forEach(group => {
