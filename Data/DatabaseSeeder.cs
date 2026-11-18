@@ -85,6 +85,8 @@ namespace Backyard_Mech.Data
 
         private static async Task EnsureBusinessSchemaAsync(ApplicationDbContext dbContext)
         {
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'IsDeleted') IS NULL ALTER TABLE dbo.Service ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0);");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'DeletedUtc') IS NULL ALTER TABLE dbo.Service ADD DeletedUtc DATETIME2 NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PartTransaction', N'SupplierId') IS NULL ALTER TABLE dbo.PartTransaction ADD SupplierId INT NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_PartTransaction_Supplier') ALTER TABLE dbo.PartTransaction WITH CHECK ADD CONSTRAINT FK_PartTransaction_Supplier FOREIGN KEY (SupplierId) REFERENCES dbo.Supplier(SupplierId);");
             await dbContext.Database.ExecuteSqlRawAsync("""
@@ -258,7 +260,6 @@ namespace Backyard_Mech.Data
                     (N'Estimates', N'View', N'estimates.view', N'View estimates.'),
                     (N'Estimates', N'Create', N'estimates.create', N'Create estimates.'),
                     (N'Estimates', N'Edit', N'estimates.edit', N'Edit estimates.'),
-                    (N'Estimates', N'Delete', N'estimates.delete', N'Delete estimates.'),
                     (N'Estimates', N'Approve', N'estimates.approve', N'Approve estimates.'),
                     (N'Work Orders', N'View', N'workorders.view', N'View work orders.'),
                     (N'Work Orders', N'Create', N'workorders.create', N'Create work orders.'),
@@ -314,7 +315,6 @@ namespace Backyard_Mech.Data
                     (N'Services', N'Edit', N'services.edit', N'Edit and deactivate services.'),
                     (N'Settings', N'Create', N'settings.create', N'Create settings records.'),
                     (N'Settings', N'Edit', N'settings.edit', N'Edit settings.'),
-                    (N'Settings', N'Delete', N'settings.delete', N'Delete settings records.'),
                     (N'Settings', N'Approve', N'settings.approve', N'Approve settings changes.')
                 ) AS source(ModuleName, ActionName, PermissionCode, Description)
                 ON target.PermissionCode = source.PermissionCode

@@ -255,18 +255,35 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Invoice)
 BEGIN
+    ;WITH NumberedWorkOrders AS (
+        SELECT w.WorkOrderId, a.CustomerId, c.FirstName, c.LastName,
+               Sequence = ROW_NUMBER() OVER (ORDER BY w.WorkOrderId) - 1
+        FROM dbo.WorkOrder w
+        JOIN dbo.Appointment a ON a.AppointmentId = w.AppointmentId
+        LEFT JOIN dbo.Customer c ON c.CustomerId = a.CustomerId
+    )
     INSERT INTO dbo.Invoice (WorkOrderId, CustomerId, CustomerFirstName, CustomerLastName, InvoiceNumber, IssuedUtc, Subtotal, TaxAmount, Total, InvoiceStatus)
-    SELECT w.WorkOrderId, a.CustomerId, c.FirstName, c.LastName, CONCAT(N'INV-', FORMAT(w.WorkOrderId, '0000')),
+    SELECT w.WorkOrderId, w.CustomerId, w.FirstName, w.LastName,
+           CONCAT(N'INV-', YEAR(DATEADD(hour, 8, DATEADD(day, -1, SYSUTCDATETIME()))), N'-',
+                  w.Sequence / 10000 + 1, N'-', RIGHT(CONCAT(N'0000', w.Sequence % 10000), 4)),
            DATEADD(day, -1, SYSUTCDATETIME()), 650.00, 97.50, 747.50,
-           CASE ROW_NUMBER() OVER (ORDER BY w.WorkOrderId)
-               WHEN 1 THEN N'Paid'
-               WHEN 2 THEN N'Partially Paid'
-               WHEN 3 THEN N'Issued'
+           CASE w.Sequence
+               WHEN 0 THEN N'Paid'
+               WHEN 1 THEN N'Partially Paid'
+               WHEN 2 THEN N'Issued'
                ELSE N'Draft'
            END
-    FROM dbo.WorkOrder w
-    JOIN dbo.Appointment a ON a.AppointmentId = w.AppointmentId
-    LEFT JOIN dbo.Customer c ON c.CustomerId = a.CustomerId;
+    FROM NumberedWorkOrders AS w;
+
+    DECLARE @garageYear int = YEAR(DATEADD(hour, 8, SYSUTCDATETIME()));
+    DECLARE @lastCurrentYearNumber int = (
+        SELECT COUNT(*) - 1 FROM dbo.Invoice
+        WHERE YEAR(DATEADD(hour, 8, IssuedUtc)) = @garageYear
+    );
+    UPDATE dbo.InvoiceNumberCounter
+    SET Prefix = CASE WHEN @lastCurrentYearNumber >= 0 THEN CONCAT(N'INV-', @garageYear, N'-') ELSE N'INV-' END,
+        LastNumber = CASE WHEN @lastCurrentYearNumber >= 0 THEN @lastCurrentYearNumber ELSE 0 END
+    WHERE InvoiceNumberCounterId = 1;
 
     INSERT INTO dbo.Payment (InvoiceId, Amount, PaymentMethod, ReferenceNumber, PaidUtc, ReceivedByName, Notes)
     SELECT InvoiceId,

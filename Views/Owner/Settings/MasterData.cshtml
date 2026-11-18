@@ -39,6 +39,7 @@
                         <button type="button" data-master-open="master-edit-@row.Form.Id">Edit</button>
                         @if(Model.Mode!="tax" || row.Active){<button type="button" data-master-open="master-state-@row.Form.Id">@(row.Active?"Deactivate":"Reactivate")</button>}
                     }
+                    @if(Model.CanDelete) { <button type="button" class="master-delete-button" data-master-open="master-delete-@row.Form.Id">Delete</button> }
                 </div></td>
             </tr>
         }
@@ -66,6 +67,18 @@
                 </form>
             </dialog>
         }
+    }
+    @if(Model.CanDelete) {
+        <dialog class="master-dialog master-confirm app-modal app-modal--compact" id="master-delete-@row.Form.Id" aria-label="Delete service" role="dialog" aria-modal="true">
+            <form method="post" action="/Owner/@Model.DeleteAction">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" value="@row.Form.Id" /><input type="hidden" name="Expected" value="@row.Form.Expected" />
+                <h2>Delete @row.Form.Name?</h2>
+                <p>This service will be removed from the catalog and linked product listings will be unpublished. Existing repair history will be preserved.</p>
+                <label>Reason<textarea name="Reason" required maxlength="500"></textarea></label>
+                <footer><button type="button" data-master-close>Cancel</button><button class="master-delete-button" type="submit">Delete Service</button></footer>
+            </form>
+        </dialog>
     }
 }
 @section Scripts { <script src="~/js/owner-master-data.js" asp-append-version="true"></script> }

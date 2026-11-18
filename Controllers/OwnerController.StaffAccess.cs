@@ -3,6 +3,7 @@ using Backyard_Mech.Models;
 using Backyard_Mech.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backyard_Mech.Controllers;
 
@@ -16,6 +17,11 @@ public partial class OwnerController
         user.Id,user.Role,user.IsActive,user.Email,user.UserName,
         Credentials=AccountSecurityService.CredentialStamp(user)
     });
+
+    private static string StaffResetPassword(string lastName) =>
+        $"{new string(lastName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant()}@bakyard123";
+
+    private bool CanManageStaffPasswords() => HttpContext.Session.GetString("UserRole") is "RootAdmin" or "Administrator";
 
     public async Task<IActionResult> StaffAccounts(int? userId)
     {
@@ -33,9 +39,23 @@ public partial class OwnerController
             model.RoleDefaults[availableRole.RoleKey]=(await _permissionService.GetRolePermissionCodesAsync(availableRole.RoleKey)).ToArray();
         if(model.Selected is not null)
         {
+            Response.Headers["Cache-Control"]="no-store";
             model.Defaults=await _permissionService.GetRolePermissionCodesAsync(model.Selected.Role);
             model.Expected=AccessStamp(model.Selected);
             if(model.Selected.Id.ToString()==HttpContext.Session.GetString("UserId") || model.Defaults.Contains("*")) model.CanEdit=false;
+            var profile=model.Profiles.FirstOrDefault(x=>x.UserId==model.Selected.Id.ToString());
+            var actorGrants=await _permissionService.GetPermissionCodesAsync(role);
+            model.CanResetPassword=model.CanEdit && CanManageStaffPasswords() &&
+                profile is not null && !string.IsNullOrWhiteSpace(profile.LastName) &&
+                PermissionService.CanDelegateStaffPermissions(actorGrants,model.Defaults);
+            if (model.CanResetPassword)
+            {
+                var candidate=StaffResetPassword(profile!.LastName!);
+                model.ResetPasswordPreview=candidate;
+                var wasReset=await _dbContext.AuditLogEntries.AsNoTracking().AnyAsync(x=>x.EntityName=="Account" &&
+                    x.EntityId==model.Selected.Id.ToString() && x.Action=="Reset staff password");
+                if (wasReset && PasswordHasher.Verify(candidate,model.Selected.PasswordHash)) model.ResetPasswordValue=candidate;
+            }
         }
         return View(model);
     }
@@ -87,17 +107,72 @@ public partial class OwnerController
         Require(!role.IsSystemProtected,"Choose a staff role.");
         Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
         await ValidateDelegation(role,await _permissionService.GetRolePermissionCodesAsync(role.RoleKey));
-        var before = new { user.Role, user.IsActive };
+        var before = new { user.Role, user.IsActive, user.Email, user.UserName };
         var changes = new List<string>();
+        if (form.UpdateDetails)
+        {
+            var email = form.Email?.Trim();
+            var name = form.UserName?.Trim();
+            Require(!string.IsNullOrWhiteSpace(email) && new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email),
+                "Enter a valid login email.");
+            Require(!string.IsNullOrWhiteSpace(name), "Enter a username.");
+            Require(!await _dbContext.Users.AnyAsync(x => x.Id != user.Id && (x.Email == email || x.UserName == name)),
+                "Login email or username is already in use.");
+            if (user.Email != email) { user.Email = email!; changes.Add("Login email changed"); }
+            if (user.UserName != name) { user.UserName = name!; changes.Add("Username changed"); }
+        }
         if (user.Role != role.RoleKey) changes.Add($"System access role changed from {user.Role} to {role.RoleKey}");
         if (user.IsActive != form.IsActive) changes.Add(form.IsActive ? "Account enabled" : "Account disabled");
         if (changes.Count == 0) return RedirectToAction(nameof(StaffAccounts));
         user.Role=role.RoleKey;user.IsActive=form.IsActive;
-        WorkflowAudit("Account", user.Id, "Change access", new {
+        WorkflowAudit("Account", user.Id, "Edit account details", new {
             Summary = string.Join(". ", changes), AccountUserName = user.UserName,
-            Before = before, After = new { user.Role, user.IsActive }
+            Before = before, After = new { user.Role, user.IsActive, user.Email, user.UserName }
         });
         return RedirectToAction(nameof(StaffAccounts));
+    },nameof(StaffAccounts),new{userId=form.UserId});
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public Task<IActionResult> ResetStaffPassword(StaffPasswordResetForm form) => SaveWorkflow(async () => {
+        Require(CanManageStaffPasswords(),"Only an Administrator or Root Admin can reset staff passwords.");
+        Require(form.UserId.ToString()!=HttpContext.Session.GetString("UserId"),"You cannot reset your own password here.");
+        var user=await _dbContext.Users.FindAsync(form.UserId);
+        Require(user is not null,"Account not found.");
+        Require(AccessStamp(user)==form.Expected,"Account changed. Refresh before resetting its password.");
+        Require(user.Role!="RootAdmin","The Root Admin password cannot be reset here.");
+        var targetRole=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==user.Role);
+        Require(targetRole is not null,"The account role could not be found.");
+        await ValidateDelegation(targetRole,await _permissionService.GetRolePermissionCodesAsync(targetRole.RoleKey));
+        var profile=await _dbContext.EmployeeProfiles.SingleOrDefaultAsync(x=>x.UserId==user.Id.ToString() &&
+            !x.IsArchived && !x.IsDeleted);
+        Require(profile is not null && !string.IsNullOrWhiteSpace(profile.LastName),
+            "Link this account to a staff profile with a last name before resetting its password.");
+        Require(!string.IsNullOrWhiteSpace(user.Email) && new EmailAddressAttribute().IsValid(user.Email) &&
+            !user.Email.EndsWith(".local",StringComparison.OrdinalIgnoreCase),
+            "Set a real login email address before resetting the password. Local addresses cannot receive email.");
+        var password=StaffResetPassword(profile.LastName);
+        Require(password.Length>=12,"The staff last name is required to create the reset password.");
+        var sender=HttpContext.RequestServices.GetRequiredService<GmailSmtpSender>();
+        Require(sender.GetStatus().IsConfigured,"Configure the Gmail app password before resetting staff passwords.");
+        try
+        {
+            await sender.SendAsync(user.Email,"Your Backyard Mech password was reset",
+                $"Hello {profile.FirstName},\n\nYour Backyard Mech login password has been reset.\n\nUsername: {user.UserName}\nTemporary password: {password}\n\nSign in and change your password in My Profile.\n\nBackyard Mech");
+        }
+        catch (Exception error)
+        {
+            HttpContext.RequestServices.GetRequiredService<ILogger<OwnerController>>().LogError(error,
+                "Could not email the reset password for account {AccountId}",user.Id);
+            Require(false,"The reset email could not be sent. The password was not changed.");
+        }
+        user.PasswordHash=PasswordHasher.Hash(password);
+        var security=await HttpContext.RequestServices.GetRequiredService<AccountSecurityService>().State(user.Id);
+        security.FailedAttempts=0;
+        security.LockedUntilUtc=null;
+        WorkflowAudit("Account",user.Id,"Reset staff password",new { Recipient=user.Email });
+        TempData["OwnerMessage"]="Password reset email sent. The new password is shown in the account details below.";
+        TempData["OwnerMessageTone"]="success";
+        return RedirectToAction(nameof(StaffAccounts),new{userId=form.UserId});
     },nameof(StaffAccounts),new{userId=form.UserId});
 
     private TimeZoneInfo GarageZone() => TimeZoneInfo.FindSystemTimeZoneById(HttpContext.RequestServices.GetRequiredService<IConfiguration>()["GarageTimeZone"]??"Asia/Manila");

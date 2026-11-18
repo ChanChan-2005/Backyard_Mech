@@ -65,7 +65,7 @@
                         <label><span class="users-label">City *</span><input class="users-input" name="City" maxlength="120" value="@Model.City" required /></label>
                         <label><span class="users-label">Province/Territory</span><input class="users-input" name="Province" maxlength="120" value="@Model.Province" /></label>
                         <label><span class="users-label">Postal Code *</span><input class="users-input" name="PostalCode" maxlength="20" value="@Model.PostalCode" required /></label>
-                        <label><span class="users-label">Hourly Rate (CA$) *</span><input max="9999999999999999.99" class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate" required /></label>
+                        <label><span class="users-label">Hourly Rate (CA$) *</span><input max="9999999999999999.99" class="users-input" name="HourlyRate" type="number" min="0" step="0.01" value="@Model.HourlyRate?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" required /></label>
                         <label class="users-span-full"><span class="users-label">Skills and Qualifications</span><textarea class="users-textarea" name="SkillsAndQualifications" maxlength="2000">@Model.SkillsAndQualifications</textarea></label>
                         <div>
                             <span class="users-label">Account Status</span>

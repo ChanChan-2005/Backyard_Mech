@@ -76,6 +76,9 @@ try {
     Check (!(Sql "SELECT IsActive FROM Service WHERE ServiceId=$service")) 'Service deactivated'
     $null=Post 'SetServiceState' @{Id=$service;Expected=(Stamp '/Owner/ServiceCatalog' $service);Active='true';Reason=$mark}
     Check ([bool](Sql "SELECT IsActive FROM Service WHERE ServiceId=$service")) 'Service reactivated'
+    $null=Post 'DeleteService' @{Id=$service;Expected=(Stamp '/Owner/ServiceCatalog' $service);Reason=$mark}
+    Check ((Sql "SELECT IsDeleted FROM Service WHERE ServiceId=$service") -eq $true) 'Deleted service retained for history'
+    Check (!(GetPage '/Owner/ServiceCatalog').Content.Contains("master-view-$service")) 'Deleted service hidden from catalog'
     $null=Post 'CreateTax' @{Name=$mark;Percent=8.25;Start='2020-01-01'}
     $tax=[int](Sql "SELECT TaxRateId FROM TaxRate WHERE Description=N'$mark'")
     Check ((Sql "SELECT Rate FROM TaxRate WHERE TaxRateId=$tax") -eq 0.0825) 'Tax percent stored as exact fraction'

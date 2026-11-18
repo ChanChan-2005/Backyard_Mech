@@ -23,7 +23,7 @@ public sealed class PartsPosCheckoutForm
     public int? TaxRateId { get; set; }
     [Required, StringLength(30)] public string PaymentMethod { get; set; } = "Cash";
     [StringLength(100)] public string? ReferenceNumber { get; set; }
-    [Range(0, 999999999)] public decimal AmountTendered { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal AmountTendered { get; set; }
     public List<PartsPosCheckoutLine> Lines { get; set; } = new();
 }
 

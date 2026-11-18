@@ -10,6 +10,8 @@
 
     var estimates = Model ?? Array.Empty<EstimateListItem>();
     var pendingEstimateIds = ViewData["NotificationEstimateIds"] as HashSet<int>;
+    var permissionCodes = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
+    bool Can(string action) => Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, action);
 }
 
 <section class="estimates-page">
@@ -21,7 +23,7 @@
             </label>
             <button type="button" class="app-search-submit" data-search-submit>Search</button>
         </div>
-        @if (await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Estimates", "Create")) {
+        @if (Can("CreateEstimate")) {
             <button class="primary-estimate-button" type="button" data-dialog-open="estimate-editor">New Estimate</button>
         }
     </div>
@@ -44,13 +46,18 @@
                 @foreach (var estimate in estimates)
                 {
                     <tr class="@(pendingEstimateIds?.Contains(estimate.EstimateId) == true ? "notification-target" : "")">
-                        <td><a href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">@estimate.Id</a></td>
+                        <td>@if(Can("EstimateDetails")){<a href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">@estimate.Id</a>}else{<text>@estimate.Id</text>}</td>
                         <td>@estimate.Date</td>
                         <td><strong>@estimate.Customer</strong></td>
                         <td>@estimate.Vehicle</td>
                         <td><strong>@estimate.Total</strong></td>
                         <td><span class="estimate-status @estimate.Tone">@estimate.Status</span></td>
-                        <td><a class="estimate-view-link" href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">View Details</a></td>
+                        <td><div class="estimate-row-actions">
+                            @if (Can("EstimateDetails")) { <a class="estimate-view-link" href="/Owner/EstimateDetails/@estimate.Id.ToLowerInvariant()">View Details</a> }
+                            @if (Can("EstimateDetails") && Can("EditEstimate") && Can("UpdateEstimate") && estimate.Status is not ("Cancelled" or "Archived")) {
+                                <a class="estimate-view-link estimate-edit-link" href="/Owner/EditEstimate/@estimate.Id.ToLowerInvariant()">Edit</a>
+                            }
+                        </div></td>
                     </tr>
                 }
             </tbody>
@@ -62,6 +69,6 @@
     </section>
 </section>
 
-@if (await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Estimates", "Create")) {
+@if (Can("CreateEstimate")) {
     @await Html.PartialAsync("_EstimateEditor", (EstimateEditorViewModel)ViewData["EstimateEditor"]!)
 }

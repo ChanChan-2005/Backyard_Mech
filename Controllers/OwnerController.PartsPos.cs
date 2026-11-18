@@ -72,7 +72,7 @@ public partial class OwnerController
         var subtotal = lines.Sum(line => line.LineTotal ?? 0);
         var tax = Math.Round(subtotal * await TaxFraction(form.TaxRateId, now), 2, MidpointRounding.AwayFromZero);
         var total = checked(subtotal + tax);
-        Require(total > 0 && total <= 999999999, "The sale total is invalid.");
+        Require(total > 0 && total <= 9999999999999999.99m, "The sale total must fit within 18 digits and two decimal places.");
         Require(form.PaymentMethod != "Cash" || form.AmountTendered >= total, "Cash tendered must cover the total.");
         Require(form.PaymentMethod == "Cash" || form.AmountTendered == 0, "Tendered amount applies to cash payments only.");
         Require(form.PaymentMethod == "Cash" || !string.IsNullOrWhiteSpace(form.ReferenceNumber), "Enter a payment reference.");

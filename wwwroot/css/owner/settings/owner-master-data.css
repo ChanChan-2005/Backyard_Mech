@@ -4,6 +4,7 @@
 .master-data h2,.master-dialog h2{font-family:inherit;font-size:20px;line-height:1.4;margin:0;font-weight:700}
 .master-data button,.master-dialog button{font:600 14px var(--app-font-family, Arial, Helvetica, sans-serif);min-height:34px;padding:6px 12px;border:1px solid #c6d0dc;border-radius:4px;background:#fff;color:#17212d;cursor:pointer}
 .master-data .master-primary,.master-dialog .master-primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.master-data .master-delete-button,.master-dialog .master-delete-button{color:#b42318;border-color:#f5b8b3;background:#fff}
 .master-data button:hover,.master-dialog button:hover{filter:brightness(.94)}
 .master-data button:disabled{opacity:.45;cursor:default}
 .master-data input,.master-data select,.master-dialog input,.master-dialog select,.master-dialog textarea{font:14px var(--app-font-family, Arial, Helvetica, sans-serif);min-height:36px;padding:7px 10px;border:1px solid #bac6d5;border-radius:4px;background:#fff;color:#17212d;max-width:100%;box-sizing:border-box}

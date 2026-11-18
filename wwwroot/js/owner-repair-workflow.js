@@ -25,8 +25,20 @@
         if (event.target.closest('[data-print-invoice]')) window.print();
     });
     document.querySelectorAll('dialog.repair-dialog').forEach(dialog => {
-        dialog.addEventListener('close', () => trigger?.focus());
+        dialog.addEventListener('close', () => {
+            trigger?.focus();
+            if (dialog.id === 'estimate-editor') {
+                const url = new URL(window.location.href);
+                if (url.searchParams.get('dialog') === 'estimate-editor') {
+                    url.searchParams.delete('dialog');
+                    history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+                }
+            }
+        });
     });
+    if (new URLSearchParams(window.location.search).get('dialog') === 'estimate-editor') {
+        document.getElementById('estimate-editor')?.showModal();
+    }
     document.querySelectorAll('form[data-estimate-editor]').forEach(form => {
         const rows = form.querySelector('[data-estimate-lines]');
         const template = form.querySelector('template');

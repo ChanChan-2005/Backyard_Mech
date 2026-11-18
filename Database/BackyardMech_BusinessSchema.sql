@@ -360,9 +360,20 @@ CREATE TABLE dbo.Service (
     DefaultPrice DECIMAL(18,2) NULL,
     DefaultEstimatedHours DECIMAL(8,2) NULL,
     IsActive BIT NOT NULL CONSTRAINT DF_Service_IsActive DEFAULT (1),
+    IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0),
+    DeletedUtc DATETIME2 NULL,
     CONSTRAINT CK_Service_DefaultPrice CHECK (DefaultPrice IS NULL OR DefaultPrice >= 0),
     CONSTRAINT CK_Service_DefaultEstimatedHours CHECK (DefaultEstimatedHours IS NULL OR DefaultEstimatedHours >= 0)
 );
+GO
+
+IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.Service', N'IsDeleted') IS NULL
+        ALTER TABLE dbo.Service ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0);
+    IF COL_LENGTH(N'dbo.Service', N'DeletedUtc') IS NULL
+        ALTER TABLE dbo.Service ADD DeletedUtc DATETIME2 NULL;
+END;
 GO
 
 IF OBJECT_ID(N'dbo.Supplier', N'U') IS NULL

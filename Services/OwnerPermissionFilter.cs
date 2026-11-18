@@ -111,8 +111,9 @@ namespace Backyard_Mech.Services
                 !SubTabPermissionCatalog.CanAccess(codes, tab.Page, tab.Value)) return false;
             if (actionName is "AddStockMovement" or "EditStockMovement" or "ReverseStockMovement" &&
                 !codes.Contains(ActionPermissionCode("SparesAllocation"))) return false;
+            var needsModuleAction = !HasSingleActionBase(requirement.Value.Module, requirement.Value.Action);
             return codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
-                && codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))
+                && (!needsModuleAction || codes.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action)))
                 && (ModulePages.Contains(actionName) || codes.Contains(ActionPermissionCode(actionName)));
         }
 
@@ -133,6 +134,16 @@ namespace Backyard_Mech.Services
                 .OrderBy(item => item.Module)
                 .ThenBy(item => item.Name)
                 .ToArray();
+
+        private static readonly HashSet<string> SingleActionBaseCodes = DetailedActions
+            .Where(item => item.Action != "View")
+            .GroupBy(item => PermissionService.BuildPermissionCode(item.Module, item.Action), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        public static bool HasSingleActionBase(string module, string action) =>
+            SingleActionBaseCodes.Contains(PermissionService.BuildPermissionCode(module, action));
 
         public static string ActionLabel(string actionName) => actionName switch
         {
@@ -158,7 +169,7 @@ namespace Backyard_Mech.Services
                 "ManageStaffRolePermissions" => ("User Access", "Edit"),
                 "ManageStockTransactions" => ("Parts Management", "Create"),
                 "CreateStaffAccount" => ("User Access", "Create"),
-                "SaveUserAccess" => ("User Access", "Edit"),
+                "SaveUserAccess" or "ResetStaffPassword" => ("User Access", "Edit"),
                 "StaffAvailability" => ("Employees", "View"),
                 "CreateAvailabilityException" or "UpdateAvailabilityException" or "DeleteAvailabilityException" => ("Employees", "Edit"),
                 "Suppliers" => ("Suppliers", "View"),
@@ -167,6 +178,7 @@ namespace Backyard_Mech.Services
                 "ServiceCatalog" => ("Services", "View"),
                 "CreateService" => ("Services", "Create"),
                 "UpdateService" or "SetServiceState" => ("Services", "Edit"),
+                "DeleteService" => ("Services", "Delete"),
                 "SettingsCategories" => ("Settings", "View"),
                 "CreateCategory" or "CreateTax" => ("Settings", "Create"),
                 "UpdateCategory" or "SetCategoryState" or "UpdateTax" or "SetTaxState" => ("Settings", "Edit"),
@@ -271,7 +283,7 @@ namespace Backyard_Mech.Services
             "vehicles.view", "vehicles.create", "vehicles.edit",
             "appointments.view", "appointments.create", "appointments.edit", "appointments.delete",
             "servicequeue.view", "servicequeue.edit",
-            "estimates.view", "estimates.create", "estimates.edit", "estimates.delete", "estimates.approve",
+            "estimates.view", "estimates.create", "estimates.edit", "estimates.approve",
             "workorders.view", "workorders.create", "workorders.edit", "workorders.delete", "workorders.approve",
             "bays.view", "bays.create", "bays.edit",
             "partsmanagement.view", "partsmanagement.create", "partsmanagement.edit", "partsmanagement.delete",
@@ -284,12 +296,13 @@ namespace Backyard_Mech.Services
             "recordsdisposition.view", "recordsdisposition.edit", "recordsdisposition.delete",
             "employees.view", "employees.create", "employees.edit", "employees.delete",
             "reports.view",
-            "settings.view", "settings.create", "settings.edit", "settings.delete"
+            "settings.view", "settings.create", "settings.edit"
         };
 
         public static bool IsSupportedPermission(string module, string action)
         {
-            return SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action))
+            return (SupportedPermissionCodes.Contains(PermissionService.BuildPermissionCode(module, action)) &&
+                    !HasSingleActionBase(module, action))
                 || (SubTabPermissionCatalog.ByActionName(action) is { } tab && tab.Module.Equals(module, StringComparison.OrdinalIgnoreCase))
                 || DetailedActions.Any(item => item.Module.Equals(module, StringComparison.OrdinalIgnoreCase)
                     && item.Name.Equals(action, StringComparison.OrdinalIgnoreCase));

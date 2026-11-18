@@ -55,6 +55,7 @@ public static class StaffAccessSeed
         await db.SaveChangesAsync();
         await EnsureDetailedActionsAsync(db);
         await EnsureSubTabPermissionsAsync(db);
+        await DeactivateUnsupportedPermissionsAsync(db);
         var assignedRoleKeys = (await db.Users.AsNoTracking().Select(user => user.Role).Distinct().ToListAsync())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var obsoleteRoles = await db.AppRoles
@@ -63,6 +64,16 @@ public static class StaffAccessSeed
         foreach (var role in obsoleteRoles.Where(role =>
             !StandardRoleProfiles.IsBusinessRole(role.RoleKey) && !assignedRoleKeys.Contains(role.RoleKey)))
             role.IsActive = false;
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task DeactivateUnsupportedPermissionsAsync(ApplicationDbContext db)
+    {
+        var active = await db.Permissions.Where(permission => permission.IsActive).ToListAsync();
+        var unsupported = active.Where(permission => !OwnerPermissionCatalog.IsSupportedPermission(
+            permission.ModuleName ?? "", permission.ActionName ?? "")).ToList();
+        if (unsupported.Count == 0) return;
+        foreach (var permission in unsupported) permission.IsActive = false;
         await db.SaveChangesAsync();
     }
 
@@ -205,14 +216,18 @@ public static class StaffAccessSeed
         foreach (var role in await db.AppRoles.AsNoTracking().Where(item => item.IsActive && !item.IsSystemProtected).ToListAsync())
         {
             if (!grantedByRole.TryGetValue(role.RoleKey, out var grants)) continue;
+            var standardProfile = StandardRoleProfiles.Staff.FirstOrDefault(profile => profile.Key == role.RoleKey);
             foreach (var permission in additions)
             {
                 // Section visibility is explicitly assigned by the administrator, never inferred from page access.
                 if (DashboardPermissions.Sections.Contains(permission.ActionName)) continue;
                 if (permission.ActionName == "ManageStaffRolePermissions") continue;
                 var requirement = OwnerPermissionCatalog.Resolve(permission.ActionName!);
-                if (requirement is null || !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))
-                    || !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))) continue;
+                if (requirement is null || !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, "View"))) continue;
+                var singleAction = OwnerPermissionCatalog.HasSingleActionBase(requirement.Value.Module, requirement.Value.Action);
+                if (singleAction
+                    ? role.RoleKey != "Owner" && standardProfile?.Actions.Contains(permission.ActionName) != true
+                    : !grants.Contains(PermissionService.BuildPermissionCode(requirement.Value.Module, requirement.Value.Action))) continue;
                 db.RolePermissions.Add(new RolePermission { RoleId = role.RoleKey, PermissionId = permission.PermissionId });
             }
         }

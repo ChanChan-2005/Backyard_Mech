@@ -85,7 +85,7 @@
             <header>
                 <div>
                     <h2 id="permissions-page-title">Permissions: @Model.SelectedRoleLabel</h2>
-                    <p>These permissions apply to every employee assigned this role. Module access and individual actions are both required.</p>
+                    <p>These permissions apply to every employee with this role. Module View and the selected actions control access; broader switches appear only when they cover multiple actions.</p>
                 </div>
                 <div class="settings-role-permission-actions"><button class="settings-button-blue settings-role-permissions-save" type="submit" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)">Save Permissions</button></div>
             </header>
@@ -107,17 +107,17 @@
                             var cell = row.Actions[action];
                             @if (cell.Exists && cell.PermissionId.HasValue)
                             {
-                                <label class="permission-item" data-settings-action-row data-search="@($"{row.DisplayName} {action}")">
+                                <label class="permission-item" data-settings-action-row data-search="@($"{row.DisplayName} {action} {cell.Description}")">
                                     <input type="checkbox" name="PermissionIds" value="@cell.PermissionId" checked="@cell.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" data-role-base-module="@row.ModuleName" data-role-base-action="@action" />
-                                    <span>@(action == "Approve" ? "Approve / Dispatch" : action)<small>Module access</small></span>
+                                    <span>@(action == "Approve" && row.ModuleName == "Work Orders" ? "Approve / Dispatch" : action)<small>@cell.Description</small></span>
                                 </label>
                             }
                         }
                         @foreach (var permission in Model.DetailedPermissions.Where(permission => permission.ModuleName == row.ModuleName))
                         {
-                            <label class="permission-item" data-settings-action-row data-search="@($"{row.DisplayName} {permission.Label} {permission.Action}")">
+                            <label class="permission-item" data-settings-action-row data-search="@($"{row.DisplayName} {permission.Label} {permission.Action} {permission.Description}")">
                                 <input type="checkbox" name="PermissionIds" value="@permission.PermissionId" checked="@permission.IsChecked" disabled="@(Model.IsSystemProtected || !Model.CanEditRole)" data-role-action-module="@permission.ModuleName" data-role-action-requires="@permission.Action" />
-                                <span>@permission.Label<small>Requires @permission.Action access</small></span>
+                                <span>@permission.Label<small>@permission.Description</small></span>
                             </label>
                         }
                         </div>

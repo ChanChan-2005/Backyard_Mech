@@ -6,12 +6,14 @@
     ViewData["ActiveNav"] = "Estimates / Customers Approval";
     var grants = await Permissions.GetPermissionCodesAsync(Context.Session.GetString("UserRole"));
     bool Can(string module, string action) => grants.Contains("*") || grants.Contains(Backyard_Mech.Services.PermissionService.BuildPermissionCode(module, action));
-    var open = Model.Revision.EstimateStatus != "Cancelled";
+    bool CanAction(string action) => Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(grants, action);
+    var open = Model.Revision.EstimateStatus is not ("Cancelled" or "Archived");
+    var canEditEstimate = CanAction("UpdateEstimate");
 }
 <div class="repair-page">
     <nav class="repair-toolbar"><a class="app-action-link" href="/Owner/EstimateApprovals">Back to Estimates</a><div class="repair-actions">
-        @if (open && Can("Estimates", "Edit")) { <button type="button" data-dialog-open="estimate-editor">Edit Estimate</button> }
-        @if (open && !Model.WorkOrderId.HasValue && Can("Estimates", "Delete")) { <button type="button" data-dialog-open="cancel-estimate">Cancel Estimate</button> }
+        @if (open && canEditEstimate) { <button type="button" data-dialog-open="estimate-editor">Edit Estimate</button> }
+        @if (open && !Model.WorkOrderId.HasValue && CanAction("CancelEstimate")) { <button type="button" data-dialog-open="cancel-estimate">Cancel Estimate</button> }
         @if (Model.WorkOrderId.HasValue && Can("Work Orders", "View")) { <a class="repair-button" href="/Owner/WorkOrderDetails/@Model.WorkOrderId">View Work Order</a> }
         else if ((Model.Revision.EstimateStatus is "Approved" or "Partially Approved") && Can("Work Orders", "Create")) { <a class="repair-button primary" href="/Owner/WorkOrders">Create Work Order</a> }
     </div></nav>
@@ -20,7 +22,7 @@
         @foreach(var line in Model.Lines) { <tr><td>@line.LineType</td><td>@line.Description</td><td>@line.Quantity</td><td>@CurrencyDisplay.Cad(line.UnitPrice)</td><td>@CurrencyDisplay.Cad(line.LineTotal)</td></tr> }
         </tbody></table></div>
         <p>Subtotal: @CurrencyDisplay.Cad(Model.Revision.Subtotal) | Tax: @CurrencyDisplay.Cad(Model.Revision.TaxAmount)</p><p class="repair-total">Total: @CurrencyDisplay.Cad(Model.Revision.Total)</p>
-        @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Edit")) {
+        @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && CanAction("CreateCustomerApprovalLink")) {
             <form method="post" asp-action="CreateCustomerApprovalLink" class="repair-actions">
                 @Html.AntiForgeryToken()<input type="hidden" name="Id" value="@Model.Estimate.EstimateId" />
                 <input type="hidden" name="Reason" value="Customer approval requested" />
@@ -38,7 +40,7 @@
             </div>
         }
     </section>
-    @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && Can("Estimates", "Approve")) {
+    @if ((Model.Revision.EstimateStatus is "Draft" or "Pending") && CanAction("RecordEstimateDecision")) {
         <section class="repair-section"><h2>Customer Decision</h2><form method="post" asp-action="RecordEstimateDecision">
             <input type="hidden" name="EstimateId" value="@Model.Estimate.EstimateId" /><input type="hidden" name="ExpectedRevisionId" value="@Model.Revision.EstimateRevisionId" />
             <div class="repair-fields"><label>Decision<select name="Decision" required><option value="">Select decision</option><option>Approved</option><option>Declined</option></select></label>
@@ -56,5 +58,5 @@ document.querySelector('[data-copy-approval-link]')?.addEventListener('click', a
   button.textContent = 'Copied';
 });
 </script>
-@if(open && Can("Estimates", "Edit")) { @await Html.PartialAsync("_EstimateEditor", Model.Editor) }
-@if(open && Can("Estimates", "Delete")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("cancel-estimate", "Cancel Estimate", "CancelEstimate", Model.Estimate.EstimateId)) }
+@if(open && canEditEstimate) { @await Html.PartialAsync("_EstimateEditor", Model.Editor) }
+@if(open && !Model.WorkOrderId.HasValue && CanAction("CancelEstimate")) { @await Html.PartialAsync("_WorkflowReasonDialog", new WorkflowReasonDialog("cancel-estimate", "Cancel Estimate", "CancelEstimate", Model.Estimate.EstimateId)) }

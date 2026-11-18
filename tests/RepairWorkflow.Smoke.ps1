@@ -243,7 +243,7 @@ try {
     $issuedUtc=[DateTime]::SpecifyKind([DateTime](Sql "SELECT IssuedUtc FROM Invoice WHERE InvoiceId=$invoice"),[DateTimeKind]::Utc)
     $garageDate=[TimeZoneInfo]::ConvertTimeFromUtc($issuedUtc,[TimeZoneInfo]::FindSystemTimeZoneById('Asia/Manila'))
     $invoiceNumber=[string](Sql "SELECT InvoiceNumber FROM Invoice WHERE InvoiceId=$invoice")
-    Check ($invoiceNumber -match ('^INV-\d{4,}-'+$garageDate.ToString('MMddyy')+'$')) 'Invoice number uses four-digit sequence and garage-local MMDDYY date'
+    Check ($invoiceNumber -match ('^INV-'+$garageDate.ToString('yyyy')+'-\d+-\d{4}$')) 'Invoice number uses garage-local year, block, and four-digit position'
     $null = Post 'IssueInvoice' @{WorkOrderId=$order}
     Check ((Sql "SELECT COUNT(*) FROM Invoice WHERE WorkOrderId=$order") -eq 1) 'Duplicate invoice blocked'
     $pay = @{InvoiceId=$invoice;SubmissionToken=[Guid]::NewGuid().ToString(); Amount=200; PaymentMethod='Cash'; PaidUtc=[DateTime]::UtcNow.ToString('yyyy-MM-dd');Notes=$marker}

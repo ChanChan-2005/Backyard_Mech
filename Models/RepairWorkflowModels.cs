@@ -19,7 +19,7 @@ public sealed class EstimateLineForm
     public int? ServiceId { get; set; }
     [Required, StringLength(500)] public string Description { get; set; } = "";
     [Range(typeof(decimal), "0.01", "100000")] public decimal Quantity { get; set; } = 1;
-    [Range(typeof(decimal), "0", "1000000")] public decimal UnitPrice { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal UnitPrice { get; set; }
 }
 
 public sealed class EstimateDecisionForm
@@ -101,7 +101,7 @@ public sealed class ToolMaintenanceForm
     public int ToolId { get; set; }
     [Required, StringLength(100)] public string MaintenanceType { get; set; } = "Repair";
     [Required, StringLength(1000)] public string Notes { get; set; } = "";
-    [Range(typeof(decimal), "0", "10000000")] public decimal Cost { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal Cost { get; set; }
     [Required, RegularExpression("Excellent|Good|Fair|Damaged")] public string ConditionAfter { get; set; } = "Good";
     public DateTime? NextDueUtc { get; set; }
 }
@@ -116,7 +116,7 @@ public sealed class LabourSaveForm
     [Range(1, int.MaxValue)] public int EmployeeProfileId { get; set; }
     [Required, StringLength(500)] public string Description { get; set; } = "";
     [Range(1, 60000)] public int Minutes { get; set; } = 60;
-    [Range(typeof(decimal), "0", "1000000")] public decimal HourlyRate { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal HourlyRate { get; set; }
     [StringLength(2000)] public string? Notes { get; set; }
 }
 
@@ -154,7 +154,7 @@ public sealed class PaymentSaveForm
     public Guid SubmissionToken { get; set; } = Guid.NewGuid();
     public int PaymentId { get; set; }
     public int InvoiceId { get; set; }
-    [Range(typeof(decimal), "0.01", "100000000")] public decimal Amount { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0.01", "9999999999999999.99")] public decimal Amount { get; set; }
     [Required, RegularExpression("Cash|Card|Check|Bank Transfer")] public string PaymentMethod { get; set; } = "Cash";
     [StringLength(160)] public string? ReferenceNumber { get; set; }
     [Required] public DateTime? PaidUtc { get; set; }
@@ -168,7 +168,7 @@ public sealed class AdjustmentSaveForm
     public int InvoiceAdjustmentId { get; set; }
     public int InvoiceId { get; set; }
     [Required, RegularExpression("Credit|Debit")] public string AdjustmentType { get; set; } = "Credit";
-    [Range(typeof(decimal), "0.01", "100000000")] public decimal Amount { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0.01", "9999999999999999.99")] public decimal Amount { get; set; }
     [Required, StringLength(1000)] public string Reason { get; set; } = "";
 }
 

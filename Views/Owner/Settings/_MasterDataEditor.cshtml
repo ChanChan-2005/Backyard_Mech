@@ -44,7 +44,7 @@
             <label class="master-wide">Description<textarea name="Description" maxlength="@(page.Mode=="categories"?500:1000)" placeholder="@(page.Mode=="services"?"Briefly describe the work included":null)">@f.Description</textarea>@if(page.Mode=="services"){<small class="master-field-hint">Describe what the service covers for staff and customers.</small>}</label>
         }
         @if(page.Mode=="services") {
-            <label>Default Price *<input name="Price" type="number" min="0" max="99999999.99" step="0.01" value="@f.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /> <small class="master-field-hint">Standard labour price before applicable tax.</small></label>
+            <label>Default Price *<input name="Price" type="number" min="0" max="9999999999999999.99" step="0.01" value="@f.Price.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" required /> <small class="master-field-hint">Standard labour price before applicable tax.</small></label>
             <label>Estimated Hours *<input name="Hours" type="number" min="0" max="9999.99" step="0.01" value="@f.Hours.ToString(System.Globalization.CultureInfo.InvariantCulture)" required /> <small class="master-field-hint">Typical time needed to complete this service.</small></label>
         }
         @if(page.Mode=="tax") {

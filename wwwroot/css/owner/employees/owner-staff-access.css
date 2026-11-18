@@ -1,4 +1,6 @@
 .staff-access{margin-bottom:20px}
+.staff-access-message{margin:0 0 14px;padding:10px 14px;border:1px solid #b8dfc5;border-radius:6px;background:#edf9f0;color:#175c31}
+.staff-access-message.is-error{border-color:#f1b8b8;background:#fff0f0;color:#a52424}
 .staff-account-dialog{width:min(720px,calc(100vw - 32px));padding:0;overflow:auto;border-radius:8px}
 .staff-account-dialog form{min-width:0}
 .staff-account-dialog form>header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0;padding:16px 20px;border-bottom:1px solid #e5eaf0}
@@ -52,6 +54,9 @@ body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .master
 .staff-account-permissions-modal .master-table-wrap thead th{position:sticky;top:0;z-index:2;height:44px;background:#f3f6fa;color:#52647c;font-size:11px;font-weight:700;text-transform:uppercase;white-space:normal;line-height:1.25}
 .staff-account-permissions-modal .master-table-wrap th:first-child{width:26%;text-align:left}
 .staff-account-permissions-modal .master-table-wrap tbody th{color:#17212d;font-weight:700}
+.staff-account-permissions-modal .permission-list{display:grid;grid-template-columns:minmax(0,1fr)}
+.staff-account-permissions-modal .permission-item{padding:9px 10px}
+.staff-account-permissions-modal .staff-permission-description{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.45;font-weight:400}
 body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permission-check{display:inline-grid;place-items:center;width:32px;height:32px;margin:0;cursor:pointer}
 body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permission-check input{position:absolute;width:1px;height:1px;min-height:0;padding:0;border:0;opacity:0}
 .staff-permission-check span{display:grid;place-items:center;width:17px;height:17px;border:1px solid #93b4f7;border-radius:4px;background:#fff;transition:background .15s ease,border-color .15s ease}
@@ -70,13 +75,23 @@ body.app-shell-body dialog.master-dialog.staff-account-permissions-modal>footer{
 .staff-permission-footer-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;margin-left:auto}
 body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permission-footer-actions button{min-width:110px;min-height:38px;padding:8px 16px;border-radius:8px;white-space:nowrap}
 body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permission-footer-actions .master-primary{min-width:130px;border-color:#2563eb;background:#2563eb;color:#fff}
-.staff-access-modal{width:min(1100px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto}
-.staff-access-modal form{min-width:0}
-.staff-access-modal .master-table-wrap{max-height:50vh;overflow:auto}
-.staff-access-modal header.master-toolbar{align-items:flex-start}
-.staff-access-modal header.master-toolbar button{flex:0 0 auto;min-height:30px;padding:3px 10px;font-size:18px;line-height:1}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].staff-account-dialog{--modal-width:780px}
+.staff-access-modal .staff-edit-fields{display:block;min-width:0;margin:0;padding:0;border:0}
+.staff-access-modal .staff-edit-fields .master-fields{padding-bottom:12px}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].staff-access-modal .staff-edit-fields .staff-check{display:flex;flex-direction:row;align-items:center;gap:10px;margin:4px 0 0}
+.staff-access-modal .staff-edit-fields .staff-check input{width:18px;height:18px;min-height:0;margin:0}
+.staff-access-modal .staff-edit-permission-help{margin:0;padding:0 20px 16px;color:#536784;font-size:13px}
+.staff-access-modal .staff-password-reset{padding:16px 20px;border-top:1px solid #e5eaf0}
+.staff-access-modal .staff-password-reset h3{margin:0 0 6px;font-size:15px}
+.staff-access-modal .staff-password-reset p{margin:0 0 12px;color:#536784;font-size:13px}
+.staff-access-modal .staff-password-reset label{display:block;max-width:360px;margin:0}
+.staff-access-modal .staff-reset-password-field{display:flex;align-items:stretch;gap:8px;max-width:460px;margin:6px 0}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].staff-access-modal .staff-reset-password-field input{flex:1 1 auto;width:auto;min-width:0;min-height:42px}
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"].staff-access-modal .staff-reset-password-field button{position:static;flex:0 0 72px;transform:none;min-height:42px;padding:5px 10px}
+.staff-access-modal .staff-password-reset small{display:block;max-width:460px}
+.staff-access-modal .staff-edit-footer{display:flex;justify-content:flex-end;gap:10px;margin:0;padding:14px 20px;border-top:1px solid #e5eaf0}
+.staff-access-modal header.master-toolbar button{flex:0 0 auto}
 .staff-access h3{font:700 18px var(--app-font-family, Arial, Helvetica, sans-serif);margin:24px 0 16px}
-.staff-access-fields{border:0;margin:0;padding:0;min-width:0}
 .staff-account-controls{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
 .staff-access label{display:flex;flex-direction:column;gap:8px;font-weight:600}
 .staff-access .staff-check{flex-direction:row;align-items:center}
@@ -93,6 +108,7 @@ body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-
 @media(max-width:700px){.staff-account-permissions-modal>footer span{display:none}}
 @media(max-width:600px){.staff-account-permissions-modal .master-table-wrap table{min-width:620px}body.app-shell-body dialog.master-dialog.staff-account-permissions-modal .staff-permissions-preview{padding:0 12px}body.app-shell-body dialog.master-dialog.staff-account-permissions-modal>header.master-toolbar,body.app-shell-body dialog.master-dialog.staff-account-permissions-modal>footer{padding-left:12px;padding-right:12px}}
 @media(max-width:600px){.staff-account-dialog{width:calc(100vw - 24px)}.staff-account-dialog .master-fields{grid-template-columns:minmax(0,1fr);padding:16px}.staff-account-dialog .master-fields .master-wide{grid-column:auto}.staff-account-dialog form>header{padding:14px 16px}.staff-account-dialog footer{padding:12px 16px 16px}}
+@media(max-width:600px){.staff-access-modal .staff-edit-permission-help{padding:0 16px 16px}.staff-access-modal .staff-password-reset{padding:16px}.staff-access-modal .staff-edit-footer{flex-wrap:wrap;padding:12px 16px 16px}}
 
 .staff-row-actions { flex-wrap: nowrap; gap: 6px; }
 .staff-access .staff-delete-action { color: #b91c1c; border-color: #f0b6b6; }

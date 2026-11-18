@@ -43,7 +43,7 @@
         <input type="hidden" name="ToolId" data-tool-transaction-id />
         <div class="tools-form-grid"><label><span class="tools-label">Condition after maintenance *</span><select class="tools-select" name="ConditionAfter" required><option>Excellent</option><option selected>Good</option><option>Fair</option><option>Damaged</option></select></label>
             <label><span class="tools-label">Next calibration due</span><input class="tools-input" type="date" name="NextDueUtc" /></label>
-            <label><span class="tools-label">Maintenance cost</span><input max="10000000" class="tools-input" type="number" min="0" step="0.01" name="Cost" value="0" /></label>
+            <label><span class="tools-label">Maintenance cost</span><input max="9999999999999999.99" class="tools-input" type="number" min="0" step="0.01" name="Cost" value="0.00" /></label>
             <label class="tools-wide-label"><span class="tools-label">Work completed *</span><input class="tools-input" name="Notes" required maxlength="1000" placeholder="Describe the repair, calibration, or check performed" /></label></div>
         <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Complete Maintenance</button></footer>
     </form>

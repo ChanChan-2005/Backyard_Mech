@@ -257,6 +257,8 @@
   color: #344154 !important;
   background: #fff;
 }
+.estimate-row-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.estimate-table td a.estimate-edit-link { color: #1d5bd7; border-color: #a9c4fb; background: #eff5ff; }
 
 .estimate-table-footer {
   display: flex;

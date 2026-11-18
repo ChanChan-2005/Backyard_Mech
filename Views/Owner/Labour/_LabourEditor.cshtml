@@ -10,7 +10,7 @@
         <label class="repair-wide">Approved task<select name="ApprovedEstimateLineId" required data-approved-task><option value="">Select approved task</option>@foreach(var order in Model.Options.Orders) { foreach(var line in Model.Options.ApprovedLines.Where(x => x.EstimateRevisionId == order.ApprovedEstimateRevisionId && x.LineType == "Labour")) { <option value="@line.EstimateRevisionLineItemId" data-order="@order.WorkOrderId" data-rate="@line.UnitPrice" selected="@(line.EstimateRevisionLineItemId == form.ApprovedEstimateLineId)">@line.Description (WO-@order.WorkOrderId)</option> } }</select></label>
         <input type="hidden" name="Description" value="Approved task" />
         <label>Minutes worked<input name="Minutes" type="number" min="1" max="60000" required value="@form.Minutes" /></label>
-        <label>Approved hourly rate<input name="HourlyRate" type="number" readonly step=".01" value="@form.HourlyRate" /></label>
+        <label>Approved hourly rate<input name="HourlyRate" type="number" readonly step=".01" value="@form.HourlyRate.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" /></label>
         <label class="repair-wide">Notes<textarea name="Notes" maxlength="2000">@form.Notes</textarea></label>
     </div><footer><button type="button" data-dialog-close>Cancel</button>@if(!edit) { <button type="submit" formaction="/Owner/StartLabourTimer">Start Timer</button> }<button class="primary" type="submit">Save Manual Entry</button></footer>
 </form></dialog>

@@ -51,6 +51,11 @@ try {
     $renderedIds=[regex]::Matches($permissionPage,'name="PermissionIds" value="(\d+)"') | ForEach-Object { $_.Groups[1].Value }
     $availableCount=[int]([regex]::Match($permissionPage,'(\d+) available permissions').Groups[1].Value)
     Check ($renderedIds.Count -eq $availableCount -and ($renderedIds | Select-Object -Unique).Count -eq $availableCount) 'Every available permission has one editor control'
+    Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1") -eq $availableCount) 'No hidden obsolete permissions remain active'
+    Check ((Sql "SELECT COUNT(*) FROM Permission WHERE PermissionCode='estimates.delete' AND IsActive=1") -eq 0 -and
+        (Sql "SELECT COUNT(*) FROM Permission WHERE PermissionCode='owneraction.cancelestimate' AND IsActive=1") -eq 1) 'Estimate cancellation has one active action permission'
+    Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode IN ('appointments.create','customers.edit','settings.delete')") -eq 0 -and
+        (Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode IN ('owneraction.createappointment','owneraction.editcustomer')") -eq 2) 'Single-action and unused broad permissions are hidden'
     Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode LIKE 'subtab.%'") -eq 18) 'Every navigation sub-tab has a permission'
     foreach($label in @('Inventory Registry','Product Listing','All Archived Records','Archived Parts','Archived Product Listings','Archived Tools','All Disposition Records','Disposition Parts','Disposition Product Listings','Disposition Tools','Service Categories','Part Categories','Tool Categories','Roles','Permissions','All Employees','Active Employees','Inactive Employees')) {
         Check ($permissionPage.Contains(">$label<")) "Sub-tab permission appears in editor: $label"
@@ -97,7 +102,7 @@ try {
     $null=Post 'SaveUserAccess' $form
     Check ((Sql "SELECT COUNT(*) FROM UserPermissionOverride WHERE UserId=$account") -eq 0) 'Individual permission submissions rejected'
     $html=(GetPage "/Owner/StaffAccounts?userId=$account").Content
-    Check ($html.Contains('Role Permissions (read-only)') -and !$html.Contains('data-edit-permission-toggle')) 'Account access shows read-only role permissions'
+    Check ($html.Contains('Edit Login Account') -and $html.Contains('name="UserName"') -and $html.Contains('name="Email"') -and !$html.Contains('name="NewPassword"') -and !$html.Contains('data-edit-permission-toggle')) 'Account Edit shows login details without manual password or per-account permission controls'
     $null=Sql "INSERT UserPermissionOverride(UserId,PermissionId,IsAllowed) SELECT $account,PermissionId,CASE WHEN PermissionCode='suppliers.view' THEN 0 ELSE 1 END FROM Permission WHERE PermissionCode IN ('suppliers.view','services.view');"
     $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
     SignIn "$mark-login@example.com" 'Test-Only!Password123'
@@ -176,6 +181,12 @@ try {
         try { $deniedPage=$reader.ReadToEnd() } finally { $reader.Dispose() }
     }
     Check ($deniedPage.Contains('Account signed in') -and $deniedPage.Contains('no module access yet')) 'No-permission login explains missing access instead of suggesting invalid credentials'
+    $session=$ownerSession
+    $details=AccessForm $other $role @{}
+    $details.UpdateDetails='true';$details.Email="$mark-updated@example.com";$details.UserName="$mark-updated"
+    $null=Post 'SaveUserAccess' $details
+    Check ((Sql "SELECT Email FROM Users WHERE Id=$other") -eq "$mark-updated@example.com" -and
+        (Sql "SELECT UserName FROM Users WHERE Id=$other") -eq "$mark-updated") 'Account Edit saves login email and username'
     Write-Output 'Staff accounts, overrides and availability checks completed.'
 } finally {
     $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder; DELETE Appointment WHERE AppointmentId=$appointment; DELETE EmployeeAvailabilityException WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeAvailability WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeProfile WHERE EmployeeProfileId IN ($profile,$second); DELETE UserPermissionOverride WHERE UserId IN ($owner,$account,$other); DELETE AccountSecurity WHERE UserId IN ($owner,$account,$other); DELETE Users WHERE Id IN ($owner,$account,$other); DELETE RolePermission WHERE RoleId=N'$role';"

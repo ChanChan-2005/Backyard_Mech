@@ -13,15 +13,24 @@ public partial class OwnerController
 
         var garageDate = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.SpecifyKind(issuedUtc, DateTimeKind.Utc), GarageZone());
-        var dateSuffix = garageDate.ToString("MMddyy", CultureInfo.InvariantCulture);
-        string number;
-        do
+        var yearPrefix = $"INV-{garageDate.Year.ToString(CultureInfo.InvariantCulture)}-";
+        var sequence = counter!.Prefix == yearPrefix
+            ? checked(counter.LastNumber + 1)
+            : 0;
+        while (true)
         {
-            counter!.LastNumber = checked(counter.LastNumber + 1);
-            number = $"INV-{counter.LastNumber.ToString("D4", CultureInfo.InvariantCulture)}-{dateSuffix}";
-        }
-        while (await _dbContext.Invoices.AnyAsync(invoice => invoice.InvoiceNumber == number));
+            var block = checked(sequence / 10000 + 1);
+            var position = sequence % 10000;
+            var number = $"{yearPrefix}{block.ToString(CultureInfo.InvariantCulture)}-{position.ToString("D4", CultureInfo.InvariantCulture)}";
+            if (await _dbContext.Invoices.AnyAsync(invoice => invoice.InvoiceNumber == number))
+            {
+                sequence = checked(sequence + 1);
+                continue;
+            }
 
-        return number;
+            counter.Prefix = yearPrefix;
+            counter.LastNumber = sequence;
+            return number;
+        }
     }
 }

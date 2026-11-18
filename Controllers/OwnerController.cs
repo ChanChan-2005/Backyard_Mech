@@ -2170,7 +2170,7 @@ namespace Backyard_Mech.Controllers
                 return RedirectToAction("Login", "Account");
             }
 
-            return RedirectToAction(nameof(EstimateDetails), new { id });
+            return RedirectToAction(nameof(EstimateDetails), new { id, dialog = "estimate-editor" });
         }
 
         public async Task<IActionResult> WorkOrders()
@@ -5849,7 +5849,8 @@ namespace Backyard_Mech.Controllers
                             {
                                 PermissionId = permission?.PermissionId,
                                 Exists = permission is not null,
-                                IsChecked = isProtected || (permission is not null && savedPermissionIds.Contains(permission.PermissionId))
+                                IsChecked = isProtected || (permission is not null && savedPermissionIds.Contains(permission.PermissionId)),
+                                Description = OwnerPermissionDescriptionCatalog.ModuleAction(group.Key, action)
                             };
                         });
 
@@ -5871,7 +5872,9 @@ namespace Backyard_Mech.Controllers
                     ModuleName = permission.ModuleName ?? "General",
                     Label = SubTabPermissionCatalog.ByActionName(permission.ActionName)?.Label ?? OwnerPermissionCatalog.ActionLabel(permission.ActionName ?? ""),
                     Action = SubTabPermissionCatalog.ByActionName(permission.ActionName) is not null ? "View" : OwnerPermissionCatalog.Resolve(permission.ActionName ?? "")?.Action ?? "View",
-                    IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId)
+                    IsChecked = isProtected || savedPermissionIds.Contains(permission.PermissionId),
+                    Description = OwnerPermissionDescriptionCatalog.ForPermission(
+                        permission.ModuleName ?? "General", permission.ActionName ?? "")
                 })
                 .OrderBy(permission => permission.ModuleName)
                 .ThenBy(permission => permission.Label)

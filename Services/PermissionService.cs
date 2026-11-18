@@ -75,6 +75,13 @@ namespace Backyard_Mech.Services
                     select permission.PermissionCode!)
                     .ToListAsync())
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                // A specific action supplies its one-to-one module operation automatically.
+                // The editor only shows the action switch for these pairs.
+                foreach (var action in OwnerPermissionCatalog.DetailedActions.Where(item =>
+                    OwnerPermissionCatalog.HasSingleActionBase(item.Module, item.Action) &&
+                    permissions.Contains(BuildPermissionCode(item.Module, "View")) &&
+                    permissions.Contains(OwnerPermissionCatalog.ActionPermissionCode(item.Name))))
+                    permissions.Add(BuildPermissionCode(action.Module, action.Action));
             }
 
             _permissionCache[roleKey] = permissions;

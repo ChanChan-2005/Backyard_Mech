@@ -24,7 +24,8 @@ public static class StandardRoleProfiles
             {
                 var requirement = OwnerPermissionCatalog.Resolve(action) ?? throw new InvalidOperationException($"Unknown action: {action}");
                 codes.Add(PermissionService.BuildPermissionCode(requirement.Module, "View"));
-                codes.Add(PermissionService.BuildPermissionCode(requirement.Module, requirement.Action));
+                if (!OwnerPermissionCatalog.HasSingleActionBase(requirement.Module, requirement.Action))
+                    codes.Add(PermissionService.BuildPermissionCode(requirement.Module, requirement.Action));
                 // Main pages need only module View. Detail pages and operations require explicit grants.
                 if (OwnerPermissionCatalog.DetailedActions.Any(item => item.Name == action))
                     codes.Add(OwnerPermissionCatalog.ActionPermissionCode(action));

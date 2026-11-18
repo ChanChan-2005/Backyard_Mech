@@ -42,7 +42,7 @@
             <div class="parts-pos-fields">
                 <label>Tax <select name="TaxRateId" data-pos-tax><option value="" data-rate="0">No tax</option>@foreach (var tax in Model.Taxes) { <option value="@tax.TaxRateId" data-rate="@tax.Rate.ToString(System.Globalization.CultureInfo.InvariantCulture)">@tax.Name (@((tax.Rate * 100).ToString("0.##"))%)</option> }</select></label>
                 <label>Payment method <select name="PaymentMethod" data-pos-method><option>Cash</option><option>Card</option><option>Bank Transfer</option></select></label>
-                <label data-pos-tender-wrap>Cash tendered (CA$) <input name="AmountTendered" data-pos-tender type="number" min="0" step="0.01" value="0" required /></label>
+                <label data-pos-tender-wrap>Cash tendered (CA$) <input name="AmountTendered" data-pos-tender type="number" min="0" max="9999999999999999.99" step="0.01" value="0.00" required /></label>
                 <label data-pos-reference-wrap hidden>Payment reference <input name="ReferenceNumber" data-pos-reference maxlength="100" /></label>
             </div>
             <div class="parts-pos-summary"><div class="parts-pos-totals"><div><span>Subtotal</span><strong data-pos-subtotal>CA$0.00</strong></div><div><span>Tax</span><strong data-pos-tax-total>CA$0.00</strong></div><div class="parts-pos-total"><span>Total due</span><strong data-pos-total>CA$0.00</strong></div><div><span>Change</span><strong data-pos-change>CA$0.00</strong></div></div><button class="parts-pos-pay" type="submit" data-pos-submit disabled>Complete sale <span aria-hidden="true">&rarr;</span></button><p class="parts-pos-payment-note">Review the order and payment details before completing the sale.</p></div>

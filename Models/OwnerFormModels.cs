@@ -72,7 +72,7 @@ namespace Backyard_Mech.Models
         [Url]
         public string? ImageUrl { get; set; }
 
-        [Range(typeof(decimal), "0", "9999999999999999.99")]
+        [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? DisplayPrice { get; set; }
 
         [Range(0, int.MaxValue)]
@@ -100,10 +100,10 @@ namespace Backyard_Mech.Models
 
         [StringLength(2000)] public string? Description { get; set; }
 
-        [Range(typeof(decimal), "0", "9999999999999999.99")]
+        [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? UnitCost { get; set; }
 
-        [Range(typeof(decimal), "0", "9999999999999999.99")]
+        [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? UnitPrice { get; set; }
 
         [Range(0, int.MaxValue)]
@@ -199,7 +199,7 @@ namespace Backyard_Mech.Models
         [StringLength(2000)]
         public string? SkillsAndQualifications { get; set; }
 
-        [Required, Range(typeof(decimal), "0", "9999999999999999.99")]
+        [Required, MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")]
         public decimal? HourlyRate { get; set; }
 
         [StringLength(100)] public string? RoleId { get; set; }
@@ -534,6 +534,7 @@ namespace Backyard_Mech.Models
         public int? PermissionId { get; set; }
         public bool IsChecked { get; set; }
         public bool Exists { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 
     public class SettingsPermissionRow
@@ -550,6 +551,7 @@ namespace Backyard_Mech.Models
         public string Label { get; set; } = string.Empty;
         public string Action { get; set; } = string.Empty;
         public bool IsChecked { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 
     public class SettingsRolesViewModel

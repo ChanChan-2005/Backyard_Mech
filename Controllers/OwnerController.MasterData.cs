@@ -29,6 +29,8 @@ public partial class OwnerController
         var role = HttpContext.Session.GetString("UserRole");
         page.CanCreate = await _permissionService.HasPermissionAsync(role, page.Module, "Create");
         page.CanEdit = await _permissionService.HasPermissionAsync(role, page.Module, "Edit");
+        page.CanDelete = !string.IsNullOrEmpty(page.DeleteAction) &&
+            await _permissionService.HasPermissionAsync(role, page.Module, "Delete");
         return View("~/Views/Owner/Settings/MasterData.cshtml", page);
     }
 
@@ -139,8 +141,8 @@ public partial class OwnerController
     public async Task<IActionResult> ServiceCatalog()
     {
         var categories=await _dbContext.ServiceCategories.AsNoTracking().ToListAsync();
-        var rows=await _dbContext.Services.AsNoTracking().OrderBy(x=>x.ServiceName).ToListAsync();
-        return await MasterPage(new MasterDataPage {Mode="services",Title="Service Catalog",Module="Services",CreateAction=nameof(CreateService),EditAction=nameof(UpdateService),StateAction=nameof(SetServiceState),
+        var rows=await _dbContext.Services.AsNoTracking().Where(x=>!x.IsDeleted).OrderBy(x=>x.ServiceName).ToListAsync();
+        return await MasterPage(new MasterDataPage {Mode="services",Title="Service Catalog",Module="Services",CreateAction=nameof(CreateService),EditAction=nameof(UpdateService),StateAction=nameof(SetServiceState),DeleteAction=nameof(DeleteService),
             Headers=new[]{"Service","Category","Default Price","Estimated Hours"},Options=categories.Where(x=>x.IsActive).Select(x=>new MasterOption(x.ServiceCategoryId,x.CategoryName??"")).ToList(),
             Rows=rows.Select(x=>new MasterRow(new MasterDataForm {Id=x.ServiceId,Expected=MasterStamp(x),Name=x.ServiceName??"",Description=x.Description,CategoryId=x.ServiceCategoryId,Price=x.DefaultPrice??0,Hours=x.DefaultEstimatedHours??0},x.IsActive,x.IsActive?"Active":"Inactive",
                 new[]{x.ServiceName??"",categories.FirstOrDefault(c=>c.ServiceCategoryId==x.ServiceCategoryId)?.CategoryName??"Uncategorized",CurrencyDisplay.Cad(x.DefaultPrice),(x.DefaultEstimatedHours??0).ToString("0.##")})).ToList()});
@@ -149,8 +151,9 @@ public partial class OwnerController
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> UpdateService(MasterDataForm f) { if(f.Id<=0)ModelState.AddModelError("Id","Select a service.");return SaveService(f); }
     private Task<IActionResult> SaveService(MasterDataForm f) => SaveWorkflow(async () => {
         Require(f.Price==Math.Round(f.Price,2) && f.Hours==Math.Round(f.Hours,2),"Price and hours must have at most two decimal places.");
-        Require(!await _dbContext.Services.AnyAsync(x=>x.ServiceId!=f.Id && x.ServiceName==f.Name.Trim()),"A service with this name already exists.");
+        Require(!await _dbContext.Services.AnyAsync(x=>x.ServiceId!=f.Id && !x.IsDeleted && x.ServiceName==f.Name.Trim()),"A service with this name already exists.");
         var row=f.Id==0?new Service():await _dbContext.Services.FindAsync(f.Id);Require(row is not null,"Service not found.");
+        Require(!row!.IsDeleted,"This service was deleted. Refresh the catalog.");
         if(f.Id!=0) {CheckMaster(row!,f.Expected);WorkflowAudit("Service",f.Id,"Before edit",row);}
         if(f.CategoryId.HasValue && (f.Id==0 || row!.ServiceCategoryId!=f.CategoryId))
             Require(await _dbContext.ServiceCategories.AnyAsync(x=>x.ServiceCategoryId==f.CategoryId && x.IsActive),"Choose an active service category.");
@@ -159,8 +162,22 @@ public partial class OwnerController
         return RedirectToAction(nameof(ServiceCatalog));
     },nameof(ServiceCatalog));
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> SetServiceState(MasterStateForm f) => SaveWorkflow(async () => {
-        var row=await _dbContext.Services.FindAsync(f.Id);Require(row is not null,"Service not found.");CheckMaster(row!,f.Expected);
+        var row=await _dbContext.Services.FindAsync(f.Id);Require(row is not null && !row.IsDeleted,"Service not found.");CheckMaster(row!,f.Expected);
         row!.IsActive=f.Active;WorkflowAudit("Service",f.Id,f.Active?"Reactivate":"Deactivate",f.Reason);return RedirectToAction(nameof(ServiceCatalog));
+    },nameof(ServiceCatalog));
+
+    [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> DeleteService(MasterStateForm f) => SaveWorkflow(async () => {
+        var row=await _dbContext.Services.FindAsync(f.Id);
+        Require(row is not null && !row.IsDeleted,"Service not found.");
+        CheckMaster(row!,f.Expected);
+        row!.IsActive=false;
+        row.IsDeleted=true;
+        row.DeletedUtc=DateTime.UtcNow;
+        var listings=await _dbContext.ProductListings
+            .Where(x=>x.ServiceId==f.Id && x.IsPublished && !x.IsDeleted).ToListAsync();
+        foreach(var listing in listings) listing.IsPublished=false;
+        WorkflowAudit("Service",f.Id,"Delete",new {row.ServiceName,f.Reason,UnpublishedListings=listings.Count});
+        return RedirectToAction(nameof(ServiceCatalog));
     },nameof(ServiceCatalog));
 
     private async Task<IActionResult> TaxMasterPage()

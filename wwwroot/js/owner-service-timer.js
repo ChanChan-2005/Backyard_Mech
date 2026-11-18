@@ -12,7 +12,11 @@
   }
 
   let elapsedSeconds = Number.parseInt(display.dataset.startSeconds || "0", 10);
-  const hourlyRate = Number.parseFloat(display.dataset.hourlyRate || "0");
+  const rateText = display.dataset.hourlyRate || "0";
+  const rateMatch = rateText.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+  const hourlyRateCents = rateMatch
+    ? BigInt(rateMatch[1]) * 100n + BigInt((rateMatch[2] || "").padEnd(2, "0"))
+    : null;
   let isRunning = true;
   let isComplete = false;
   let selectedReason = document.querySelector("[data-pause-reason].active")?.dataset.pauseReason || "Break / Lunch";
@@ -32,12 +36,12 @@
   }).format(new Date());
 
   const updateCost = () => {
-    if (!costDisplay || Number.isNaN(hourlyRate)) {
+    if (!costDisplay || hourlyRateCents === null) {
       return;
     }
 
-    const cost = (elapsedSeconds / 3600) * hourlyRate;
-    costDisplay.textContent = `CA$${cost.toFixed(2)}`;
+    const costCents = (BigInt(elapsedSeconds) * hourlyRateCents + 1800n) / 3600n;
+    costDisplay.textContent = `CA$${(costCents / 100n).toLocaleString('en-CA')}.${(costCents % 100n).toString().padStart(2, '0')}`;
   };
 
   const render = () => {

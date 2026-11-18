@@ -23,9 +23,17 @@ public sealed class UserAccessForm
 {
     [Range(1,int.MaxValue)] public int UserId { get; set; }
     [Required] [StringLength(100)] public string Expected { get; set; } = "";
+    public bool UpdateDetails { get; set; }
+    [EmailAddress, StringLength(256)] public string? Email { get; set; }
+    [StringLength(120)] public string? UserName { get; set; }
     [Required,StringLength(50)] public string RoleKey { get; set; } = "";
     public bool IsActive { get; set; }
     public List<PermissionChoice> Permissions { get; set; } = new();
+}
+public sealed class StaffPasswordResetForm
+{
+    [Range(1, int.MaxValue)] public int UserId { get; set; }
+    [Required, StringLength(100)] public string Expected { get; set; } = "";
 }
 public sealed class PermissionChoice
 {
@@ -44,6 +52,9 @@ public sealed class StaffAccountsPage
     public string Expected { get; set; } = "";
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
+    public bool CanResetPassword { get; set; }
+    public string? ResetPasswordPreview { get; set; }
+    public string? ResetPasswordValue { get; set; }
 }
 public sealed class AvailabilityExceptionForm
 {

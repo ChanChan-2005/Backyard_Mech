@@ -3,19 +3,15 @@
 ## Navigation
 
 1. User Management > Add Staff Profile saves employment/contact information only. It does not create login credentials. Job title and login role are separate.
-2. Account Access > Create Account opens a modal. Choose an active, unlinked staff profile, enter a unique login email/username, a strong password and a role. The saved account is linked by user ID, never inferred from matching contact email.
-3. View Access opens that account's permissions below the list. Select a role, account-enabled checkbox and Inherit/Allow/Deny per permission, enter the reason, then Save Account Access.
+2. Account Access > Create Account opens a modal. Enter a unique login email/username, a strong password and one of the standard roles. Linking an active, unlinked staff profile is optional and uses the user ID, never a matching contact email.
+3. Edit opens login account details: username, login email, assigned role and enabled status. Root Admin and Administrator can use Reset Password & Email for a linked staff profile. The password is the profile's last name (letters and digits, lowercase) followed by `@bakyard123`. The reset is emailed to the login address, and authorized admins can view it in account details while it remains the current password. Accounts with `.local` email addresses need a real login address first. Individual account permissions cannot be edited here; change them for the entire role under Roles & Permissions.
 4. User Management > Availability Exceptions manages leave/unavailable intervals and extra available intervals in the configured garage time zone. Staff do not need login accounts to be scheduled.
 
-## Permission precedence
+## Account permissions
 
-- Inherit: current role default; no override row stored.
-- Allow: grants this user the action even when the role default denies it.
-- Deny: denies this user the action even when the role default allows it.
-- Explicit Deny on a module's View permission also blocks that module's mutation actions and removes its sidebar entry. This prevents a hidden module from remaining writable through direct requests.
-- Overrides never modify RolePermission. Users with the same role remain independent. Effective permissions are resolved on every request, including sidebar/actions and backend authorization.
-- User Access View/Create/Edit permissions separately control account management. Garage Owner and Administrator can manage accounts according to their saved permissions.
-- Account managers cannot edit their own access, override protected owner access or grant permissions beyond their own effective access. Protected owner remains a recovery account. Login currently uses password-only authentication. Disabled, archived or deleted linked staff profiles cannot retain protected sessions.
+- An account receives the permissions of its assigned role. Legacy per-user override rows do not affect current access.
+- User Access View and the specific account actions control account management. When a module has only one Create, Edit, Delete, or Approve action, the editor shows just that action; its broad operation is granted automatically. Broader switches remain where they govern multiple actions. Garage Owner and Administrator can manage accounts according to their saved role permissions.
+- Account managers cannot edit their own access, change the protected root administrator account or assign permissions beyond their own effective access. Login currently uses password-only authentication. Disabled, archived or deleted linked staff profiles cannot retain protected sessions.
 
 ## Standard roles
 

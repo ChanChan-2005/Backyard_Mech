@@ -358,6 +358,8 @@ namespace Backyard_Mech.Models
         public decimal? DefaultPrice { get; set; }
         public decimal? DefaultEstimatedHours { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedUtc { get; set; }
     }
 
     public class Estimate

@@ -152,6 +152,8 @@
 
 .invoice-panel {
   overflow: hidden;
+  min-width: 0;
+  container: invoice-panel / inline-size;
 }
 
 .invoice-panel-header {
@@ -174,7 +176,88 @@
 
 .invoice-table {
   width: 100%;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+.invoice-row-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+body.app-shell-body.invoice-shell .dashboard-content .invoice-table th,
+body.app-shell-body.invoice-shell .dashboard-content .invoice-table td {
+  padding: 10px 7px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+body.app-shell-body.invoice-shell .dashboard-content .invoice-table .invoice-small-button {
+  padding: 0 6px;
+}
+
+@container invoice-panel (max-width: 650px) {
+  .invoice-table,
+  .invoice-table tbody,
+  .invoice-table tr,
+  .invoice-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .invoice-table colgroup,
+  .invoice-table thead {
+    display: none;
+  }
+
+  .invoice-table tbody {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .invoice-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid #dfe5ec;
+    border-radius: 4px;
+  }
+
+  body.app-shell-body.invoice-shell .dashboard-content .invoice-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 7px 10px;
+    border-bottom: 0;
+    text-align: left;
+  }
+
+  .invoice-table td::before {
+    content: attr(data-label);
+    color: #53647a;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .invoice-table td:first-child,
+  .invoice-table td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .invoice-row-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@container invoice-panel (max-width: 550px) {
+  .invoice-table tr {
+    grid-template-columns: 1fr;
+  }
 }
 
 .invoice-table th,

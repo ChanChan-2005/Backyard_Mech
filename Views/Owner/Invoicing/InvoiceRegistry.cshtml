@@ -47,6 +47,18 @@
 
     <section class="invoice-panel">
         <table class="invoice-table">
+            <colgroup>
+                <col style="width: 11%" />
+                <col style="width: 11%" />
+                <col style="width: 12%" />
+                <col style="width: 8%" />
+                <col style="width: 8%" />
+                <col style="width: 8%" />
+                <col style="width: 8%" />
+                <col style="width: 9%" />
+                <col style="width: 8%" />
+                <col style="width: 17%" />
+            </colgroup>
             <thead>
                 <tr>
                     <th>Invoice #</th>
@@ -66,20 +78,20 @@
                 {
                     var invoiceSlug = invoice.Id.ToLowerInvariant();
                     <tr>
-                        <td><a class="invoice-link" href="/Owner/InvoiceDetails/@invoiceSlug">@invoice.Id</a></td>
-                        <td><strong>@invoice.Customer</strong></td>
-                        <td>@invoice.Vehicle</td>
-                        <td>@invoice.WorkOrder</td>
-                        <td><strong>@invoice.Amount</strong></td>
-                        <td><span class="invoice-money-green">@invoice.Paid</span></td>
-                        <td><span class="@(ParseMoney(invoice.Balance) == 0m ? "" : "invoice-money-red")">@invoice.Balance</span></td>
-                        <td><span class="invoice-pill @invoice.Tone">@invoice.Status</span></td>
-                        <td>@invoice.Date</td>
-                        <td>
+                        <td data-label="Invoice #"><a class="invoice-link" href="/Owner/InvoiceDetails/@invoiceSlug">@invoice.Id</a></td>
+                        <td data-label="Customer"><strong>@invoice.Customer</strong></td>
+                        <td data-label="Vehicle">@invoice.Vehicle</td>
+                        <td data-label="Work Order">@invoice.WorkOrder</td>
+                        <td data-label="Amount"><strong>@invoice.Amount</strong></td>
+                        <td data-label="Paid"><span class="invoice-money-green">@invoice.Paid</span></td>
+                        <td data-label="Balance"><span class="@(ParseMoney(invoice.Balance) == 0m ? "" : "invoice-money-red")">@invoice.Balance</span></td>
+                        <td data-label="Status"><span class="invoice-pill @invoice.Tone">@invoice.Status</span></td>
+                        <td data-label="Date">@invoice.Date</td>
+                        <td data-label="Actions"><div class="invoice-row-actions">
                             <a class="invoice-small-button" href="/Owner/InvoiceDetails/@invoiceSlug">View</a>
                             @if(invoice.Status != "Voided" && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Create")) { <a class="invoice-small-button" href="/Owner/RecordPayment/@invoiceSlug">Pay</a> }
                             @if(invoice.Status != "Voided" && await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"), "Invoices", "Edit")) { <a class="invoice-small-button" href="/Owner/ApplyInvoiceAdjustment/@invoiceSlug">Adjust</a> }
-                        </td>
+                        </div></td>
                     </tr>
                 }
             </tbody>

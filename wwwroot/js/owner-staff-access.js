@@ -197,10 +197,21 @@
     }
 
     document.addEventListener('click', event => {
-        const accessLink = event.target.closest('[data-view-account-access]');
+        const visibilityButton = event.target.closest('[data-reset-password-visibility]');
+        if (visibilityButton) {
+            const passwordField = document.getElementById(visibilityButton.getAttribute('aria-controls'));
+            if (!passwordField) return;
+            const showing = passwordField.type === 'password';
+            passwordField.type = showing ? 'text' : 'password';
+            visibilityButton.textContent = showing ? 'Hide' : 'Show';
+            visibilityButton.setAttribute('aria-label', `${showing ? 'Hide' : 'Show'} reset password`);
+            visibilityButton.setAttribute('aria-pressed', String(showing));
+            return;
+        }
+        const accessLink = event.target.closest('[data-edit-account]');
         if (accessLink && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
-            const dialog = document.getElementById('access-settings');
-            if (dialog?.dataset.accountId === accessLink.dataset.viewAccountAccess) {
+            const dialog = document.getElementById('edit-account');
+            if (dialog?.dataset.accountId === accessLink.dataset.editAccount) {
                 event.preventDefault();
                 if (!dialog.open) dialog.showModal();
                 return;
@@ -293,36 +304,24 @@
     });
     const access = document.querySelector('[data-user-access]');
     if (access) {
-        const accessDialog = document.getElementById('access-settings');
+        const accessDialog = document.getElementById('edit-account');
         accessDialog?.addEventListener('close', () => {
+            const passwordField = accessDialog.querySelector('#staff-reset-password');
+            const visibilityButton = accessDialog.querySelector('[data-reset-password-visibility]');
+            if (passwordField && visibilityButton) {
+                passwordField.type = 'password';
+                visibilityButton.textContent = 'Show';
+                visibilityButton.setAttribute('aria-label', 'Show reset password');
+                visibilityButton.setAttribute('aria-pressed', 'false');
+            }
             const url = new URL(window.location.href);
             if (url.searchParams.get('userId') === accessDialog.dataset.accountId) {
                 url.searchParams.delete('userId');
-                if (url.hash === '#access-settings') url.hash = '';
+                if (url.hash === '#edit-account') url.hash = '';
                 history.replaceState(history.state, '', url.pathname + url.search + url.hash);
             }
         });
         accessDialog?.showModal();
-        const defaults = JSON.parse(access.dataset.roleDefaults);
-        const rows = [...access.querySelectorAll('[data-permission-row]')];
-        const role = access.querySelector('[data-account-role]');
-        function refresh() {
-            const grants = defaults[role.value] || [];
-            for (const row of rows) {
-                row.querySelector('[data-role-access]').textContent = grants.includes('*') || grants.includes(row.dataset.code) ? 'Allowed' : 'Not allowed';
-            }
-        }
-        role.addEventListener('change', refresh);
-        access.querySelector('[data-permission-search]').addEventListener('searchcommit', event => {
-            const term = event.detail.value.toLowerCase();
-            rows.forEach(row => { row.hidden = !row.dataset.search.toLowerCase().includes(term); });
-            access.querySelectorAll('.permission-group').forEach(group => {
-                group.hidden = ![...group.querySelectorAll('[data-permission-row]')].some(row => !row.hidden);
-                if (term && !group.hidden) group.open = true;
-            });
-            access.querySelector('[data-permission-empty]').hidden = rows.some(row => !row.hidden);
-        });
-        refresh();
     }
     document.querySelector('[data-staff-search]')?.addEventListener('searchcommit', event => {
         const term = event.detail.value.toLowerCase();

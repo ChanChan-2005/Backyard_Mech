@@ -241,7 +241,7 @@
                                         data-part-category="@part.PartCategoryId"
                                         data-part-supplier="@part.SupplierId"
                                         data-part-cost="@(part.UnitCost?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
-                                        data-part-price="@(part.UnitPrice?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                                        data-part-price="@(part.UnitPrice?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "")"
                                         data-part-quantity="@part.QuantityOnHand"
                                         data-part-threshold="@part.ReorderThreshold">Edit</button>
                                 }

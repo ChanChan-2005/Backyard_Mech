@@ -11,7 +11,7 @@ public sealed class MasterDataForm
     [RegularExpression("services|parts|tools")] public string? Kind { get; set; }
     public int? ParentId { get; set; }
     public int? CategoryId { get; set; }
-    [Range(typeof(decimal), "0", "99999999.99")] public decimal Price { get; set; }
+    [MoneyPrecision, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal Price { get; set; }
     [Range(typeof(decimal), "0", "9999.99")] public decimal Hours { get; set; }
     [Range(typeof(decimal), "0", "100")] public decimal Percent { get; set; }
     public DateTime? Start { get; set; }
@@ -53,10 +53,12 @@ public sealed class MasterDataPage
     public string CreateAction { get; set; } = "";
     public string EditAction { get; set; } = "";
     public string StateAction { get; set; } = "";
+    public string DeleteAction { get; set; } = "";
     public string[] Headers { get; set; } = Array.Empty<string>();
     public List<MasterRow> Rows { get; set; } = new();
     public List<MasterOption> Options { get; set; } = new();
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
 }
 public sealed record MasterEditor(MasterDataPage Page, MasterDataForm Form, bool ReadOnly = false);

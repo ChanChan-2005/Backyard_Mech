@@ -8,12 +8,21 @@
     const method = root.querySelector('[data-pos-method]');
     const tender = root.querySelector('[data-pos-tender]');
     const reference = root.querySelector('[data-pos-reference]');
-    const money = value => `CA$${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const maxMoneyCents = 999999999999999999n;
+    let totalCents = 0n;
+    const scaledDecimal = (value, places) => {
+        const raw = String(value).trim();
+        const match = (raw.startsWith('.') ? `0${raw}` : raw).match(/^(\d+)(?:\.(\d+))?$/);
+        if (!match || (match[2]?.length || 0) > places) return null;
+        return BigInt(match[1]) * 10n ** BigInt(places) + BigInt((match[2] || '').padEnd(places, '0'));
+    };
+    const cents = value => scaledDecimal(value, 2);
+    const money = value => `CA$${(value / 100n).toLocaleString('en-CA')}.${(value % 100n).toString().padStart(2, '0')}`;
     const render = () => {
         list.replaceChildren();
-        let subtotal = 0;
+        let subtotal = 0n;
         [...cart.values()].forEach((item, index) => {
-            subtotal += item.price * item.quantity;
+            subtotal += item.price * BigInt(item.quantity);
             const row = document.createElement('div');
             row.className = 'parts-pos-cart-row';
             const label = document.createElement('div');
@@ -44,7 +53,7 @@
             increase.addEventListener('click', () => { item.quantity++; render(); });
             quantityControl.append(decrease, quantity, increase);
             const total = document.createElement('output');
-            total.textContent = money(item.price * item.quantity);
+            total.textContent = money(item.price * BigInt(item.quantity));
             const remove = document.createElement('button');
             remove.type = 'button'; remove.className = 'parts-pos-remove'; remove.textContent = '×';
             remove.setAttribute('aria-label', `Remove ${item.name}`);
@@ -62,24 +71,25 @@
             list.append(empty);
         }
         root.querySelector('[data-pos-cart-count]').textContent = String([...cart.values()].reduce((count, item) => count + item.quantity, 0));
-        const rate = Number(tax.selectedOptions[0]?.dataset.rate || 0);
-        const taxAmount = Math.round((subtotal * rate + Number.EPSILON) * 100) / 100;
-        const total = subtotal + taxAmount;
+        const rate = scaledDecimal(tax.selectedOptions[0]?.dataset.rate || '0', 4) || 0n;
+        const taxAmount = (subtotal * rate + 5000n) / 10000n;
+        totalCents = subtotal + taxAmount;
+        const tenderCents = cents(tender.value) || 0n;
         const cash = method.value === 'Cash';
         root.querySelector('[data-pos-tender-wrap]').hidden = !cash;
         root.querySelector('[data-pos-reference-wrap]').hidden = cash;
         tender.required = cash; reference.required = !cash;
         root.querySelector('[data-pos-subtotal]').textContent = money(subtotal);
         root.querySelector('[data-pos-tax-total]').textContent = money(taxAmount);
-        root.querySelector('[data-pos-total]').textContent = money(total);
-        root.querySelector('[data-pos-change]').textContent = money(cash ? Math.max(0, Number(tender.value) - total) : 0);
-        root.querySelector('[data-pos-submit]').disabled = !cart.size || (cash && Number(tender.value) < total);
+        root.querySelector('[data-pos-total]').textContent = money(totalCents);
+        root.querySelector('[data-pos-change]').textContent = money(cash && tenderCents > totalCents ? tenderCents - totalCents : 0n);
+        root.querySelector('[data-pos-submit]').disabled = !cart.size || totalCents > maxMoneyCents || (cash && tenderCents < totalCents);
     };
     const addPart = card => {
         const id = Number(card.dataset.id);
         const current = cart.get(id);
         if (current) current.quantity = Math.min(current.available, current.quantity + 1);
-        else cart.set(id, { id, name: card.dataset.name, price: Number(card.dataset.price), available: Number(card.dataset.available), quantity: 1 });
+        else cart.set(id, { id, name: card.dataset.name, price: cents(card.dataset.price) || 0n, available: Number(card.dataset.available), quantity: 1 });
         render();
     };
     root.querySelectorAll('[data-pos-add]').forEach(card => {
@@ -103,7 +113,7 @@
     });
     tax.addEventListener('change', render); method.addEventListener('change', render); tender.addEventListener('input', render);
     form.addEventListener('submit', event => {
-        if (!cart.size || (method.value === 'Cash' && Number(tender.value) < Number(root.querySelector('[data-pos-total]').textContent.replaceAll(',', '')))) event.preventDefault();
+        if (!cart.size || totalCents > maxMoneyCents || (method.value === 'Cash' && (cents(tender.value) || 0n) < totalCents)) event.preventDefault();
         else root.querySelector('[data-pos-submit]').disabled = true;
     });
     render();
