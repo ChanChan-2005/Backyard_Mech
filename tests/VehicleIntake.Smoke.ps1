@@ -16,12 +16,7 @@ $owner=$customer=$next=$vehicle=$service=$second=$staff=$reader=0
 try {
     $owner=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark',N'$mark',PasswordHash,N'Owner',1,GETUTCDATE() FROM Users WHERE Email=N'$Login'; SELECT CAST(SCOPE_IDENTITY() AS int);")
     $page=GetPage '/Account/Login'
-    $page=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$mark;Password=$Password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
-    $key=[regex]::Match($page.Content,'<code>([A-Z2-7]+)</code>').Groups[1].Value
-    if($key){
-        $code=python -c "import base64,hmac,hashlib,time,struct,sys; d=hmac.new(base64.b32decode(sys.argv[1]),struct.pack('>Q',int(time.time())//30),hashlib.sha1).digest(); o=d[-1]&15; print(str((int.from_bytes(d[o:o+4],'big')&0x7fffffff)%1000000).zfill(6))" $key
-        $null=Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$code;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
-    }
+    $null=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$mark;Password=$Password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
     Check ((GetPage '/Owner/VehicleHistory').Content.Contains('register-vehicle')) 'Vehicle registry and registration modal render'
     Check ((GetPage '/Owner/Appointments').Content.Contains('data-calendar-mode')) 'Appointment calendar and modals render'
     $customer=[int](Sql "INSERT Customer(FirstName,MiddleName,LastName,CreatedUtc,IsActive,IsArchived,IsDeleted) VALUES(N'$mark',N'Middle',N'First',GETUTCDATE(),1,0,0); SELECT CAST(SCOPE_IDENTITY() AS int);")

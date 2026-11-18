@@ -21,7 +21,7 @@
             <h2>@Model.Name</h2>
             <p>Serial: @Model.SerialNumber | @Model.Category</p>
         </div>
-        <span class="tools-pill @Model.StatusTone">@Model.Status</span>
+        <span class="tools-pill @Model.StatusTone">@(Model.Status == "Checked Out" ? "Borrowed" : Model.Status)</span>
     </article>
 
     <div class="tools-profile-grid">
@@ -54,15 +54,19 @@
                 <dl class="tools-detail-list">
                     <div><dt>Status</dt><dd>Tool is currently available.</dd></div>
                 </dl>
+                @if (Model.CanBorrow)
+                {
+                    <a class="tools-button-blue" href="/Owner/ToolTracking?borrowToolId=@Model.ToolId">Borrow Tool</a>
+                }
             }
             else
             {
                 <dl class="tools-detail-list">
-                    <div><dt>Mechanic Assigned</dt><dd>@Model.ActiveCheckout.Mechanic</dd></div>
+                    <div><dt>Borrowed By</dt><dd>@Model.ActiveCheckout.Mechanic</dd></div>
                     <div><dt>Work Order Link</dt><dd>@Model.ActiveCheckout.WorkOrder</dd></div>
                     <div><dt>Borrowed On</dt><dd>@Model.ActiveCheckout.CheckoutTime</dd></div>
                 </dl>
-                <a class="tools-button-blue" href="/Owner/ReturnEquipment/@Model.ToolId">Log Return & Inspection</a>
+                <a class="tools-button-blue" href="/Owner/ToolTracking?returnCheckoutId=@Model.ActiveCheckout.ToolCheckoutId">Return Tool</a>
             }
         </aside>
     </div>

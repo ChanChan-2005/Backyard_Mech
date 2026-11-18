@@ -14,24 +14,20 @@ $owner=$reader=0
 try {
     $owner=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark',N'$mark',PasswordHash,N'Owner',1,GETUTCDATE() FROM Users WHERE Email=N'$Login'; SELECT CAST(SCOPE_IDENTITY() AS int);")
     $page=GetPage '/Account/Login'
-    $page=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$mark;Password=$Password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
-    $key=[regex]::Match($page.Content,'<code>([A-Z2-7]+)</code>').Groups[1].Value
-    Check ($key.Length -gt 10) 'Temporary owner uses MFA'
-    $code=python -c "import base64,hmac,hashlib,time,struct,sys; d=hmac.new(base64.b32decode(sys.argv[1]),struct.pack('>Q',int(time.time())//30),hashlib.sha1).digest(); o=d[-1]&15; print(str((int.from_bytes(d[o:o+4],'big')&0x7fffffff)%1000000).zfill(6))" $key
-    $null=Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$code;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
+    $null=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$mark;Password=$Password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
     foreach($path in @('/Owner/Suppliers','/Owner/ServiceCatalog','/Owner/SettingsTax','/Owner/SettingsCategories?kind=services','/Owner/SettingsCategories?kind=parts','/Owner/SettingsCategories?kind=tools')) {
         Check ((GetPage $path).Content.Contains('id="master-new"')) "$path renders modal forms"
     }
-    $null=Post 'CreateSupplier' @{Name=$mark;Email='supplier@example.com';ContactFirstName='Test';Phone='555-0100';City='Test City'}
+    $null=Post 'CreateSupplier' @{Name=$mark;Email='supplier@example.com';ContactFirstName='Test';Phone='7095550100';City='St. John''s';Province='Newfoundland and Labrador'}
     $supplier=[int](Sql "SELECT SupplierId FROM Supplier WHERE SupplierName=N'$mark'")
     Check ($supplier -gt 0) 'Supplier created'
     $null=Post 'CreateSupplier' @{Name=$mark}
     Check ((Sql "SELECT COUNT(*) FROM Supplier WHERE SupplierName=N'$mark'") -eq 1) 'Duplicate supplier rejected'
     $stamp=Stamp '/Owner/Suppliers' $supplier
-    $null=Post 'UpdateSupplier' @{Id=$supplier;Expected=$stamp;Name=$mark;City='Updated City'}
-    Check ((Sql "SELECT City FROM Supplier WHERE SupplierId=$supplier") -eq 'Updated City') 'Supplier edit persists'
-    $null=Post 'UpdateSupplier' @{Id=$supplier;Expected=$stamp;Name=$mark;City='Stale City'}
-    Check ((Sql "SELECT City FROM Supplier WHERE SupplierId=$supplier") -eq 'Updated City') 'Stale edit rejected'
+    $null=Post 'UpdateSupplier' @{Id=$supplier;Expected=$stamp;Name=$mark;City='Corner Brook';Province='Newfoundland and Labrador'}
+    Check ((Sql "SELECT City FROM Supplier WHERE SupplierId=$supplier") -eq 'Corner Brook') 'Supplier edit persists'
+    $null=Post 'UpdateSupplier' @{Id=$supplier;Expected=$stamp;Name=$mark;City='Gander';Province='Newfoundland and Labrador'}
+    Check ((Sql "SELECT City FROM Supplier WHERE SupplierId=$supplier") -eq 'Corner Brook') 'Stale edit rejected'
     $null=Post 'SetSupplierState' @{Id=$supplier;Expected=(Stamp '/Owner/Suppliers' $supplier);Active='false';Reason=$mark}
     Check (!(Sql "SELECT IsActive FROM Supplier WHERE SupplierId=$supplier")) 'Supplier deactivated'
     $null=Post 'AddPart' @{Name=$mark;SKU=$mark;SupplierId=$supplier;UnitCost=1;UnitPrice=2;QuantityOnHand=0;ReorderThreshold=0}

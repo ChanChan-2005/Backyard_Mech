@@ -16,6 +16,10 @@ public static class StaffAccessSeed
         }
         await db.SaveChangesAsync();
         var definitions=new Dictionary<string,string[]> {
+            ["Administrator"]=new[]{"Dashboard","Customers","Vehicles","Appointments","Service Queue","Estimates","Work Orders","Bays","Inventory","Suppliers","Services","Labour","Inspections","Tools","Invoices","Reports","Employees","Settings","User Access"},
+            ["Mechanic/Technician"]=new[]{"Work Orders","Labour"},
+            ["Supervisor/QC Inspector"]=new[]{"Inspections"},
+            ["Accounting/Cashier"]=new[]{"Invoices","Reports"},
             ["Shop Manager"]=new[]{"Dashboard","Customers","Vehicles","Appointments","Service Queue","Estimates","Work Orders","Bays","Inventory","Suppliers","Services","Labour","Inspections","Tools","Invoices","Reports","Employees","Settings","User Access"},
             ["Service Advisor"]=new[]{"Dashboard","Customers","Vehicles","Appointments","Service Queue","Estimates","Work Orders"},
             ["Mechanic"]=new[]{"Work Orders","Labour"},
@@ -27,20 +31,31 @@ public static class StaffAccessSeed
         var permissions=await db.Permissions.Where(x=>x.IsActive).ToListAsync();
         foreach(var definition in definitions)
         {
-            // Never overwrite permissions already customized on an existing role.
-            if(await db.AppRoles.AnyAsync(x=>x.RoleName==definition.Key || x.RoleKey==definition.Key)) continue;
-            db.AppRoles.Add(new AppRole {RoleKey=definition.Key,RoleName=definition.Key,Description="Master plan role",DisplayOrder=100});
+            var role = await db.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==definition.Key);
+            if (role is null)
+            {
+                role = new AppRole {RoleKey=definition.Key,RoleName=definition.Key,Description="Master plan role",DisplayOrder=100};
+                db.AppRoles.Add(role);
+            }
+            // Repair built-in roles created without grants, but preserve saved empty permissions.
+            if (!role.IsActive || await db.RolePermissions.AnyAsync(x=>x.RoleId==role.RoleKey) ||
+                await db.AuditLogEntries.AnyAsync(x=>x.EntityName=="AppRole" && x.EntityId==role.RoleKey &&
+                    (x.Action=="Update permissions" || x.Action=="Initialize role defaults"))) continue;
             var codes=definition.Key switch {
-                "Mechanic"=>new[]{"workorders.view","labour.view","labour.create","labour.edit"},
+                "Mechanic" or "Mechanic/Technician"=>new[]{"workorders.view","labour.view","labour.create","labour.edit"},
                 "Tool Room Attendant"=>new[]{"tools.view","tools.create","tools.edit"},
-                "Quality Control Inspector"=>new[]{"inspections.view","inspections.create","inspections.approve"},
-                "Accounting Clerk"=>new[]{"invoices.view","invoices.create","invoices.edit","reports.view"},
+                "Quality Control Inspector" or "Supervisor/QC Inspector"=>new[]{"inspections.view","inspections.create","inspections.approve"},
+                "Accounting Clerk" or "Accounting/Cashier"=>new[]{"invoices.view","invoices.create","invoices.edit","reports.view"},
                 _=>Array.Empty<string>()
             };
             foreach(var permission in permissions.Where(x=>definition.Value.Contains(x.ModuleName) &&
                 OwnerPermissionCatalog.IsSupportedPermission(x.ModuleName??"",x.ActionName??"") && x.ActionName!="Delete" &&
                 (codes.Length==0 || codes.Contains(x.PermissionCode))))
-                db.RolePermissions.Add(new RolePermission {RoleId=definition.Key,PermissionId=permission.PermissionId});
+                db.RolePermissions.Add(new RolePermission {RoleId=role.RoleKey,PermissionId=permission.PermissionId});
+            db.AuditLogEntries.Add(new AuditLogEntry {
+                UserName="System",EntityName="AppRole",EntityId=role.RoleKey,Action="Initialize role defaults",
+                TimestampUtc=DateTime.UtcNow,Details="Initialized an unconfigured built-in role. Saved role permissions and user overrides were preserved."
+            });
         }
         await db.SaveChangesAsync();
         await EnsureDetailedActionsAsync(db);

@@ -977,10 +977,7 @@ IF OBJECT_ID('dbo.AccountSecurity', 'U') IS NULL
 CREATE TABLE dbo.AccountSecurity (
     UserId int NOT NULL PRIMARY KEY REFERENCES dbo.Users(Id),
     FailedAttempts int NOT NULL DEFAULT 0,
-    LockedUntilUtc datetime2 NULL,
-    AuthenticatorSecret nvarchar(2048) NULL,
-    LastOtpStep bigint NOT NULL DEFAULT -1,
-    RecoveryHashes nvarchar(max) NULL
+    LockedUntilUtc datetime2 NULL
 );
 GO
 

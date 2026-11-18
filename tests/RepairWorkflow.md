@@ -12,7 +12,7 @@ In another terminal:
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/RepairWorkflow.Smoke.ps1
 ```
 
-The script defaults to the existing local SQL Express database. It copies the specified seed administrator's password hash into a temporary test account, enrolls MFA only for that temporary account, and leaves the real administrator unchanged. Parameters allow a different URL, connection string, login and password. Run against a development database only. Python (standard library only) is needed to generate independent test authenticator codes.
+The script defaults to the existing local SQL Express database. It copies the specified seed administrator's password hash into a temporary test account and leaves the real administrator unchanged. Parameters allow a different URL, connection string, login and password. Run against a development database only.
 
 The test creates uniquely named fixtures and removes those fixtures in `finally`. Existing workshop records are not modified. Audit records and incremented identity/invoice numbers are deliberately preserved.
 
@@ -41,7 +41,7 @@ The test creates uniquely named fixtures and removes those fixtures in `finally`
 
 ## Security Regression Coverage
 
-- Privileged MFA enrollment, code replay rejection, single-use recovery and password-only session denial.
+- Password-only login, including an Owner account, and absence of OTP prompts.
 - Disabled/demoted account session invalidation, persistent five-failure lockout, and HTTP 429 login limiting.
 - Approved-only parts quantities and labour tasks/rates/hours, including rollback of rejected edits.
 - Active-job estimate amendments, exact revision adoption only after approval, and existing labour remapping.

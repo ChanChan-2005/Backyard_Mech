@@ -1,6 +1,7 @@
 @{
     Layout = null;
     var module = ViewData["Module"]?.ToString() ?? "this page";
+    var noModules = module == "any application module" && Context.Session.GetString("UserId") is not null;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -14,9 +15,11 @@
 <body class="bg-light">
     <main class="container d-flex min-vh-100 align-items-center justify-content-center">
         <section class="bg-white border rounded p-4 shadow-sm" style="max-width: 460px;">
-            <h1 class="h4">Access denied</h1>
-            <p class="text-secondary mb-4">Your role does not have permission to open @module.</p>
-            <a class="btn btn-dark" asp-controller="Account" asp-action="Home">Go to my modules</a>
+            <h1 class="h4">@(noModules ? "Account signed in" : "Access denied")</h1>
+            <p class="text-secondary mb-4">@(noModules
+                ? "Your account has no module access yet. Ask your administrator to assign View permissions to your role or account."
+                : $"Your account does not have permission to open {module}.")</p>
+            <a class="btn btn-dark" asp-controller="Account" asp-action="Home">@(noModules ? "Check access again" : "Go to my modules")</a>
             <a class="btn btn-outline-secondary" asp-controller="Account" asp-action="Logout">Sign out</a>
         </section>
     </main>

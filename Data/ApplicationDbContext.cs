@@ -107,6 +107,13 @@ namespace Backyard_Mech.Data
                 entity.Property(profile => profile.EmploymentType).HasMaxLength(30);
                 entity.Property(profile => profile.SkillsAndQualifications).HasMaxLength(2000);
             });
+            modelBuilder.Entity<AccountSecurity>(entity =>
+            {
+                entity.ToTable("AccountSecurity");
+                entity.Property(state => state.UserId).ValueGeneratedNever();
+                entity.HasOne<AppUser>().WithOne().HasForeignKey<AccountSecurity>(state => state.UserId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
             modelBuilder.Entity<EmployeeRateHistory>().ToTable("EmployeeRateHistory");
             modelBuilder.Entity<EmployeeAvailability>().ToTable("EmployeeAvailability");
             modelBuilder.Entity<EmployeeAvailabilityException>().ToTable("EmployeeAvailabilityException");
@@ -120,6 +127,7 @@ namespace Backyard_Mech.Data
             modelBuilder.Entity<RecordsDispositionPolicy>(entity =>
             {
                 entity.ToTable("RecordsDispositionPolicy");
+                entity.Property(policy => policy.RecordsDispositionPolicyId).ValueGeneratedNever();
                 entity.Property(policy => policy.RetentionUnit).HasMaxLength(20).IsRequired();
             });
             modelBuilder.Entity<Customer>().ToTable("Customer");

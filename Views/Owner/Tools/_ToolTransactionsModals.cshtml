@@ -5,15 +5,15 @@
 }
 <div class="tools-modal" data-tools-modal-panel="checkout-tool" aria-hidden="true"><div class="tools-modal-backdrop" data-tools-modal-close></div><section class="tools-modal-card app-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-tool-title">
     <form class="tools-form-panel" asp-action="CheckoutTool" method="post">@Html.AntiForgeryToken()
-        <header class="tools-modal-header"><div><h2 id="checkout-tool-title">Borrow Tool</h2><p>Record who is borrowing the tool and where it will be used.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
+        <header class="tools-modal-header"><div><h2 id="checkout-tool-title">Borrow Tool</h2><p>Choose the mechanic borrowing it and the work order, if applicable.</p></div><button type="button" class="tools-modal-close" data-tools-modal-close aria-label="Close">×</button></header>
         <input type="hidden" name="ToolId" data-tool-transaction-id />
         <div class="tools-form-grid">
             <label><span class="tools-label">Mechanic *</span><select class="tools-select" name="EmployeeProfileId" required><option value="">Choose mechanic</option>@foreach(var e in mechanics){<option value="@e.EmployeeProfileId">@e.FirstName @e.LastName</option>}</select></label>
             <label><span class="tools-label">Work order</span><select class="tools-select" name="WorkOrderId"><option value="">No work order</option>@foreach(var o in orders){<option value="@o.WorkOrderId">WO-@o.WorkOrderId.ToString("0000")</option>}</select></label>
-            <label><span class="tools-label">Condition when borrowed *</span><select class="tools-select" name="ConditionAtCheckout" required><option>Excellent</option><option selected>Good</option><option>Fair</option></select></label>
+            <label><span class="tools-label">Condition before borrowing *</span><select class="tools-select" name="ConditionAtCheckout" required><option>Excellent</option><option selected>Good</option><option>Fair</option></select></label>
             <label class="tools-wide-label"><span class="tools-label">Notes</span><input class="tools-input" name="Notes" maxlength="1000" placeholder="What is the tool needed for?" /></label>
         </div>
-        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Record Borrowing</button></footer>
+        <footer class="tools-modal-actions"><button class="tools-button" type="button" data-tools-modal-close>Cancel</button><button class="tools-button-blue" type="submit">Confirm Borrow</button></footer>
     </form>
 </section></div>
 

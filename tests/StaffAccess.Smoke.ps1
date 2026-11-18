@@ -7,16 +7,15 @@ function Check($ok,$message){if(!$ok){throw "FAIL: $message"};Write-Output "PASS
 function Token($html){[regex]::Match($html,'name="__RequestVerificationToken" type="hidden" value="([^"]+)"').Groups[1].Value}
 $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
 function GetPage($path){Invoke-WebRequest "$BaseUrl$path" -WebSession $session -UseBasicParsing}
-function Post($action,$body){$body['__RequestVerificationToken']=Token (GetPage '/Owner/StaffAccounts').Content;Invoke-WebRequest "$BaseUrl/Owner/$action" -Method Post -Body $body -WebSession $session -UseBasicParsing}
+function Post($action,$body){
+    $body['__RequestVerificationToken']=Token (GetPage '/Owner/StaffAccounts').Content
+    $pairs=foreach($key in $body.Keys){foreach($value in @($body[$key])){[Uri]::EscapeDataString([string]$key)+'='+[Uri]::EscapeDataString([string]$value)}}
+    Invoke-WebRequest "$BaseUrl/Owner/$action" -Method Post -Body ($pairs -join '&') -ContentType 'application/x-www-form-urlencoded' -WebSession $session -UseBasicParsing
+}
 function SignIn($email,$password){
     $page=GetPage '/Account/Login'
     $script:loginToken=Token $page.Content
-    $page=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$email;Password=$password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
-    $key=[regex]::Match($page.Content,'<code>([A-Z2-7]+)</code>').Groups[1].Value
-    if($key){
-        $code=python -c "import base64,hmac,hashlib,time,struct,sys; d=hmac.new(base64.b32decode(sys.argv[1]),struct.pack('>Q',int(time.time())//30),hashlib.sha1).digest(); o=d[-1]&15; print(str((int.from_bytes(d[o:o+4],'big')&0x7fffffff)%1000000).zfill(6))" $key
-        $null=Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$code;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
-    }
+    $null=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$email;Password=$password;__RequestVerificationToken=(Token $page.Content)} -WebSession $session -UseBasicParsing
 }
 function AccessForm($id,$role,$choices){
     $html=(GetPage "/Owner/StaffAccounts?userId=$id").Content
@@ -36,18 +35,42 @@ try {
     $ownerSession=$session
     Check ((GetPage '/Owner/StaffAccounts').Content.Contains('Create Staff Account')) 'Create-account modal renders'
     Check ((GetPage '/Owner/StaffAvailability').Content.Contains('Special Availability')) 'Exceptions page renders'
+    Check ((Sql "SELECT COLUMNPROPERTY(OBJECT_ID('AccountSecurity'),'UserId','IsIdentity')") -eq 0) 'Login security uses the existing user key, not an independent identity'
+    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId='Mechanic/Technician'") -gt 0) 'Legacy mechanic role has initial permissions'
+    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId='Service Advisor'") -gt 0) 'Existing unconfigured service-advisor role receives defaults'
     Check ((Sql "SELECT COUNT(*) FROM AppRole WHERE RoleName IN ('Shop Manager','Service Advisor','Mechanic','Parts Clerk','Tool Room Attendant','Quality Control Inspector','Accounting Clerk')") -eq 7) 'Seven PDF roles present'
-    $body=@{FirstName=$mark;LastName='Staff';StreetAddress='1 Test Street';City='Test';PostalCode='1000';Phone='555-0100';Email="$mark@example.com";JobTitle='Mechanic';HourlyRate=100}
+    $body=@{FirstName=$mark;LastName='Staff';StreetAddress='1 Test Street';City='St. John''s';Province='Newfoundland and Labrador';PostalCode='A1A 1A1';Phone='7095550100';Email="$mark@example.com";JobTitle='Mechanic';EmploymentType='Full-time';EmploymentStatus='Active';HourlyRate=100}
     $null=Post 'AddEmployee' $body
     $profile=[int](Sql "SELECT EmployeeProfileId FROM EmployeeProfile WHERE FirstName=N'$mark'")
     Check ($profile -gt 0 -and [DBNull]::Value.Equals((Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile"))) 'Creating a profile does not create an account'
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE Email=N'$mark@example.com'") -eq 0) 'Profile contact email is not a login'
-    $null=Sql "INSERT AppRole(RoleKey,RoleName,DisplayOrder,IsSystemProtected,IsActive) VALUES(N'$role',N'$role',999,0,1); INSERT RolePermission(RoleId,PermissionId) SELECT N'$role',PermissionId FROM Permission WHERE PermissionCode IN ('suppliers.view','suppliers.create');"
-    $accountForm=@{EmployeeProfileId=$profile;Email="$mark-login@example.com";UserName=$mark;Password='Test-Only!Password123';ConfirmPassword='Test-Only!Password123';RoleKey=$role}
+    $null=Post 'CreateRole' @{RoleName=$mark;Description='Account login regression role'}
+    $role=[string](Sql "SELECT RoleKey FROM AppRole WHERE RoleName=N'$mark'")
+    Check (![string]::IsNullOrWhiteSpace($role)) 'Role creation through Settings saves a selectable role'
+    $viewPermission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode='suppliers.view'"
+    $createPermission=Sql "SELECT PermissionId FROM Permission WHERE PermissionCode='suppliers.create'"
+    $null=Post 'SaveRolePermissions' @{RoleId=$role;PermissionIds=@($viewPermission,$createPermission)}
+    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId=N'$role'") -eq 2) 'Settings permission checkboxes persist role grants'
+    $rolePage=(GetPage "/Owner/SettingsRoles?role=$role").Content
+    Check ($rolePage -match "(?s)value=`"$viewPermission`"[^>]*checked" -and $rolePage -match "(?s)value=`"$createPermission`"[^>]*checked") 'Saved role grants render checked after reload'
+    $accountForm=@{EmployeeProfileId=$profile;Email="$mark-login@example.com";UserName=$mark;Password='Test-Only!Password123';ConfirmPassword='Test-Only!Password123';RoleKey='Mechanic/Technician'}
     $null=Post 'CreateStaffAccount' $accountForm
     $account=[int](Sql "SELECT Id FROM Users WHERE UserName=N'$mark'")
     Check ($account -gt 0 -and (Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile") -eq "$account") 'Explicit account creation links selected profile'
     Check ((Sql "SELECT PasswordHash FROM Users WHERE Id=$account") -ne 'Test-Only!Password123') 'Password stored as hash'
+    $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    SignIn $mark 'Test-Only!Password123'
+    Check ((GetPage '/Owner/WorkOrders').Content.Contains('Work Orders')) 'Profile-created account signs in by username with built-in mechanic role'
+    $initialSession=$session
+    $session=$ownerSession
+    $null=Post 'SaveUserAccess' (AccessForm $account $role @{})
+    Check ((Sql "SELECT Role FROM Users WHERE Id=$account") -eq $role) 'Changing the account role persists the selected role key'
+    $session=$initialSession
+    Check ((GetPage '/Owner/WorkOrders').Content.Contains('name="Password"')) 'Old session is required to sign in again after a role change'
+    $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    SignIn "$mark-login@example.com" 'Test-Only!Password123'
+    Check ((GetPage '/Owner/Suppliers').Content.Contains('id="master-new"')) 'Same profile-created account signs in by email with its new role'
+    $session=$ownerSession
     $null=Post 'CreateStaffAccount' $accountForm
     Check ((Sql "SELECT COUNT(*) FROM Users WHERE UserName=N'$mark'") -eq 1) 'Duplicate account for profile rejected'
     $other=[int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$mark-other@example.com',N'$mark-other',PasswordHash,Role,1,GETUTCDATE() FROM Users WHERE Id=$account; SELECT CAST(SCOPE_IDENTITY() AS int);")
@@ -122,7 +145,19 @@ try {
     $accountForm.Remove('__RequestVerificationToken')
     try{$null=Invoke-WebRequest "$BaseUrl/Owner/CreateStaffAccount" -Method Post -WebSession $session -Body $accountForm -UseBasicParsing}catch{$status=[int]$_.Exception.Response.StatusCode}
     Check ($status -eq 400) 'Account creation requires antiforgery token'
-    Write-Output 'Staff accounts, role permissions and availability checks completed.'
+    $null=Post 'SaveUserAccess' (AccessForm $account $role @{})
+    $null=Post 'SaveRolePermissions' @{RoleId=$role}
+    Check ((Sql "SELECT COUNT(*) FROM RolePermission WHERE RoleId=N'$role'") -eq 0) 'An intentionally empty role can be saved'
+    $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $deniedPage=''
+    try { SignIn "$mark-login@example.com" 'Test-Only!Password123' }
+    catch {
+        if ([int]$_.Exception.Response.StatusCode -ne 403) { throw }
+        $reader=New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        try { $deniedPage=$reader.ReadToEnd() } finally { $reader.Dispose() }
+    }
+    Check ($deniedPage.Contains('Account signed in') -and $deniedPage.Contains('no module access yet')) 'No-permission login explains missing access instead of suggesting invalid credentials'
+    Write-Output 'Staff accounts, overrides and availability checks completed.'
 } finally {
     $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder; DELETE Appointment WHERE AppointmentId=$appointment; DELETE EmployeeAvailabilityException WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeAvailability WHERE EmployeeProfileId IN ($profile,$second); DELETE EmployeeProfile WHERE EmployeeProfileId IN ($profile,$second); DELETE UserPermissionOverride WHERE UserId IN ($owner,$account,$other); DELETE AccountSecurity WHERE UserId IN ($owner,$account,$other); DELETE Users WHERE Id IN ($owner,$account,$other); DELETE RolePermission WHERE RoleId=N'$role'; DELETE AppRole WHERE RoleKey=N'$role';"
     $db.Dispose()

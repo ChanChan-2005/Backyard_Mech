@@ -56,37 +56,21 @@ $marker = 'WorkflowSmoke-' + [Guid]::NewGuid().ToString('N')
 $appointment = $employee = $bay = $part = $estimate = $order = $invoice = $testUser = $tax = $ownerUser = $tool = $customer = $vehicle = 0
 $role = 'Smoke-' + [Guid]::NewGuid().ToString('N')
 try {
-    $ownerUser = [int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$marker',N'$marker',PasswordHash,N'Owner',1,GETUTCDATE() FROM Users WHERE Email=N'$Login'; SELECT CAST(SCOPE_IDENTITY() AS int);")
+    $ownerUser = [int](Sql "INSERT Users(Email,UserName,PasswordHash,Role,IsActive,CreatedAt) SELECT N'$marker',N'$marker',PasswordHash,N'RootAdmin',1,GETUTCDATE() FROM Users WHERE Email=N'$Login'; SELECT CAST(SCOPE_IDENTITY() AS int);")
     $page = GetPage '/Account/Login'
+    Check ($page.Content -notmatch 'authenticator|one-time code') 'Login page has no OTP prompt'
     $token = [regex]::Match($page.Content, 'name="__RequestVerificationToken" type="hidden" value="([^"]+)"').Groups[1].Value
-    $mfaPage = Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{ Email=$marker; Password=$Password; __RequestVerificationToken=$token } -WebSession $session -UseBasicParsing
-    $key = [regex]::Match($mfaPage.Content, '<code>([A-Z2-7]+)</code>').Groups[1].Value
-    Check ($key.Length -gt 10) 'Privileged login requires authenticator enrollment'
-    $code = python -c "import base64,hmac,hashlib,time,struct,sys; d=hmac.new(base64.b32decode(sys.argv[1]),struct.pack('>Q',int(time.time())//30),hashlib.sha1).digest(); o=d[-1]&15; print(str((int.from_bytes(d[o:o+4],'big')&0x7fffffff)%1000000).zfill(6))" $key
-    $token = [regex]::Match($mfaPage.Content, 'name="__RequestVerificationToken" type="hidden" value="([^"]+)"').Groups[1].Value
-    $recoveryPage = Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$code;__RequestVerificationToken=$token} -WebSession $session -UseBasicParsing
-    Check ($recoveryPage.Content.Contains('Keep Your Recovery Code')) 'MFA validates authenticator and issues recovery code'
-    $recoveryCode=[regex]::Match($recoveryPage.Content,'<code>([A-F0-9]+)</code>').Groups[1].Value
-    $verifiedSession=$session
-    $session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    $page=GetPage '/Account/Login'
-    $token=[regex]::Match($page.Content,'name="__RequestVerificationToken" type="hidden" value="([^"]+)"').Groups[1].Value
-    $mfaPage=Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{Email=$marker;Password=$Password;__RequestVerificationToken=$token} -WebSession $session -UseBasicParsing
-    Check (!$mfaPage.Content.Contains('<code>')) 'Enrolled authenticator secret is never displayed at subsequent login'
-    $token=[regex]::Match($mfaPage.Content,'name="__RequestVerificationToken" type="hidden" value="([^"]+)"').Groups[1].Value
-    $replay=Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$code;__RequestVerificationToken=$token} -WebSession $session -UseBasicParsing
-    Check ($replay.Content.Contains('already-used')) 'Authenticator code replay is rejected'
-    Check ((GetPage '/Owner/EstimateApprovals').Content.Contains('Welcome Back')) 'Password-only pending session cannot access protected pages'
-    $recovered=Invoke-WebRequest "$BaseUrl/Account/Mfa" -Method Post -Body @{Code=$recoveryCode;__RequestVerificationToken=$token} -WebSession $session -UseBasicParsing
-    Check ($recovered.Content.Contains('Keep Your Recovery Code') -and !$recovered.Content.Contains($recoveryCode)) 'Recovery code consumed and replaced after successful recovery'
-    $session=$verifiedSession
-    $customer = [int](Sql "INSERT Customer(FirstName,LastName) VALUES(N'$marker',N'Customer'); SELECT CAST(SCOPE_IDENTITY() AS int);")
-    $vehicle = [int](Sql "INSERT Vehicle(VIN,Make,Model,Year,LicensePlate,OwnerFullName,CreatedUtc) VALUES(N'$($marker.Substring(0,17))',N'Test',N'Inspection',2024,N'$($marker.Substring(0,30))',N'$marker Customer',SYSUTCDATETIME()); SELECT CAST(SCOPE_IDENTITY() AS int);")
+    $loginResponse = Invoke-WebRequest "$BaseUrl/Account/Login" -Method Post -Body @{ Email=$marker; Password=$Password; __RequestVerificationToken=$token } -WebSession $session -UseBasicParsing
+    $authCheckPage = GetPage '/Owner/EstimateApprovals'
+    if ($authCheckPage.Content -match 'Sign in|Welcome Back') { Write-Output ("Auth check redirected to " + $authCheckPage.BaseResponse.ResponseUri + "; " + [regex]::Match($authCheckPage.Content, '(?is)<div[^>]*validation-summary[^>]*>(.*?)</div>').Groups[1].Value) }
+    Check ($authCheckPage.Content -notmatch 'Sign in|Welcome Back') 'Owner can sign in with username and password only'
+    $customer = [int](Sql "INSERT Customer(FirstName,LastName,CreatedUtc,IsActive,IsArchived,IsDeleted) VALUES(N'$marker',N'Customer',SYSUTCDATETIME(),1,0,0); SELECT CAST(SCOPE_IDENTITY() AS int);")
+    $vehicle = [int](Sql "INSERT Vehicle(VIN,Make,Model,Year,LicensePlate,OwnerFullName,CreatedUtc,IsArchived,IsDeleted) VALUES(N'$($marker.Substring(0,17))',N'Test',N'Inspection',2024,N'$($marker.Substring(0,30))',N'$marker Customer',SYSUTCDATETIME(),0,0); SELECT CAST(SCOPE_IDENTITY() AS int);")
     $appointment = [int](Sql "INSERT Appointment(CustomerId,CustomerName,VehicleId,AppointmentStatus,CheckedInUtc,CreatedUtc) VALUES($customer,N'$marker Customer',$vehicle,N'Arrived',SYSUTCDATETIME(),SYSUTCDATETIME()); SELECT CAST(SCOPE_IDENTITY() AS int);")
     $employee = [int](Sql "INSERT EmployeeProfile(FirstName,LastName,IsActive,IsArchived,IsDeleted) VALUES(N'$marker',N'Mechanic',1,0,0); SELECT CAST(SCOPE_IDENTITY() AS int);")
     $tool = [int](Sql "INSERT Tool(Name,SerialNumber,Condition,IsActive,IsArchived,IsDeleted) VALUES(N'$marker tool',N'$marker-serial',N'Good',1,0,0); SELECT CAST(SCOPE_IDENTITY() AS int);")
     $toolPage = GetPage '/Owner/ToolTracking'
-    Check ($toolPage.Content.Contains('Check Out Tool')) 'Tool inventory exposes checkout modal'
+    Check ($toolPage.Content.Contains('Borrow Tool')) 'Tool inventory exposes checkout modal'
     $null = Post 'CheckoutTool' @{ToolId=$tool;EmployeeProfileId=$employee;ConditionAtCheckout='Good';Notes=$marker}
     $checkout = [int](Sql "SELECT MAX(ToolCheckoutId) FROM ToolCheckout WHERE ToolId=$tool")
     Check ($checkout -gt 0) 'Tool checkout is recorded against a mechanic'
@@ -252,8 +236,9 @@ try {
     $null = Post 'DispatchWorkOrderBay' @{WorkOrderId=$order;BayId=$bay}
     Check ((Sql "SELECT WorkOrderStatus FROM WorkOrder WHERE WorkOrderId=$order") -eq 'Ready for Pickup') 'Dispatch cannot reopen QC-passed work'
     Check ($page.Content.Contains('Smoke') -or $page.Content.Contains($marker)) 'QC result renders stored checklist'
-    $null = Post 'IssueInvoice' @{WorkOrderId=$order;TaxRateId=$tax}
+    $invoiceResponse = Post 'IssueInvoice' @{WorkOrderId=$order;TaxRateId=$tax}
     $invoice = [int](Sql "SELECT InvoiceId FROM Invoice WHERE WorkOrderId=$order")
+    if ($invoice -eq 0) { Write-Output ("Invoice response: " + [regex]::Match($invoiceResponse.Content, '(?is)<p>([^<]+)</p>').Groups[1].Value) }
     Check ($invoice -gt 0 -and (Sql "SELECT Total FROM Invoice WHERE InvoiceId=$invoice") -eq 142.56) 'Invoice uses approved pricing, net installed parts, completed labour and tax'
     $null = Post 'IssueInvoice' @{WorkOrderId=$order}
     Check ((Sql "SELECT COUNT(*) FROM Invoice WHERE WorkOrderId=$order") -eq 1) 'Duplicate invoice blocked'

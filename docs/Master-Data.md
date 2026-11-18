@@ -10,7 +10,7 @@
 
 ## Verification
 
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/MasterData.Smoke.ps1` against the local development server. The script uses a temporary MFA-enrolled owner and a temporary read-only account, checks persisted data and rejected operations, then removes its fixtures. Audit entries remain intentionally. Defaults match the existing local repair-workflow smoke script; credentials can be supplied through parameters.
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/MasterData.Smoke.ps1` against the local development server. The script uses a temporary owner and a temporary read-only account, checks persisted data and rejected operations, then removes its fixtures. Audit entries remain intentionally. Defaults match the existing local repair-workflow smoke script; credentials can be supplied through parameters.
 
 Also run `tests/RepairWorkflow.Smoke.ps1` for estimate, repair, billing, tax and security regression coverage. That suite deliberately triggers the login rate limiter; wait a minute before another login test or restart the local server.
 

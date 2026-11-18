@@ -10,6 +10,16 @@ namespace Backyard_Mech.Data
         {
             await dbContext.Database.EnsureCreatedAsync();
             await EnsureBusinessSchemaAsync(dbContext);
+            await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.InvoiceNumberCounter', N'U') IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM dbo.InvoiceNumberCounter WHERE InvoiceNumberCounterId = 1)
+                BEGIN
+                    IF COLUMNPROPERTY(OBJECT_ID(N'dbo.InvoiceNumberCounter'), 'InvoiceNumberCounterId', 'IsIdentity') = 1
+                        EXEC(N'SET IDENTITY_INSERT dbo.InvoiceNumberCounter ON; INSERT dbo.InvoiceNumberCounter (InvoiceNumberCounterId, Prefix, LastNumber) VALUES (1, N''INV-'', 0); SET IDENTITY_INSERT dbo.InvoiceNumberCounter OFF;');
+                    ELSE
+                        INSERT dbo.InvoiceNumberCounter (InvoiceNumberCounterId, Prefix, LastNumber) VALUES (1, N'INV-', 0);
+                END;
+                """);
             await PartCategoryCatalogSeed.EnsureAsync(dbContext);
             await dbContext.Database.ExecuteSqlRawAsync("""
                 IF COL_LENGTH('dbo.Supplier', 'UnitNumber') IS NULL ALTER TABLE dbo.Supplier ADD UnitNumber nvarchar(20) NULL;
@@ -145,10 +155,14 @@ namespace Backyard_Mech.Data
 
                 IF NOT EXISTS (SELECT 1 FROM dbo.RecordsDispositionPolicy WHERE RecordsDispositionPolicyId = 1)
                 BEGIN
+                    IF COLUMNPROPERTY(OBJECT_ID(N'dbo.RecordsDispositionPolicy'), N'RecordsDispositionPolicyId', 'IsIdentity') = 1
+                        SET IDENTITY_INSERT dbo.RecordsDispositionPolicy ON;
                     INSERT INTO dbo.RecordsDispositionPolicy
                         (RecordsDispositionPolicyId, RetentionValue, RetentionUnit, UpdatedUtc, UpdatedByName)
                     VALUES
                         (1, 30, N'Days', SYSUTCDATETIME(), N'System Default');
+                    IF COLUMNPROPERTY(OBJECT_ID(N'dbo.RecordsDispositionPolicy'), N'RecordsDispositionPolicyId', 'IsIdentity') = 1
+                        SET IDENTITY_INSERT dbo.RecordsDispositionPolicy OFF;
                 END;
 
                 IF NOT EXISTS (
@@ -174,9 +188,6 @@ namespace Backyard_Mech.Data
                 ON target.RoleKey = source.RoleKey
                 WHEN MATCHED AND source.RoleKey = N'RootAdmin' THEN
                     UPDATE SET
-                        RoleName = source.RoleName,
-                        Description = source.Description,
-                        DisplayOrder = source.DisplayOrder,
                         IsSystemProtected = source.IsSystemProtected
                 WHEN NOT MATCHED THEN
                     INSERT (RoleKey, RoleName, Description, DisplayOrder, IsSystemProtected, IsActive)

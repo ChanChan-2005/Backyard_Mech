@@ -42,7 +42,8 @@ namespace Backyard_Mech.Models
         public string Location { get; set; } = string.Empty;
         public string Condition { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public string StatusTone { get; set; } = "borrowed";
+        public string StatusTone { get; set; } = "checked";
+        public bool CanBorrow { get; set; }
         public string LastCalibration { get; set; } = string.Empty;
         public string NextCalibration { get; set; } = string.Empty;
         public ToolCheckoutDetail? ActiveCheckout { get; set; }
@@ -51,6 +52,7 @@ namespace Backyard_Mech.Models
 
     public class ToolCheckoutDetail
     {
+        public int ToolCheckoutId { get; set; }
         public string Mechanic { get; set; } = string.Empty;
         public string WorkOrder { get; set; } = string.Empty;
         public string CheckoutTime { get; set; } = string.Empty;

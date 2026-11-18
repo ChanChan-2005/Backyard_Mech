@@ -10,14 +10,14 @@ An unbilled, editable work order can receive an amended estimate. Its previous a
 
 ## Authentication
 
-- User activity, role, password fingerprint, role activity and MFA requirement are revalidated on protected Owner requests. Account/role/password changes require signing in again.
-- Session idle timeout: 20 minutes. Absolute authenticated lifetime: 8 hours. MFA challenge: 5 minutes.
-- Five failed password/MFA attempts cause a persistent 15-minute lockout. IP login/MFA limit: 20 requests per minute. Counts are serialized in SQL; per-IP limits are per application instance.
+- User activity, role, password fingerprint and role activity are revalidated on protected Owner requests. Account/role/password changes require signing in again.
+- Session idle timeout: 20 minutes. Absolute authenticated lifetime: 8 hours.
+- Five failed password attempts cause a persistent 15-minute lockout. IP login limit: 20 requests per minute. Counts are serialized in SQL; per-IP limits are per application instance.
 - Existing hashes remain readable and are upgraded to the ASP.NET Core Identity password-hasher format after a successful password check.
-- Privileged permissions require authenticator enrollment before access. Other accounts may opt in on the login form. Secrets are protected using ASP.NET Core Data Protection; OTP time steps are tracked to reject replay. A random single-use recovery code is shown once; only its SHA-256 hash is stored. Recovery rotates that code.
-- Login, failed login, MFA events, permission changes and report exports are audited without passwords, OTPs, setup keys or recovery codes.
+- Login uses username/email and password only. Authenticator/OTP enrollment, verification, recovery and session requirements have been removed. New databases do not create MFA columns; legacy columns in existing databases are retained for data compatibility but are not mapped or read by the application.
+- Login success/failure, permission changes and report exports are audited without passwords.
 
-The application still uses the existing `Users`/`AppRole` and session authentication architecture. This is NOT a complete migration to Identity user/role stores, UserManager or SignInManager. That migration remains a separate compatibility task. MFA calculation uses [Otp.NET](https://github.com/kspearrin/Otp.NET), rather than a custom production OTP algorithm.
+The application still uses the existing `Users`/`AppRole` and session authentication architecture. This is NOT a complete migration to Identity user/role stores, UserManager or SignInManager. That migration remains a separate compatibility task.
 
 ## Scheduling
 
@@ -29,8 +29,8 @@ UI schedule values are garage-local; exception timestamps are UTC. `GarageTimeZo
 
 Startup runs the idempotent upgrade in `Data/SecuritySchema.cs`; the master SQL script includes the same additions. Back up before deploying. No existing users or business records are deleted.
 
-Production cookies require HTTPS. Configure HTTPS correctly and persist/protect the Data Protection key ring; losing those keys prevents decrypting authenticator secrets. Back up the key ring separately with restricted access. Multiple app instances also need shared session storage, shared Data Protection keys, and a distributed edge rate limit; current in-memory session/IP throttling is single-instance.
+Production cookies require HTTPS. Configure HTTPS correctly. Multiple app instances need shared session storage and a distributed edge rate limit; current in-memory session/IP throttling is single-instance.
 
-No automated MFA reset-by-admin endpoint was added. Use the recovery code; any future reset process must verify identity and be audited. Initial enrollment assumes control of the existing password; rotate weak demo credentials before deployment.
+Initial enrollment assumes control of the existing password; rotate weak demo credentials before deployment. Password-only sign-in does not provide a second authentication factor.
 
 The HTTP/database smoke tests are regression checks, not a penetration test or production security certification. Full Identity migration, monitoring/alerts, customer approval tokens and private inspection uploads remain separate work. Browser visual QA was not available in this environment.

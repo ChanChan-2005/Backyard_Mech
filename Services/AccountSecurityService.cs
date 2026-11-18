@@ -6,20 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backyard_Mech.Services;
 
-public sealed class AccountSecurityService(ApplicationDbContext db, PermissionService permissions)
+public sealed class AccountSecurityService(ApplicationDbContext db)
 {
     public const int SessionIdleTimeoutMinutes = 20;
     public const int MaximumSessionHours = 8;
 
     public static string CredentialStamp(AppUser user) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(user.PasswordHash)));
-
-    public async Task<bool> RequiresMfa(AppUser user)
-    {
-        var codes = await permissions.GetPermissionCodesAsync(user.Role, user.Id);
-        return codes.Contains("*") || codes.Any(x => x is "useraccess.create" or "useraccess.edit" or "settings.edit" or "settings.create" or "settings.delete" or
-            "employees.edit" or "employees.create" or "employees.delete" or "invoices.create" or "invoices.edit" or "invoices.delete" or
-            "estimates.approve" or "inspections.approve" or "workorders.approve" or "records.delete");
-    }
 
     public async Task<AppUser?> ValidateSession(HttpContext context)
     {
@@ -31,7 +23,6 @@ public sealed class AccountSecurityService(ApplicationDbContext db, PermissionSe
         if (user is null || !user.IsActive || user.Role != session.GetString("UserRole") ||
             CredentialStamp(user) != session.GetString("CredentialStamp") || expired ||
             state?.LockedUntilUtc > DateTime.UtcNow ||
-            ((state?.AuthenticatorSecret != null || await RequiresMfa(user)) && session.GetString("MfaVerified") != "true") ||
             !await db.AppRoles.AnyAsync(x => x.RoleKey == user.Role && x.IsActive))
         {
             session.Clear();

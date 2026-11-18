@@ -52,7 +52,6 @@ builder.Services.AddSession(options => {
     options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 });
 builder.Services.AddScoped<AccountSecurityService>();
-builder.Services.AddDataProtection();
 builder.Services.AddRateLimiter(options => {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(

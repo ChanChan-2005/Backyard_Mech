@@ -4,7 +4,6 @@ namespace Backyard_Mech.Models
 {
     public class LoginViewModel
     {
-        public bool EnableMfa { get; set; }
         [Required(ErrorMessage = "Email address is required.")]
         [Display(Name = "Email Address")]
         [StringLength(256)]

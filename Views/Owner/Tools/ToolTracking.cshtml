@@ -30,7 +30,7 @@
     <div class="tools-stats">
         <article class="tools-stat"><span>Total Inventory</span><strong>@tools.Count Tools</strong></article>
         <article class="tools-stat"><header><span>Available Now</span><small class="tools-green">Live</small></header><strong>@tools.Count(tool => tool.Status == "Available")</strong></article>
-        <article class="tools-stat"><header><span>Borrowed</span><small class="tools-blue">In Use</small></header><strong>@tools.Count(tool => tool.Status == "Borrowed")</strong></article>
+        <article class="tools-stat"><header><span>Borrowed</span><small class="tools-blue">Active</small></header><strong>@tools.Count(tool => tool.Status == "Checked Out")</strong></article>
         <article class="tools-stat"><header><span>Under Maintenance</span><small class="tools-orange">Review</small></header><strong>@tools.Count(tool => tool.Status == "Under Maintenance")</strong></article>
         <article class="tools-stat"><header><span>Damaged & Missing</span><small class="tools-red">Alert</small></header><strong>@tools.Count(tool => tool.Tone == "missing")</strong></article>
     </div>
@@ -181,4 +181,14 @@
         });
       }));
     </script>
+    @if (ViewData["BorrowToolId"] is int borrowToolId && borrowToolId > 0)
+    {
+        <button hidden id="auto-open-borrow-tool" type="button" data-tools-modal="checkout-tool" data-tool-id="@borrowToolId"></button>
+        <script>document.getElementById("auto-open-borrow-tool")?.click();</script>
+    }
+    @if (ViewData["ReturnCheckoutId"] is int returnCheckoutId && returnCheckoutId > 0)
+    {
+        <button hidden id="auto-open-return-tool" type="button" data-tools-modal="return-tool" data-checkout-id="@returnCheckoutId"></button>
+        <script>document.getElementById("auto-open-return-tool")?.click();</script>
+    }
 }

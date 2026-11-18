@@ -1524,7 +1524,7 @@ namespace Backyard_Mech.Controllers
                     string.Equals(tool.Condition, "Damaged", StringComparison.OrdinalIgnoreCase);
                 var isMaintenance = openMaintenance.Any(x => x.ToolId == tool.ToolId) || string.Equals(tool.Condition, "Under Maintenance", StringComparison.OrdinalIgnoreCase);
                 var isCalibrationOverdue = tool.NextCalibrationDueUtc.HasValue && tool.NextCalibrationDueUtc.Value.Date < DateTime.UtcNow.Date;
-                var status = isMaintenance ? "Under Maintenance" : isMissingOrDamaged ? "Damaged / Missing" : checkout is not null ? "Borrowed" : isCalibrationOverdue ? "Calibration Overdue" : "Available";
+                var status = !tool.IsActive ? "Inactive" : isMaintenance ? "Under Maintenance" : isMissingOrDamaged ? "Damaged / Missing" : checkout is not null ? "Checked Out" : isCalibrationOverdue ? "Calibration Overdue" : "Available";
 
                 return new ToolListItem
                 {
@@ -1546,8 +1546,8 @@ namespace Backyard_Mech.Controllers
                         ? tool.NextCalibrationDueUtc.Value < DateTime.UtcNow ? $"Overdue {tool.NextCalibrationDueUtc.Value:MMM dd}" : tool.NextCalibrationDueUtc.Value.ToString("MMM dd, yyyy")
                         : "N/A",
                     Status = status,
-                    Tone = status == "Available" ? "available" : status == "Borrowed" ? "borrowed" : status == "Under Maintenance" ? "maintenance" : status == "Calibration Overdue" ? "overdue" : "missing",
-                    Action = status == "Available" ? "Borrow" : status == "Borrowed" ? "Return" : status == "Under Maintenance" ? "Complete Maintenance" : status == "Calibration Overdue" ? "Calibrate" : "View"
+                    Tone = status == "Available" ? "available" : status == "Checked Out" ? "checked" : status == "Under Maintenance" ? "maintenance" : status == "Calibration Overdue" ? "overdue" : "missing",
+                    Action = status == "Available" ? "Borrow" : status == "Checked Out" ? "Return" : status == "Under Maintenance" ? "Complete Maintenance" : status == "Calibration Overdue" ? "Calibrate" : "View"
                 };
             }).ToList();
         }
@@ -1607,15 +1607,17 @@ namespace Backyard_Mech.Controllers
                 Category = NormalizeText(category?.CategoryName, "Uncategorized"),
                 Location = NormalizeText(tool.Location, "-"),
                 Condition = NormalizeText(tool.Condition, "Good"),
-                Status = activeCheckout is not null ? "Borrowed" : hasOpenMaintenance || tool.Condition == "Under Maintenance" ? "Under Maintenance" : tool.Condition is "Damaged" or "Missing" ? tool.Condition : calibrationOverdue ? "Calibration Overdue" : "Available",
-                StatusTone = activeCheckout is not null ? "borrowed" : hasOpenMaintenance || tool.Condition == "Under Maintenance" || calibrationOverdue ? "maintenance" : tool.Condition is "Damaged" or "Missing" ? "missing" : "available",
+                Status = !tool.IsActive ? "Inactive" : activeCheckout is not null ? "Checked Out" : hasOpenMaintenance || tool.Condition == "Under Maintenance" ? "Under Maintenance" : tool.Condition is "Damaged" or "Missing" ? tool.Condition : calibrationOverdue ? "Calibration Overdue" : "Available",
+                CanBorrow = tool.IsActive && !tool.IsArchived && activeCheckout is null && !hasOpenMaintenance && !calibrationOverdue && tool.Condition is "Excellent" or "Good" or "Fair",
+                StatusTone = !tool.IsActive || tool.IsArchived ? "missing" : activeCheckout is not null ? "checked" : hasOpenMaintenance || tool.Condition == "Under Maintenance" || calibrationOverdue ? "maintenance" : tool.Condition is "Damaged" or "Missing" ? "missing" : "available",
                 LastCalibration = tool.LastCalibratedUtc?.ToString("MMM dd, yyyy") ?? "Not recorded",
                 NextCalibration = tool.NextCalibrationDueUtc?.ToString("MMM dd, yyyy") ?? "Not scheduled",
                 ActiveCheckout = activeCheckout is null ? null : new ToolCheckoutDetail
                 {
                     Mechanic = NormalizeText(activeCheckout.MechanicName, "Unassigned"),
                     WorkOrder = activeCheckout.WorkOrderId is null ? "-" : $"WO-{activeCheckout.WorkOrderId:0000}",
-                    CheckoutTime = $"{activeCheckout.CheckedOutUtc:MMM dd, yyyy hh:mm tt}"
+                    CheckoutTime = $"{activeCheckout.CheckedOutUtc:MMM dd, yyyy hh:mm tt}",
+                    ToolCheckoutId = activeCheckout.ToolCheckoutId
                 },
                 Logs = logs
             };
@@ -3160,13 +3162,15 @@ namespace Backyard_Mech.Controllers
             return RedirectToAction(nameof(QualityControl));
         }
 
-        public async Task<IActionResult> ToolTracking(int? categoryId = null, string? status = null)
+        public async Task<IActionResult> ToolTracking(int? categoryId = null, string? status = null, int? borrowToolId = null, int? returnCheckoutId = null)
         {
             if (!IsOwnerSession())
             {
                 return LoginRedirect();
             }
 
+            ViewData["BorrowToolId"] = borrowToolId;
+            ViewData["ReturnCheckoutId"] = returnCheckoutId;
             return View(new ToolTrackingViewModel
             {
                 Tools = await LoadToolRowsAsync(),
