@@ -77,6 +77,135 @@
     layer.querySelectorAll(".users-modal").forEach((modal) => modal.classList.remove("is-open"));
   };
 
+  const shiftForm = layer?.querySelector('[data-weekly-shift-form]');
+  if (shiftForm) {
+    const employee = shiftForm.querySelector('[data-shift-employee]');
+    const picker = shiftForm.querySelector('[data-shift-day-picker]');
+    const badges = shiftForm.querySelector('[data-shift-selected-days]');
+    const details = shiftForm.querySelector('[data-shift-day-details]');
+    const days = new Map();
+    let activeDay = null;
+    const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+    const defaultHours = () => ({ StartTime: '08:00', EndTime: '17:00', LunchStartTime: '12:00', LunchEndTime: '13:00' });
+    const fields = [
+      ['StartTime', 'Start Time'],
+      ['EndTime', 'End Time'],
+      ['LunchStartTime', 'Lunch Break Start'],
+      ['LunchEndTime', 'Lunch Break End']
+    ];
+    const renderDays = () => {
+      badges.replaceChildren();
+      details.replaceChildren();
+      const selected = dayOrder.filter(day => days.has(day));
+      if (!selected.length) {
+        const note = document.createElement('span');
+        note.className = 'users-shift-off-note';
+        note.textContent = 'No working days selected. This employee will be off all week.';
+        badges.append(note);
+      }
+      selected.forEach((day, index) => {
+        const dayName = picker.querySelector(`option[value="${day}"]`)?.textContent || String(day);
+        const badge = document.createElement('span');
+        badge.className = 'users-shift-day-badge';
+        badge.classList.toggle('is-active', day === activeDay);
+        const select = document.createElement('button');
+        select.type = 'button';
+        select.dataset.selectShiftDay = String(day);
+        select.setAttribute('aria-pressed', String(day === activeDay));
+        select.setAttribute('aria-label', `Edit ${dayName} hours`);
+        select.textContent = dayName;
+        badge.append(select);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.dataset.removeShiftDay = String(day);
+        remove.setAttribute('aria-label', `Remove ${dayName}`);
+        remove.textContent = '\u00d7';
+        badge.append(remove);
+        badges.append(badge);
+        const card = document.createElement('section');
+        card.className = 'users-shift-day-card';
+        card.dataset.shiftDay = String(day);
+        card.hidden = day !== activeDay;
+        const heading = document.createElement('strong');
+        heading.textContent = `${dayName} hours`;
+        card.append(heading);
+        const dayInput = document.createElement('input');
+        dayInput.type = 'hidden';
+        dayInput.name = `Shifts[${index}].DayOfWeek`;
+        dayInput.value = String(day);
+        card.append(dayInput);
+        const grid = document.createElement('div');
+        grid.className = 'users-shift-day-time-grid';
+        fields.forEach(([field, caption]) => {
+          const label = document.createElement('label');
+          const title = document.createElement('span');
+          title.className = 'users-label';
+          title.textContent = `${caption} *`;
+          const input = document.createElement('input');
+          input.className = 'users-input';
+          input.type = 'time';
+          input.name = `Shifts[${index}].${field}`;
+          input.dataset.shiftField = field;
+          input.value = days.get(day)[field];
+          input.required = day === activeDay;
+          label.append(title, input);
+          grid.append(label);
+        });
+        card.append(grid);
+        details.append(card);
+      });
+    };
+    picker.addEventListener('change', () => {
+      if (picker.value !== '') {
+        const day = Number(picker.value);
+        if (!days.has(day)) days.set(day, defaultHours());
+        activeDay = day;
+      }
+      picker.value = '';
+      renderDays();
+    });
+    badges.addEventListener('click', event => {
+      const remove = event.target.closest('[data-remove-shift-day]');
+      if (remove) {
+        const day = Number(remove.dataset.removeShiftDay);
+        days.delete(day);
+        if (activeDay === day) activeDay = dayOrder.find(value => days.has(value)) ?? null;
+      } else {
+        const select = event.target.closest('[data-select-shift-day]');
+        if (!select) return;
+        activeDay = Number(select.dataset.selectShiftDay);
+      }
+      renderDays();
+    });
+    details.addEventListener('input', event => {
+      const field = event.target.dataset.shiftField;
+      const day = Number(event.target.closest('[data-shift-day]')?.dataset.shiftDay);
+      if (field && days.has(day)) days.get(day)[field] = event.target.value;
+    });
+    employee.addEventListener('change', () => {
+      days.clear();
+      const option = employee.selectedOptions[0];
+      (option?.dataset.shifts || '').split(';').filter(Boolean).forEach(value => {
+        const [day, start, end, lunchStart, lunchEnd] = value.split('|');
+        days.set(Number(day), {
+          StartTime: start || '08:00', EndTime: end || '17:00',
+          LunchStartTime: lunchStart || '12:00', LunchEndTime: lunchEnd || '13:00'
+        });
+      });
+      activeDay = dayOrder.find(day => days.has(day)) ?? null;
+      renderDays();
+    });
+    shiftForm.addEventListener('submit', event => {
+      const incompleteDay = dayOrder.find(day => days.has(day) && fields.some(([field]) => !days.get(day)[field]));
+      if (incompleteDay === undefined) return;
+      event.preventDefault();
+      activeDay = incompleteDay;
+      renderDays();
+      details.querySelector('[data-shift-field]:invalid')?.reportValidity();
+    });
+    renderDays();
+  }
+
   document.querySelectorAll("[data-users-modal]").forEach((trigger) => {
     trigger.addEventListener("click", (event) => {
       event.preventDefault();

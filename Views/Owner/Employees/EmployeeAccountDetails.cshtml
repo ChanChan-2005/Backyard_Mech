@@ -10,14 +10,17 @@
     ViewData["ShellClass"] = "users-shell";
     ViewData["SearchPlaceholder"] = "Search system log, accounts...";
     var roleOptions = ViewData["EmployeeRoleOptions"] as IReadOnlyList<SettingsRoleOption> ?? Array.Empty<SettingsRoleOption>();
+    var selectedPositionIsRole = roleOptions.Any(role => string.Equals(role.Label, Model.JobTitle, StringComparison.OrdinalIgnoreCase));
     var assignedRole = ViewData["EmployeeAccountRole"]?.ToString() ?? "";
     var hasLoginAccount = ViewData["EmployeeHasLoginAccount"] as bool? == true;
     var canEdit = await Permissions.HasPermissionAsync(Context.Session.GetString("UserRole"),"Employees","Edit");
+    var viewOnly = string.Equals(Context.Request.Query["mode"], "view", StringComparison.OrdinalIgnoreCase) || !canEdit;
 }
 
 @section TopbarActions {
     <a class="users-button" asp-controller="Owner" asp-action="Employees">Back to Employees</a>
-    @if(canEdit){<button class="users-button-blue" type="submit" form="employeeEditForm">Save Profile</button>}
+    @if (viewOnly && canEdit) { <a class="users-button-blue" asp-controller="Owner" asp-action="EmployeeAccountDetails" asp-route-id="@Model.EmployeeProfileId">Edit Profile</a> }
+    else if (canEdit) { <button class="users-button-blue" type="submit" form="employeeEditForm">Save Profile</button> }
 }
 
 <section class="users-account-page">
@@ -46,6 +49,30 @@
                 <a asp-controller="Owner" asp-action="AuditLogReport" asp-route-employeeProfileId="@Model.EmployeeProfileId">Activity Report</a>
             </nav>
             <div class="users-tab-content">
+                @if (viewOnly)
+                {
+                    <section class="users-profile-fields" aria-label="Staff profile details">
+                        <h2 class="users-panel-title">Profile</h2>
+                        <div class="users-form-grid users-profile-view">
+                            <div class="users-view-field"><span class="users-label">First Name</span><span class="users-view-value">@(Model.FirstName ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Last Name</span><span class="users-view-value">@(Model.LastName ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Middle Initial</span><span class="users-view-value">@(string.IsNullOrWhiteSpace(Model.MiddleName) ? "Not set" : Model.MiddleName)</span></div>
+                            <div class="users-view-field"><span class="users-label">Job Title / Position</span><span class="users-view-value">@(Model.JobTitle ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Employment Type</span><span class="users-view-value">@(Model.EmploymentType ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Contact Number</span><span class="users-view-value">@(Model.Phone ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Contact Email</span><span class="users-view-value">@(Model.Email ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Address</span><span class="users-view-value">@(Model.StreetAddress ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">City</span><span class="users-view-value">@(Model.City ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Province/Territory</span><span class="users-view-value">@(Model.Province ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Postal Code</span><span class="users-view-value">@(Model.PostalCode ?? "Not set")</span></div>
+                            <div class="users-view-field"><span class="users-label">Hourly Rate (CA$)</span><span class="users-view-value">@(Model.HourlyRate.HasValue ? $"CA${Model.HourlyRate.Value:N2}" : "Not set")</span></div>
+                            <div class="users-view-field users-span-full"><span class="users-label">Skills and Qualifications</span><span class="users-view-value">@(string.IsNullOrWhiteSpace(Model.SkillsAndQualifications) ? "Not set" : Model.SkillsAndQualifications)</span></div>
+                            <div class="users-view-field"><span class="users-label">Staff Status</span><span class="users-view-value"><span class="users-pill @(Model.IsActive ? "active" : "inactive")">@(Model.IsActive ? "Active" : "Inactive")</span></span></div>
+                        </div>
+                    </section>
+                }
+                else
+                {
                 <form id="employeeEditForm" asp-controller="Owner" asp-action="EditEmployee" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="EmployeeProfileId" value="@Model.EmployeeProfileId" />
@@ -56,10 +83,7 @@
                         <label><span class="users-label">First Name *</span><input class="users-input" name="FirstName" maxlength="120" value="@Model.FirstName" required /></label>
                         <label><span class="users-label">Last Name *</span><input class="users-input" name="LastName" maxlength="120" value="@Model.LastName" required /></label>
                         <label><span class="users-label">Middle Initial</span><input class="users-input" name="MiddleInitial" value="@Model.MiddleName" maxlength="1" /></label>
-                        <label><span class="users-label">Job Title / Position *</span><select class="users-select" name="JobTitle" aria-describedby="edit-position-help" required>
-                            @if (!new[] { "Lead Mechanic", "Mechanic", "Helper", "Technician", "Service Advisor", "Parts Specialist", "Quality Inspector", "Bookkeeper" }.Contains(Model.JobTitle ?? "")) { <option value="@Model.JobTitle" selected>@Model.JobTitle</option> }
-                            <option value="Lead Mechanic" selected="@(Model.JobTitle == "Lead Mechanic")">Lead Mechanic</option><option value="Mechanic" selected="@(Model.JobTitle == "Mechanic")">Mechanic</option><option value="Helper" selected="@(Model.JobTitle == "Helper")">Helper</option><option value="Technician" selected="@(Model.JobTitle == "Technician")">Technician</option><option value="Service Advisor" selected="@(Model.JobTitle == "Service Advisor")">Service Advisor</option><option value="Parts Specialist" selected="@(Model.JobTitle == "Parts Specialist")">Parts Specialist</option><option value="Quality Inspector" selected="@(Model.JobTitle == "Quality Inspector")">Quality Inspector</option><option value="Bookkeeper" selected="@(Model.JobTitle == "Bookkeeper")">Bookkeeper</option>
-                        </select><small id="edit-position-help" class="app-field-help">Choose the employee's operational job in the shop. System access role is configured separately under Account Access.</small></label>
+                        <label><span class="users-label">Job Title / Position *</span><select class="users-select" name="JobTitle" aria-describedby="edit-position-help" required><option value="" selected="@(!selectedPositionIsRole)" disabled>Select a position</option>@foreach (var role in roleOptions){<option value="@role.Label" selected="@(string.Equals(role.Label, Model.JobTitle, StringComparison.OrdinalIgnoreCase))">@role.Label</option>}</select><small id="edit-position-help" class="app-field-help">Choose a role name for the position. Login permissions are managed under Account Access.</small></label>
                         <label><span class="users-label">Employment Type *</span><select class="users-select" name="EmploymentType" required><option value="">Select employment type</option><option value="Full-time" selected="@(Model.EmploymentType == "Full-time")">Full-time</option><option value="Part-time" selected="@(Model.EmploymentType == "Part-time")">Part-time</option></select></label>
                         <label><span class="users-label">Contact Number *</span><input placeholder="e.g., (416) 555-0123" inputmode="tel" data-canadian-phone class="users-input" name="Phone" type="tel" value="@Model.Phone" required /></label>
                         <label><span class="users-label">Contact Email *</span><input class="users-input" name="Email" type="email" maxlength="256" value="@Model.Email" required /></label>
@@ -76,6 +100,7 @@
                     </div>
                     </fieldset>
                 </form>
+                }
 
                 <h2 class="users-panel-title">Login Account</h2>
                 <p>@(hasLoginAccount ? $"System access role: {assignedRole}" : "No login account. Staff profile only.")</p>

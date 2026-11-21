@@ -36,7 +36,7 @@ public static class StandardRoleProfiles
 
     public static readonly Profile[] Staff = {
         new("Administrator", "Administrator", "Manages employee accounts/roles; day-to-day system administration.",
-            new[] { "StaffAccounts", "CreateStaffAccount", "SaveUserAccess", "ManageStaffRolePermissions",
+            new[] { "StaffAccounts", "CreateStaffAccount", "SaveUserAccess", "ResetStaffPassword", "ActivateStaffAccount", "DeactivateStaffAccount", "BlockStaffAccount", "UnblockStaffAccount", "ManageStaffRolePermissions",
                 "Employees", "EmployeeDetails", "EmployeeAccountDetails", "EmployeeSecurityActivity", "ArchivedEmployees", "SoftDeletedEmployees",
                 "AddEmployee", "EditEmployee", "ArchiveEmployee", "SoftDeleteEmployee", "RestoreEmployee", "EmployeeSchedule", "StaffAvailability", "SetEmployeeShift",
                 "CreateAvailabilityException", "UpdateAvailabilityException", "DeleteAvailabilityException",

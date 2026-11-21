@@ -19,6 +19,7 @@
     var employeeName = string.Join(" ", new[] { employeeProfile?.FirstName, employeeProfile?.LastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
     var hasProfilePhoto = currentUserId > 0 && Backyard_Mech.Services.ProfilePhotoStore.Find(HostEnvironment.ContentRootPath, currentUserId) is not null;
     var permissionCodes = await PermissionService.GetPermissionCodesAsync(sessionUserRole);
+    var canOpenEmployees = Backyard_Mech.Services.OwnerPermissionCatalog.CanAccessAction(permissionCodes, "Employees");
     var userName = ViewData["ShellUserName"]?.ToString() ?? (string.IsNullOrWhiteSpace(employeeName) ? sessionUserName : employeeName);
     var userRole = ViewData["ShellUserRole"]?.ToString() ?? await PermissionService.GetRoleNameAsync(sessionUserRole);
     var initials = ViewData["ShellUserInitials"]?.ToString() ?? string.Join("", userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
@@ -68,9 +69,8 @@
         new { Icon = "archive", Label = "Archive", Href = "/Owner/ArchiveRecords", Module = "Archive", AlternateModule = "" },
         new { Icon = "disposition", Label = "Records Disposition", Href = "/Owner/RecordsDisposition", Module = "Records Disposition", AlternateModule = "" },
         new { Icon = "reports", Label = "Reports", Href = "/Owner/Reports", Module = "Reports", AlternateModule = "" },
-        new { Icon = "users", Label = "User Management", Href = "/Owner/Employees", Module = "Employees", AlternateModule = "" },
+        new { Icon = "users", Label = "User Management", Href = canOpenEmployees ? "/Owner/Employees" : "/Owner/StaffAccounts", Module = "Employees", AlternateModule = "" },
         new { Icon = "settings", Label = "Settings", Href = "/Owner/Settings", Module = "Settings", AlternateModule = "" },
-        new { Icon = "users", Label = "Account Access", Href = "/Owner/StaffAccounts", Module = "User Access", AlternateModule = "" },
         new { Icon = "users", Label = "My Profile", Href = "/Account/Profile", Module = "", AlternateModule = "" },
         new { Icon = "logout", Label = "Logout", Href = "/Account/Logout", Module = "", AlternateModule = "" }
     };
@@ -206,6 +206,7 @@
 
             <section class="dashboard-content">
 
+                @await RenderSectionAsync("BeforePageToolbar", required: false)
 
                 @if (showPageSearch || IsSectionDefined("TopbarActions"))
                 {

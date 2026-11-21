@@ -108,6 +108,7 @@ namespace Backyard_Mech.Data
                 entity.Property(user => user.UserName).HasMaxLength(120).IsRequired();
                 entity.Property(user => user.PasswordHash).HasMaxLength(512).IsRequired();
                 entity.Property(user => user.Role).HasMaxLength(50).IsRequired();
+                entity.Property(user => user.IsBlocked).HasDefaultValue(false);
                 entity.Property(user => user.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             });
 

@@ -7,57 +7,43 @@
 
     <section class="users-modal app-modal app-modal--compact" data-modal-id="add-shift" role="dialog" aria-modal="true" aria-labelledby="employee-add-shift-title">
         <header class="users-modal-header">
-            <h2 id="employee-add-shift-title">Add Shift</h2>
+            <h2 id="employee-add-shift-title">Set Weekly Shift</h2>
             <button class="users-modal-close" type="button" data-users-modal-close aria-label="Close">&#215;</button>
         </header>
-        <form class="users-modal-form" asp-controller="Owner" asp-action="SetEmployeeShift" method="post">
+        <form class="users-modal-form" asp-controller="Owner" asp-action="SetEmployeeShift" method="post" data-weekly-shift-form>
             @Html.AntiForgeryToken()
-            <p>Create or update an employee's weekly availability.</p>
+            <p>Add working days one at a time, then select a day badge to set its hours. Unselected days are off.</p>
             <label>
                 <span class="users-label">Employee *</span>
-                <select class="users-select" name="EmployeeProfileId" required>
+                <select class="users-select" name="EmployeeProfileId" data-shift-employee required>
                     <option value="" selected disabled>Select employee</option>
                     @foreach (var employee in shiftEmployees)
                     {
-                        <option value="@employee.Id">@employee.Label</option>
+                        var saved = scheduleModel?.SavedShifts.Where(shift => shift.EmployeeProfileId == employee.Id && shift.IsAvailable).ToList() ?? new List<EmployeeAvailability>();
+                        var savedHours = string.Join(";", saved.Where(shift => shift.DayOfWeek.HasValue).Select(shift =>
+                            $"{shift.DayOfWeek}|{shift.StartTime?.ToString("HH:mm")}|{shift.EndTime?.ToString("HH:mm")}|{(shift.LunchStartTime ?? shift.BreakStart)?.ToString("HH:mm")}|{(shift.LunchEndTime ?? shift.BreakEnd)?.ToString("HH:mm")}"));
+                        <option value="@employee.Id" data-shifts="@savedHours">@employee.Label</option>
                     }
                 </select>
             </label>
-            <fieldset class="shift-day-picker">
-                <legend class="users-label">Days *</legend>
-                @foreach (var day in new[] { (1, "Monday"), (2, "Tuesday"), (3, "Wednesday"), (4, "Thursday"), (5, "Friday"), (6, "Saturday"), (0, "Sunday") })
-                {
-                    <label><input type="checkbox" name="DaysOfWeek" value="@day.Item1" /> @day.Item2</label>
-                }
-            </fieldset>
             <label>
-                <span class="users-label">Schedule *</span>
-                <select class="users-select" name="IsAvailable" data-shift-availability>
-                    <option value="true">Working day</option>
-                    <option value="false">Day off</option>
+                <span class="users-label">Working Day</span>
+                <select class="users-select" data-shift-day-picker>
+                    <option value="" selected>Choose a day to add</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                    <option value="0">Sunday</option>
                 </select>
             </label>
-            <div class="users-form-grid shift-time-fields">
-                <label>
-                    <span class="users-label">Start time *</span>
-                    <input class="users-input" type="time" name="StartTime" value="08:00" required />
-                </label>
-                <label>
-                    <span class="users-label">End time *</span>
-                    <input class="users-input" type="time" name="EndTime" value="17:00" required />
-                </label>
-                <label>
-                    <span class="users-label">Break starts</span>
-                    <input class="users-input" type="time" name="BreakStart" />
-                </label>
-                <label>
-                    <span class="users-label">Break ends</span>
-                    <input class="users-input" type="time" name="BreakEnd" />
-                </label>
-            </div>
+            <div class="users-shift-selected-days" data-shift-selected-days aria-live="polite"></div>
+            <div class="users-shift-day-details" data-shift-day-details></div>
             <div class="users-modal-actions">
                 <button class="users-button" type="button" data-users-modal-close>Cancel</button>
-                <button class="users-button-blue" type="submit">Save Shift</button>
+                <button class="users-button-blue" type="submit">Save Weekly Shift</button>
             </div>
         </form>
     </section>

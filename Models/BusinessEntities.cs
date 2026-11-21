@@ -60,6 +60,8 @@ namespace Backyard_Mech.Models
         public TimeOnly? EndTime { get; set; }
         public TimeOnly? BreakStart { get; set; }
         public TimeOnly? BreakEnd { get; set; }
+        public TimeOnly? LunchStartTime { get; set; }
+        public TimeOnly? LunchEndTime { get; set; }
         public bool IsAvailable { get; set; } = true;
     }
 

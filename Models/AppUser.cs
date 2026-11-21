@@ -24,6 +24,8 @@ namespace Backyard_Mech.Models
 
         public bool IsActive { get; set; } = true;
 
+        public bool IsBlocked { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

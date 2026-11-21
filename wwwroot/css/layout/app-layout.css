@@ -179,6 +179,12 @@ body.app-shell-body {
   border-bottom: 1px solid #dde2e9;
 }
 
+.app-page-back-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .app-title h1 {
   margin: 0;
   font-size: 18px;

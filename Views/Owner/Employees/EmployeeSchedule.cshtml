@@ -9,6 +9,12 @@
     ViewData["ShellClass"] = "users-shell users-reference-shell";
 }
 
+@section BeforePageToolbar {
+    <div class="app-page-back-row">
+        <a class="users-button" asp-controller="Owner" asp-action="Employees" asp-route-view="all">&#8592; User Management</a>
+    </div>
+}
+
 @section TopbarActions {
     <a class="users-button" href="/Owner/StaffAvailability">Availability Exceptions</a>
     <div class="users-schedule-top-controls">
@@ -20,32 +26,6 @@
 }
 
 <section class="users-reference-page users-schedule-reference">
-    <article class="users-reference-card users-schedule-board">
-        <table>
-            <thead>
-                <tr>
-                    <th>Employee</th>
-                    @foreach (var day in Model.DayLabels)
-                    {
-                        <th>@day</th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var employee in Model.Employees)
-                {
-                    <tr>
-                        <td><strong>@employee.Name</strong><small>@employee.Role</small></td>
-                        @foreach (var day in employee.Days)
-                        {
-                            <td><span class="users-schedule-pill @(day.IsOff ? "off" : "")">@day.Label</span></td>
-                        }
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </article>
-
     <aside class="users-schedule-side">
         <article class="users-reference-card">
             <h3>@(Model.WeekOffset == 0 ? "Today's Coverage" : "Monday Coverage")</h3>
@@ -69,6 +49,32 @@
             @if (Model.UpcomingTimeOff.Count == 0) { <p>No time off recorded for this week.</p> }
         </article>
     </aside>
+
+    <article class="users-reference-card users-schedule-board">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    @foreach (var day in Model.DayLabels)
+                    {
+                        <th>@day</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var employee in Model.Employees)
+                {
+                    <tr>
+                        <td><strong>@employee.Name</strong><small>@employee.Role</small></td>
+                        @foreach (var day in employee.Days)
+                        {
+                            <td><span class="users-schedule-pill @(day.IsOff ? "off" : "")">@day.Label</span>@if(day.BreakLabel is not null){<small class="users-schedule-break">@day.BreakLabel</small>}</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </article>
 </section>
 
 @await Html.PartialAsync("_EmployeeModals")

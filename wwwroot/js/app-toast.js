@@ -109,7 +109,8 @@
         if (validationForms.has(control.form)) return;
         validationForms.add(control.form);
         pendingInvalidControl = control;
-        const label = control.labels?.[0]?.innerText?.trim();
+        const labelElement = control.labels?.[0];
+        const label = (labelElement?.querySelector(':scope > span')?.textContent || labelElement?.innerText)?.trim();
         show({
             heading: 'Check the form',
             message: label ? `${label.replace(/\s*\*\s*$/, '')}: ${control.validationMessage}` : control.validationMessage,

@@ -24,8 +24,8 @@ public static class SidebarPermissionCatalog
         ("Records Disposition", "Records Disposition"),
         ("Reports", "Reports"),
         ("Employees", "User Management"),
-        ("Settings", "Settings"),
-        ("User Access", "Account Access")
+        ("User Access", "Account Access"),
+        ("Settings", "Settings")
     };
 
     public static string LabelForModule(string module) =>

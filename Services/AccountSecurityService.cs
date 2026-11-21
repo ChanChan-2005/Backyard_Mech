@@ -20,7 +20,7 @@ public sealed class AccountSecurityService(ApplicationDbContext db)
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
         var state = await db.AccountSecurity.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == id);
         var expired = !long.TryParse(session.GetString("AuthenticatedAt"), out var ticks) || DateTime.UtcNow.Ticks - ticks > TimeSpan.FromHours(MaximumSessionHours).Ticks;
-        if (user is null || !user.IsActive || user.Role != session.GetString("UserRole") ||
+        if (user is null || !user.IsActive || user.IsBlocked || user.Role != session.GetString("UserRole") ||
             CredentialStamp(user) != session.GetString("CredentialStamp") || expired ||
             state?.LockedUntilUtc > DateTime.UtcNow ||
             !await db.AppRoles.AnyAsync(x => x.RoleKey == user.Role && x.IsActive))

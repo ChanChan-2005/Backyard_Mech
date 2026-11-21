@@ -1,7 +1,9 @@
+using Backyard_Mech.Data;
 using Backyard_Mech.Models;
 using Backyard_Mech.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backyard_Mech.Controllers;
 
@@ -25,8 +27,8 @@ public partial class OwnerController
                 IsAvailable = row?.IsAvailable == true,
                 StartTime = row?.StartTime?.ToString("HH:mm") ?? "08:00",
                 EndTime = row?.EndTime?.ToString("HH:mm") ?? "17:00",
-                BreakStart = row?.BreakStart?.ToString("HH:mm") ?? "",
-                BreakEnd = row?.BreakEnd?.ToString("HH:mm") ?? ""
+                BreakStart = (row?.BreakStart ?? row?.LunchStartTime)?.ToString("HH:mm") ?? "",
+                BreakEnd = (row?.BreakEnd ?? row?.LunchEndTime)?.ToString("HH:mm") ?? ""
             };
         }).ToList();
         return View(new EmployeeAvailabilityPage
@@ -61,7 +63,6 @@ public partial class OwnerController
                 $"Break time for {day.DayName} must be within the work hours.");
         }
 
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
         var existing = await _dbContext.EmployeeAvailabilities.Where(x => x.EmployeeProfileId == activeEmployee.EmployeeProfileId).ToListAsync();
         foreach (var day in form.Days)
         {
@@ -76,12 +77,13 @@ public partial class OwnerController
             row.EndTime = day.IsAvailable && TimeOnly.TryParse(day.EndTime, out var end) ? end : null;
             row.BreakStart = day.IsAvailable && TimeOnly.TryParse(day.BreakStart, out var breakStart) ? breakStart : null;
             row.BreakEnd = day.IsAvailable && TimeOnly.TryParse(day.BreakEnd, out var breakEnd) ? breakEnd : null;
+            row.LunchStartTime = row.BreakStart;
+            row.LunchEndTime = row.BreakEnd;
         }
         await _dbContext.SaveChangesAsync();
         await RevalidateStaffBookings(activeEmployee);
         WorkflowAudit("EmployeeAvailability", activeEmployee.EmployeeProfileId, "Update weekly availability", form.Days);
         await _dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
         TempData["OwnerMessage"] = "Weekly availability saved.";
         TempData["OwnerMessageTone"] = "success";
         return RedirectToAction(nameof(EmployeeAvailability), new { id = activeEmployee.EmployeeProfileId });
@@ -163,40 +165,54 @@ public partial class OwnerController
         });
     }
 
-    private async Task<List<Permission>> AssignablePermissions() => (await _dbContext.Permissions.AsNoTracking()
-        .Where(x=>x.IsActive).OrderBy(x=>x.ModuleName).ThenBy(x=>x.ActionName).ToListAsync())
-        .Where(x=>OwnerPermissionCatalog.IsSupportedPermission(x.ModuleName??"",x.ActionName??"")).ToList();
-
     private static string AccessStamp(AppUser user) => MasterStamp(new {
-        user.Id,user.Role,user.IsActive,user.Email,user.UserName,
+        user.Id,user.Role,user.IsActive,user.IsBlocked,user.Email,user.UserName,
         Credentials=AccountSecurityService.CredentialStamp(user)
     });
+
+    private static string StaffResetPassword(string lastName) =>
+        $"{new string(lastName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant()}@bakyard123";
+
+    private bool CanManageStaffPasswords() => HttpContext.Session.GetString("UserRole") is "RootAdmin" or "Administrator";
 
     public async Task<IActionResult> StaffAccounts(int? userId)
     {
         var role=HttpContext.Session.GetString("UserRole");
+        var actorGrants=await _permissionService.GetPermissionCodesAsync(role);
         var model=new StaffAccountsPage {
             Profiles=await _dbContext.EmployeeProfiles.AsNoTracking().Where(x=>!x.IsArchived && !x.IsDeleted).OrderBy(x=>x.FirstName).ToListAsync(),
             Accounts=await _dbContext.Users.AsNoTracking().Where(x=>!_dbContext.EmployeeProfiles.Any(p=>p.UserId==x.Id.ToString() && (p.IsArchived || p.IsDeleted))).OrderBy(x=>x.UserName).ToListAsync(),
-            Roles=await _dbContext.AppRoles.AsNoTracking().Where(x=>x.IsActive).OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.RoleName).ToListAsync(),
-            Permissions=await AssignablePermissions(),
+            Roles=await _dbContext.AppRoles.AsNoTracking().Where(x=>x.IsActive && StandardRoleProfiles.BusinessRoleKeys.Contains(x.RoleKey)).OrderBy(x=>x.DisplayOrder).ThenBy(x=>x.RoleName).ToListAsync(),
             CanCreate=await _permissionService.HasPermissionAsync(role,"User Access","Create"),
             CanCreateGarageOwner=string.Equals(role,"Owner",StringComparison.OrdinalIgnoreCase),
             CanEdit=await _permissionService.HasPermissionAsync(role,"User Access","Edit"),
             CanActivateAccounts=await _permissionService.HasPermissionAsync(role,"User Access","Edit") &&
                 (await _permissionService.GetPermissionCodesAsync(role)).Contains(OwnerPermissionCatalog.ActionPermissionCode(nameof(ActivateStaffAccount))),
             CanDeactivateAccounts=await _permissionService.HasPermissionAsync(role,"User Access","Edit") &&
-                (await _permissionService.GetPermissionCodesAsync(role)).Contains(OwnerPermissionCatalog.ActionPermissionCode(nameof(DeactivateStaffAccount)))
+                actorGrants.Contains(OwnerPermissionCatalog.ActionPermissionCode(nameof(DeactivateStaffAccount))),
+            CanBlockAccounts=OwnerPermissionCatalog.CanAccessAction(actorGrants,nameof(BlockStaffAccount)),
+            CanUnblockAccounts=OwnerPermissionCatalog.CanAccessAction(actorGrants,nameof(UnblockStaffAccount))
         };
         model.ExpectedByAccount=model.Accounts.ToDictionary(x=>x.Id,AccessStamp);
         model.Selected=model.Accounts.SingleOrDefault(x=>x.Id==userId);
-        foreach(var availableRole in model.Roles)
-            model.RoleDefaults[availableRole.RoleKey]=(await _permissionService.GetRolePermissionCodesAsync(availableRole.RoleKey)).ToArray();
         if(model.Selected is not null)
         {
+            Response.Headers["Cache-Control"]="no-store";
             model.Defaults=await _permissionService.GetRolePermissionCodesAsync(model.Selected.Role);
             model.Expected=AccessStamp(model.Selected);
             if(model.Selected.Id.ToString()==HttpContext.Session.GetString("UserId") || model.Defaults.Contains("*")) model.CanEdit=false;
+            var profile=model.Profiles.FirstOrDefault(x=>x.UserId==model.Selected.Id.ToString());
+            model.CanResetPassword=model.CanEdit && CanManageStaffPasswords() &&
+                profile is not null && !string.IsNullOrWhiteSpace(profile.LastName) &&
+                PermissionService.CanDelegateStaffPermissions(actorGrants,model.Defaults);
+            if (model.CanResetPassword)
+            {
+                var candidate=StaffResetPassword(profile!.LastName!);
+                model.ResetPasswordPreview=candidate;
+                var wasReset=await _dbContext.AuditLogEntries.AsNoTracking().AnyAsync(x=>x.EntityName=="Account" &&
+                    x.EntityId==model.Selected.Id.ToString() && x.Action=="Reset staff password");
+                if (wasReset && PasswordHasher.Verify(candidate,model.Selected.PasswordHash)) model.ResetPasswordValue=candidate;
+            }
         }
         return View(model);
     }
@@ -212,25 +228,28 @@ public partial class OwnerController
     public Task<IActionResult> CreateStaffAccount(StaffAccountForm form) => SaveWorkflow(async () => {
         Require(form.Password.Length>=12,"Use a password with at least 12 characters.");
         Require(form.Password==form.ConfirmPassword,"Passwords do not match.");
-        var profile=await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
-        Require(profile is not null && profile.IsActive && !profile.IsArchived && !profile.IsDeleted,"Choose an active staff profile.");
-        Require(string.IsNullOrWhiteSpace(profile.UserId),"This profile already has an account link.");
+        EmployeeProfile? profile = null;
+        if (form.EmployeeProfileId.HasValue)
+        {
+            profile = await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId.Value);
+            Require(profile is not null && profile.IsActive && !profile.IsArchived && !profile.IsDeleted,"Choose an active staff profile.");
+            Require(string.IsNullOrWhiteSpace(profile.UserId),"This profile already has an account link.");
+        }
         var email=form.Email.Trim(); var name=form.UserName.Trim();
         Require(!await _dbContext.Users.AnyAsync(x=>x.Email==email || x.UserName==name),"Login email or username is already in use.");
         Require(form.Password.Any(char.IsUpper) && form.Password.Any(char.IsLower) && form.Password.Any(char.IsDigit) && form.Password.Any(x=>!char.IsLetterOrDigit(x)),
             "Use at least 12 characters with uppercase, lowercase, a number and a symbol.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
-        Require(role is not null,"Choose an active role.");
+        Require(role is not null && StandardRoleProfiles.IsBusinessRole(role.RoleKey),"Choose one of the seven standard roles.");
         Require(!role.IsSystemProtected,"Choose a staff role.");
-        if (string.Equals(role!.RoleKey,"Owner",StringComparison.OrdinalIgnoreCase))
-            Require(string.Equals(HttpContext.Session.GetString("UserRole"),"Owner",StringComparison.OrdinalIgnoreCase),"Only a Garage Owner can create another Garage Owner account.");
+        Require(role.RoleKey!="Owner" || HttpContext.Session.GetString("UserRole")=="Owner","Only a Garage Owner can create another Garage Owner account.");
         Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
         var effective=await _permissionService.GetRolePermissionCodesAsync(role.RoleKey);
         await ValidateDelegation(role,effective);
         var user=new AppUser {Email=email,UserName=name,Role=role.RoleKey,PasswordHash=PasswordHasher.Hash(form.Password),IsActive=true};
         _dbContext.Users.Add(user); await _dbContext.SaveChangesAsync();
-        profile.UserId=user.Id.ToString();
-        WorkflowAudit("Account",user.Id,"Create staff account",new{profile.EmployeeProfileId,user.UserName,user.Email,user.Role});
+        if (profile is not null) profile.UserId=user.Id.ToString();
+        WorkflowAudit("Account",user.Id,"Create staff account",new{ProfileId=profile?.EmployeeProfileId,user.UserName,user.Email,user.Role});
         return RedirectToAction(nameof(StaffAccounts));
     },nameof(StaffAccounts));
 
@@ -242,20 +261,76 @@ public partial class OwnerController
         Require(previousRole?.IsSystemProtected!=true,"Protected root administrator access cannot be overridden here.");
         Require(AccessStamp(user)==form.Expected,"Account access changed. Refresh before saving.");
         var role=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==form.RoleKey && x.IsActive);
-        Require(role is not null,"Choose an active role.");
+        Require(role is not null && StandardRoleProfiles.IsBusinessRole(role.RoleKey),"Choose one of the seven standard roles.");
         Require(!role.IsSystemProtected,"Choose a staff role.");
         Require(form.Permissions.Count == 0,"Edit permissions under Roles & Permissions. Account permissions come from the selected role.");
         await ValidateDelegation(role,await _permissionService.GetRolePermissionCodesAsync(role.RoleKey));
-        var before = new { user.Role };
+        var before = new { user.Role, user.IsActive, user.Email, user.UserName };
         var changes = new List<string>();
+        if (form.UpdateDetails)
+        {
+            var email = form.Email?.Trim();
+            var name = form.UserName?.Trim();
+            Require(!string.IsNullOrWhiteSpace(email) && new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email),
+                "Enter a valid login email.");
+            Require(!string.IsNullOrWhiteSpace(name), "Enter a username.");
+            Require(!await _dbContext.Users.AnyAsync(x => x.Id != user.Id && (x.Email == email || x.UserName == name)),
+                "Login email or username is already in use.");
+            if (user.Email != email) { user.Email = email!; changes.Add("Login email changed"); }
+            if (user.UserName != name) { user.UserName = name!; changes.Add("Username changed"); }
+        }
         if (user.Role != role.RoleKey) changes.Add($"System access role changed from {user.Role} to {role.RoleKey}");
+        if (user.IsActive != form.IsActive) changes.Add(form.IsActive ? "Account enabled" : "Account disabled");
         if (changes.Count == 0) return RedirectToAction(nameof(StaffAccounts));
-        user.Role=role.RoleKey;
-        WorkflowAudit("Account", user.Id, "Change access", new {
+        user.Role=role.RoleKey;user.IsActive=form.IsActive;
+        WorkflowAudit("Account", user.Id, "Edit account details", new {
             Summary = string.Join(". ", changes), AccountUserName = user.UserName,
-            Before = before, After = new { user.Role }
+            Before = before, After = new { user.Role, user.IsActive, user.Email, user.UserName }
         });
         return RedirectToAction(nameof(StaffAccounts));
+    },nameof(StaffAccounts),new{userId=form.UserId});
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public Task<IActionResult> ResetStaffPassword(StaffPasswordResetForm form) => SaveWorkflow(async () => {
+        Require(CanManageStaffPasswords(),"Only an Administrator or Root Admin can reset staff passwords.");
+        Require(form.UserId.ToString()!=HttpContext.Session.GetString("UserId"),"You cannot reset your own password here.");
+        var user=await _dbContext.Users.FindAsync(form.UserId);
+        Require(user is not null,"Account not found.");
+        Require(AccessStamp(user)==form.Expected,"Account changed. Refresh before resetting its password.");
+        Require(user.Role!="RootAdmin","The Root Admin password cannot be reset here.");
+        var targetRole=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==user.Role);
+        Require(targetRole is not null,"The account role could not be found.");
+        await ValidateDelegation(targetRole,await _permissionService.GetRolePermissionCodesAsync(targetRole.RoleKey));
+        var profile=await _dbContext.EmployeeProfiles.SingleOrDefaultAsync(x=>x.UserId==user.Id.ToString() &&
+            !x.IsArchived && !x.IsDeleted);
+        Require(profile is not null && !string.IsNullOrWhiteSpace(profile.LastName),
+            "Link this account to a staff profile with a last name before resetting its password.");
+        Require(!string.IsNullOrWhiteSpace(user.Email) && new EmailAddressAttribute().IsValid(user.Email) &&
+            !user.Email.EndsWith(".local",StringComparison.OrdinalIgnoreCase),
+            "Set a real login email address before resetting the password. Local addresses cannot receive email.");
+        var password=StaffResetPassword(profile.LastName);
+        Require(password.Length>=12,"The staff last name is required to create the reset password.");
+        var sender=HttpContext.RequestServices.GetRequiredService<GmailSmtpSender>();
+        Require(sender.GetStatus().IsConfigured,"Configure the Gmail app password before resetting staff passwords.");
+        try
+        {
+            await sender.SendAsync(user.Email,"Your Backyard Mech password was reset",
+                $"Hello {profile.FirstName},\n\nYour Backyard Mech login password has been reset.\n\nUsername: {user.UserName}\nTemporary password: {password}\n\nSign in and change your password in My Profile.\n\nBackyard Mech");
+        }
+        catch (Exception error)
+        {
+            HttpContext.RequestServices.GetRequiredService<ILogger<OwnerController>>().LogError(error,
+                "Could not email the reset password for account {AccountId}",user.Id);
+            Require(false,"The reset email could not be sent. The password was not changed.");
+        }
+        user.PasswordHash=PasswordHasher.Hash(password);
+        var security=await HttpContext.RequestServices.GetRequiredService<AccountSecurityService>().State(user.Id);
+        security.FailedAttempts=0;
+        security.LockedUntilUtc=null;
+        WorkflowAudit("Account",user.Id,"Reset staff password",new { Recipient=user.Email });
+        TempData["OwnerMessage"]="Password reset email sent. The new password is shown in the account details below.";
+        TempData["OwnerMessageTone"]="success";
+        return RedirectToAction(nameof(StaffAccounts),new{userId=form.UserId});
     },nameof(StaffAccounts),new{userId=form.UserId});
 
     [HttpPost,ValidateAntiForgeryToken]
@@ -263,6 +338,29 @@ public partial class OwnerController
 
     [HttpPost,ValidateAntiForgeryToken]
     public Task<IActionResult> DeactivateStaffAccount(AccountStatusForm form) => SetStaffAccountState(form, false);
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public Task<IActionResult> BlockStaffAccount(AccountStatusForm form) => SetStaffBlockedState(form, true);
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public Task<IActionResult> UnblockStaffAccount(AccountStatusForm form) => SetStaffBlockedState(form, false);
+
+    private Task<IActionResult> SetStaffBlockedState(AccountStatusForm form, bool block) => SaveWorkflow(async () => {
+        Require(form.UserId.ToString()!=HttpContext.Session.GetString("UserId"),"You cannot block your own account.");
+        var user=await _dbContext.Users.FindAsync(form.UserId);
+        Require(user is not null,"Account not found.");
+        var currentRole=await _dbContext.AppRoles.SingleOrDefaultAsync(x=>x.RoleKey==user!.Role);
+        Require(currentRole?.IsSystemProtected!=true,"Protected administrator accounts cannot be blocked.");
+        Require(currentRole is not null,"Account role not found.");
+        await ValidateDelegation(currentRole!,await _permissionService.GetRolePermissionCodesAsync(currentRole!.RoleKey));
+        Require(AccessStamp(user!)==form.Expected,"Account changed. Refresh before trying again.");
+        Require(user!.IsBlocked!=block,block?"This account is already blocked.":"This account is not blocked.");
+        user.IsBlocked=block;
+        WorkflowAudit("Account",user.Id,block?"Block account":"Unblock account",new{user.UserName,user.Email,user.IsActive,user.IsBlocked});
+        TempData["OwnerMessage"]=block?"Account blocked. The user can no longer sign in.":"Account unblocked.";
+        TempData["OwnerMessageTone"]="success";
+        return RedirectToAction(nameof(StaffAccounts));
+    },nameof(StaffAccounts));
 
     private Task<IActionResult> SetStaffAccountState(AccountStatusForm form, bool activate) => SaveWorkflow(async () => {
         Require(form.UserId.ToString()!=HttpContext.Session.GetString("UserId"),"You cannot change your own account status.");

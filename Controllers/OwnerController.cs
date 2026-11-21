@@ -3890,7 +3890,7 @@ namespace Backyard_Mech.Controllers
             };
         }
 
-        public async Task<IActionResult> Employees()
+        public async Task<IActionResult> Employees(string view = "all")
         {
             if (!IsOwnerSession())
             {
@@ -3898,7 +3898,17 @@ namespace Backyard_Mech.Controllers
             }
 
             var employees = await LoadEmployeesAsync(includeArchived: false, includeDeleted: false);
-            return View(employees);
+            ViewData["EmployeeRoleOptions"] = await LoadEmployeeRoleOptionsAsync();
+            ViewData["EmployeeAllCount"] = employees.Count;
+            ViewData["EmployeeActiveCount"] = employees.Count(employee => employee.Status == "Active");
+            ViewData["EmployeeInactiveCount"] = employees.Count(employee => employee.Status != "Active");
+            ViewData["EmployeeView"] = view is "active" or "inactive" ? view : "all";
+            return View(view switch
+            {
+                "active" => employees.Where(employee => employee.Status == "Active").ToList(),
+                "inactive" => employees.Where(employee => employee.Status != "Active").ToList(),
+                _ => employees
+            });
         }
 
         public async Task<IActionResult> ArchivedEmployees()
@@ -3968,21 +3978,29 @@ namespace Backyard_Mech.Controllers
             ViewData["EmployeeAccountId"] = account?.Id;
             ViewData["EmployeeAccountRole"] = account?.Role ?? "";
             ViewData["EmployeeHasLoginAccount"] = account is not null;
-            ViewData["EmployeeRoleOptions"] = await _dbContext.AppRoles.AsNoTracking()
+            ViewData["EmployeeRoleOptions"] = await LoadEmployeeRoleOptionsAsync();
+
+            return View(employee);
+        }
+
+        private async Task<List<SettingsRoleOption>> LoadEmployeeRoleOptionsAsync() => (await _dbContext.AppRoles.AsNoTracking()
                 .Where(role => role.IsActive)
                 .OrderBy(role => role.DisplayOrder)
                 .ThenBy(role => role.RoleName)
-                .Select(role => new SettingsRoleOption
+                .ToListAsync())
+            .Where(role => StandardRoleProfiles.IsBusinessRole(role.RoleKey))
+            .Select(role => new SettingsRoleOption
                 {
                     AppRoleId = role.AppRoleId,
                     RoleId = role.RoleKey,
                     Label = role.RoleName,
                     IsProtected = role.IsSystemProtected
                 })
-                .ToListAsync();
+                .ToList();
 
-            return View(employee);
-        }
+        private async Task<bool> IsEmployeePositionRoleAsync(string jobTitle) =>
+            (await LoadEmployeeRoleOptionsAsync()).Any(role =>
+                string.Equals(role.Label, jobTitle.Trim(), StringComparison.OrdinalIgnoreCase));
 
         public async Task<IActionResult> EmployeeSecurityActivity(string id = "")
         {
@@ -4018,6 +4036,7 @@ namespace Backyard_Mech.Controllers
                 TempData["OwnerMessage"] = "Employee was not saved. Please complete the required fields.";
                 return RedirectToAction(nameof(Employees));
             }
+            Require(await IsEmployeePositionRoleAsync(form.JobTitle), "Choose a position from the current roles.");
 
             var nextNumber = $"EMP-{Guid.NewGuid():N}";
             var employee = new EmployeeProfile
@@ -4064,6 +4083,7 @@ namespace Backyard_Mech.Controllers
                 TempData["OwnerMessage"] = "Employee was not updated. Please complete the required fields.";
                 return RedirectToAction(nameof(EmployeeAccountDetails), new { id = form.EmployeeProfileId });
             }
+            Require(await IsEmployeePositionRoleAsync(form.JobTitle), "Choose a position from the current roles.");
 
             var employee = await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
             if (employee is null)
@@ -4089,7 +4109,7 @@ namespace Backyard_Mech.Controllers
             WorkflowAudit("EmployeeProfile",employee.EmployeeProfileId,"Edit staff profile",new{employee.FirstName,employee.LastName,employee.JobTitle,employee.Email});
             await _dbContext.SaveChangesAsync();
             TempData["OwnerMessage"] = "Employee updated.";
-            return RedirectToAction(nameof(EmployeeAccountDetails), new { id = employee.EmployeeProfileId });
+            return RedirectToAction(nameof(EmployeeAccountDetails), new { id = employee.EmployeeProfileId, mode = "view" });
             },nameof(Employees));
         }
 
@@ -4208,63 +4228,49 @@ namespace Backyard_Mech.Controllers
         public async Task<IActionResult> SetEmployeeShift(EmployeeShiftFormModel form)
         {
             return await SaveWorkflow(async () => {
-            if (!IsOwnerSession())
+            Require(form.Shifts.All(shift => shift.DayOfWeek is >= 0 and <= 6) &&
+                form.Shifts.Select(shift => shift.DayOfWeek).Distinct().Count() == form.Shifts.Count,
+                "Choose each weekday only once.");
+            var hoursByDay = new Dictionary<int, (TimeOnly Start, TimeOnly End, TimeOnly LunchStart, TimeOnly LunchEnd)>();
+            foreach (var shift in form.Shifts)
             {
-                return LoginRedirect();
+                var validStart = TimeOnly.TryParse(shift.StartTime, out var startTime);
+                var validEnd = TimeOnly.TryParse(shift.EndTime, out var endTime);
+                var validLunchStart = TimeOnly.TryParse(shift.LunchStartTime, out var lunchStart);
+                var validLunchEnd = TimeOnly.TryParse(shift.LunchEndTime, out var lunchEnd);
+                Require(validStart && validEnd && validLunchStart && validLunchEnd &&
+                    startTime < lunchStart && lunchStart < lunchEnd && lunchEnd < endTime,
+                    $"Set valid working hours and lunch break for {((DayOfWeek)shift.DayOfWeek)}.");
+                hoursByDay.Add(shift.DayOfWeek, (startTime, endTime, lunchStart, lunchEnd));
             }
-
-            var selectedDays = form.DaysOfWeek.Distinct().ToList();
-            var validShift = ModelState.IsValid && selectedDays.Count > 0 && selectedDays.All(day => day is >= 0 and <= 6);
-            TimeOnly startTime = default;
-            TimeOnly endTime = default;
-            TimeOnly breakStart = default;
-            TimeOnly breakEnd = default;
-            var hasBreakStart = TimeOnly.TryParse(form.BreakStart, out breakStart);
-            var hasBreakEnd = TimeOnly.TryParse(form.BreakEnd, out breakEnd);
-            if (form.IsAvailable)
-            {
-                validShift &= TimeOnly.TryParse(form.StartTime, out startTime) && TimeOnly.TryParse(form.EndTime, out endTime) && endTime > startTime;
-                validShift &= hasBreakStart == hasBreakEnd;
-                validShift &= !hasBreakStart || breakStart > startTime && breakEnd < endTime && breakEnd > breakStart;
-            }
-            if (!validShift)
-            {
-                TempData["OwnerMessage"] = "Shift was not saved. Select one or more days, enter valid work hours, and keep any break within those hours.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(EmployeeSchedule));
-            }
-
             var employee = await _dbContext.EmployeeProfiles
-                .FirstOrDefaultAsync(item => item.EmployeeProfileId == form.EmployeeProfileId && !item.IsArchived && !item.IsDeleted);
-            if (employee is null)
-            {
-                TempData["OwnerMessage"] = "Employee was not found.";
-                TempData["OwnerMessageTone"] = "error";
-                return RedirectToAction(nameof(EmployeeSchedule));
-            }
+                .FirstOrDefaultAsync(item => item.EmployeeProfileId == form.EmployeeProfileId && item.IsActive && !item.IsArchived && !item.IsDeleted);
+            Require(employee is not null, "Employee was not found.");
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-            foreach (var dayOfWeek in selectedDays)
+            var existing = await _dbContext.EmployeeAvailabilities
+                .Where(item => item.EmployeeProfileId == form.EmployeeProfileId).ToListAsync();
+            var selectedDays = hoursByDay.Keys.ToHashSet();
+            foreach (var old in existing.Where(item => !item.DayOfWeek.HasValue || !selectedDays.Contains(item.DayOfWeek.Value)))
+                _dbContext.EmployeeAvailabilities.Remove(old);
+            foreach (var day in selectedDays)
             {
-                var availability = await _dbContext.EmployeeAvailabilities
-                    .FirstOrDefaultAsync(item => item.EmployeeProfileId == form.EmployeeProfileId && item.DayOfWeek == dayOfWeek);
+                var hours = hoursByDay[day];
+                var matching = existing.Where(item => item.DayOfWeek == day).ToList();
+                var availability = matching.FirstOrDefault();
+                foreach (var duplicate in matching.Skip(1)) _dbContext.EmployeeAvailabilities.Remove(duplicate);
                 if (availability is null)
                 {
-                    availability = new EmployeeAvailability
-                    {
-                        EmployeeProfileId = form.EmployeeProfileId,
-                        DayOfWeek = dayOfWeek
-                    };
+                    availability = new EmployeeAvailability { EmployeeProfileId = form.EmployeeProfileId, DayOfWeek = day };
                     _dbContext.EmployeeAvailabilities.Add(availability);
                 }
-
-                availability.IsAvailable = form.IsAvailable;
-                availability.StartTime = form.IsAvailable ? startTime : null;
-                availability.EndTime = form.IsAvailable ? endTime : null;
-                availability.BreakStart = form.IsAvailable && hasBreakStart ? breakStart : null;
-                availability.BreakEnd = form.IsAvailable && hasBreakEnd ? breakEnd : null;
+                availability.IsAvailable = true;
+                availability.StartTime = hours.Start;
+                availability.EndTime = hours.End;
+                availability.BreakStart = hours.LunchStart;
+                availability.BreakEnd = hours.LunchEnd;
+                availability.LunchStartTime = hours.LunchStart;
+                availability.LunchEndTime = hours.LunchEnd;
             }
-
             await _dbContext.SaveChangesAsync();
             var employeeName = BuildEmployeeName(employee);
             var appointments = await _dbContext.Appointments.Where(x => x.ScheduledEnd > DateTime.Now &&
@@ -4283,9 +4289,12 @@ namespace Backyard_Mech.Controllers
                 var error = await ScheduleError(order.ScheduledStart!.Value, order.ScheduledEnd!.Value, null, new[] { employee }, order.AppointmentId, order.WorkOrderId);
                 Require(error is null, error ?? "Shift conflicts with existing work orders.");
             }
-            await transaction.CommitAsync();
-
-            TempData["OwnerMessage"] = form.IsAvailable ? "Shift saved for the selected days." : "Days off saved for the selected days.";
+            WorkflowAudit("EmployeeAvailability", form.EmployeeProfileId, "Set weekly shift",
+                form.Shifts.OrderBy(shift => shift.DayOfWeek).Select(shift => new
+                {
+                    shift.DayOfWeek, shift.StartTime, shift.EndTime, shift.LunchStartTime, shift.LunchEndTime
+                }).ToList());
+            TempData["OwnerMessage"] = "Employee weekly shift saved. Unselected days are off.";
             TempData["OwnerMessageTone"] = "success";
             return RedirectToAction(nameof(EmployeeSchedule));
             }, nameof(EmployeeSchedule));
@@ -4961,7 +4970,7 @@ namespace Backyard_Mech.Controllers
                 return new EmployeeShiftDay
                 {
                     Day = date.ToString("ddd").ToUpperInvariant(),
-                    Time = row is null ? "Not set" : isOff ? "OFF" : FormatShift(row.StartTime, row.EndTime),
+                    Time = isOff ? "OFF" : FormatShift(row?.StartTime, row?.EndTime),
                     Detail = isOff || row?.EndTime is null
                         ? "--"
                         : row.BreakStart.HasValue && row.BreakEnd.HasValue
@@ -5163,7 +5172,9 @@ namespace Backyard_Mech.Controllers
 
                     return new EmployeeScheduleCell
                     {
-                        Label = exception is null && row is null ? "Not set" : isOff ? "OFF" : FormatShift(row?.StartTime, row?.EndTime),
+                        Label = isOff ? "OFF" : FormatShift(row?.StartTime, row?.EndTime),
+                        BreakLabel = isOff || row?.LunchStartTime is null || row.LunchEndTime is null
+                            ? null : $"Lunch {row.LunchStartTime.Value.ToString("HH:mm")}–{row.LunchEndTime.Value.ToString("HH:mm")}",
                         IsOff = isOff
                     };
                 }).ToList();
@@ -5205,6 +5216,7 @@ namespace Backyard_Mech.Controllers
                     Id = employee.EmployeeProfileId,
                     Label = BuildEmployeeName(employee)
                 }).ToList(),
+                SavedShifts = availability,
                 Employees = rows,
                 MechanicsActive = activeToday,
                 AdvisorsActive = advisors,

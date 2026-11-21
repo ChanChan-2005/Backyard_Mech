@@ -29,7 +29,7 @@
         <article class="users-stat"><header><span>Audit Records</span><small class="users-pill green">Preserved</small></header><strong>@archived.Count</strong></article>
     </div>
 
-    <nav class="users-tabs">
+    <nav class="users-tabs" aria-label="User Management tabs">
         @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "all")) { <a href="/Owner/Employees?view=all">All</a> }
         @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "active")) { <a href="/Owner/Employees?view=active">Active</a> }
         @if (Backyard_Mech.Services.SubTabPermissionCatalog.CanAccess(permissionCodes, "Employees", "inactive")) { <a href="/Owner/Employees?view=inactive">Inactive</a> }

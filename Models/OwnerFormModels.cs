@@ -241,22 +241,25 @@ namespace Backyard_Mech.Models
         [Range(1, int.MaxValue)]
         public int EmployeeProfileId { get; set; }
 
-        [MinLength(1, ErrorMessage = "Select at least one day.")]
-        public List<int> DaysOfWeek { get; set; } = new();
+        public List<EmployeeShiftDayFormModel> Shifts { get; set; } = new();
+    }
 
-        public bool IsAvailable { get; set; } = true;
+    public class EmployeeShiftDayFormModel
+    {
+        [Range(0, 6)]
+        public int DayOfWeek { get; set; }
 
-        [StringLength(8)]
-        public string? StartTime { get; set; } = "08:00";
+        [Required, StringLength(8)]
+        public string StartTime { get; set; } = "08:00";
 
-        [StringLength(8)]
-        public string? EndTime { get; set; } = "17:00";
+        [Required, StringLength(8)]
+        public string EndTime { get; set; } = "17:00";
 
-        [StringLength(8)]
-        public string? BreakStart { get; set; }
+        [Required, StringLength(8)]
+        public string LunchStartTime { get; set; } = "12:00";
 
-        [StringLength(8)]
-        public string? BreakEnd { get; set; }
+        [Required, StringLength(8)]
+        public string LunchEndTime { get; set; } = "13:00";
     }
 
     public class BayEditFormModel
@@ -489,6 +492,7 @@ namespace Backyard_Mech.Models
     public class EmployeeScheduleCell
     {
         public string Label { get; set; } = "OFF";
+        public string? BreakLabel { get; set; }
         public bool IsOff { get; set; } = true;
     }
 
@@ -513,6 +517,7 @@ namespace Backyard_Mech.Models
         public string PeriodLabel { get; set; } = string.Empty;
         public IReadOnlyList<string> DayLabels { get; set; } = Array.Empty<string>();
         public IReadOnlyList<ProductListingOption> EmployeeOptions { get; set; } = Array.Empty<ProductListingOption>();
+        public IReadOnlyList<EmployeeAvailability> SavedShifts { get; set; } = Array.Empty<EmployeeAvailability>();
         public IReadOnlyList<EmployeeScheduleRow> Employees { get; set; } = Array.Empty<EmployeeScheduleRow>();
         public int MechanicsActive { get; set; }
         public int AdvisorsActive { get; set; }

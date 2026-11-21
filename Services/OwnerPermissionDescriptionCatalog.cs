@@ -68,6 +68,8 @@ public static class OwnerPermissionDescriptionCatalog
         {
             "CreateStaffAccount" => "Create a staff login with email, username, and role.",
             "SaveUserAccess" => "Change a login's email, username, role, or status.",
+            "BlockStaffAccount" => "Stop this account from signing in without changing its Active or Inactive status.",
+            "UnblockStaffAccount" => "Restore sign-in access to a blocked account if it is active.",
             "ResetStaffPassword" => "Reset a staff password and email it to the login address.",
             "ManageStaffRolePermissions" or "SaveRolePermissions" => "Change the permissions granted to every account assigned a selected role.",
             "StaffAccounts" => "Open the staff account list to see linked profiles, login addresses, roles, and account status.",

@@ -56,9 +56,9 @@ namespace Backyard_Mech.Controllers
             var locked = state?.LockedUntilUtc > DateTime.UtcNow;
             var validPassword = user is not null && PasswordHasher.Verify(model.Password, user.PasswordHash);
             if (user is null) PasswordHasher.Verify(model.Password, DummyHash);
-            if (user is null || !user.IsActive || locked || !validPassword || !await _dbContext.AppRoles.AnyAsync(x => x.RoleKey == user.Role && x.IsActive))
+            if (user is null || !user.IsActive || user.IsBlocked || locked || !validPassword || !await _dbContext.AppRoles.AnyAsync(x => x.RoleKey == user.Role && x.IsActive))
             {
-                if (state is not null && !locked) _security.Failed(state);
+                if (state is not null && !locked && !user!.IsBlocked) _security.Failed(state);
                 _security.Audit(HttpContext, "Login failed", user);
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();

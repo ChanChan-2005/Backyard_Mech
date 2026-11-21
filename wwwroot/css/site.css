@@ -79,26 +79,26 @@ form label .required-marker,
 }
 
 .app-message-dialog {
-  width: min(440px, calc(100vw - 32px));
+  width: min(400px, calc(100vw - 32px));
   max-width: none;
   padding: 0;
   border: 1px solid #dbe3ee;
-  border-radius: 18px;
+  border-radius: 15px;
   color: #172033;
   background: #fff;
   box-shadow: 0 24px 70px rgb(15 23 42 / 28%);
 }
 .app-message-dialog::backdrop { background: rgb(15 23 42 / 54%); animation: app-message-backdrop 180ms ease-out both; }
 .app-message-dialog[open] { animation: app-message-enter 220ms cubic-bezier(.2,.8,.2,1) both; }
-.app-message-content { display: grid; justify-items: center; padding: 30px 28px 22px; text-align: center; }
-.app-message-icon { display: grid; place-items: center; width: 66px; height: 66px; margin-bottom: 16px; border-radius: 50%; background: #e8f7ee; color: #16804a; font-size: 40px; font-weight: 700; line-height: 1; }
+.app-message-content { display: grid; justify-items: center; padding: 24px 24px 16px; text-align: center; }
+.app-message-icon { display: grid; place-items: center; width: 56px; height: 56px; margin-bottom: 12px; border-radius: 50%; background: #e8f7ee; color: #16804a; font-size: 34px; font-weight: 700; line-height: 1; }
 .app-message-dialog[data-tone="error"] .app-message-icon { background: #fff0f0; color: #dc2626; }
 .app-message-dialog[data-tone="confirm"] .app-message-icon { background: #eff6ff; color: #2563eb; }
 .app-message-icon.is-animated { animation: app-message-icon 420ms cubic-bezier(.2,.8,.2,1) both; }
-.app-message-content h2 { margin: 0; color: #172033; font-size: 21px; font-weight: 700; }
-.app-message-content p { margin: 9px 0 0; color: #526176; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
-.app-message-actions { display: flex; justify-content: center; gap: 10px; padding: 16px 24px 22px; }
-.app-message-actions button { min-width: 112px; min-height: 44px; padding: 9px 18px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #1e293b; font: inherit; font-weight: 600; cursor: pointer; }
+.app-message-content h2 { margin: 0; color: #172033; font-size: 18px; font-weight: 700; }
+.app-message-content p { margin: 7px 0 0; color: #526176; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.app-message-actions { display: flex; justify-content: center; gap: 10px; padding: 12px 20px 18px; }
+.app-message-actions button { min-width: 100px; min-height: 38px; padding: 7px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1e293b; font: inherit; font-weight: 600; cursor: pointer; }
 .app-message-actions button:focus-visible { outline: 3px solid rgb(37 99 235 / 35%); outline-offset: 2px; }
 .app-message-actions .app-message-confirm { border-color: #2563eb; background: #2563eb; color: #fff; }
 .app-message-actions .app-message-confirm:hover { border-color: #1d4ed8; background: #1d4ed8; }

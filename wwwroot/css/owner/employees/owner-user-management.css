@@ -1040,6 +1040,90 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
   padding: 16px 16px 18px;
 }
 
+.users-modal-form [data-shift-day-picker] {
+  min-height: 30px;
+  padding: 4px 9px;
+  font-size: 10px;
+}
+
+.users-shift-selected-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 23px;
+  margin: 6px 0 12px;
+  padding-left: 12px;
+}
+
+.users-shift-day-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid #b9cefa;
+  border-radius: 999px;
+  color: #1749a7;
+  background: #edf3ff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.users-shift-day-badge.is-active {
+  border-color: #2563eb;
+  background: #dfeaff;
+}
+
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .users-shift-day-badge button {
+  display: grid;
+  place-items: center;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #1749a7;
+  background: transparent;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .users-shift-day-badge button[data-remove-shift-day] {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  font-size: 12px;
+}
+
+body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .users-shift-day-badge button:hover { color: #0d347e; }
+.users-shift-off-note { color: #65758e; font-size: 10px; }
+
+.users-shift-day-details {
+  display: grid;
+  gap: 10px;
+}
+
+.users-shift-day-card {
+  padding: 10px;
+  border: 1px solid #d9e3f0;
+  border-radius: 7px;
+  background: #f8faff;
+}
+
+.users-shift-day-card > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1749a7;
+}
+
+.users-shift-day-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .users-employee-form-grid {
   display: grid;
   grid-template-columns: 1.35fr 1.25fr 1.25fr 0.55fr;
@@ -1459,8 +1543,12 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
 }
 
 .users-schedule-reference {
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
+}
+
+.users-schedule-side {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .users-schedule-top-controls {
@@ -1551,6 +1639,11 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
   background: #f3f5f8;
 }
 
+.users-schedule-break {
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
 .users-schedule-side dl {
   display: grid;
   gap: 8px;
@@ -1622,4 +1715,16 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
     grid-column: auto;
   }
 }
+
+@media (max-width: 700px) {
+  .users-schedule-side {
+    grid-template-columns: 1fr;
+  }
+
+  .users-schedule-board {
+    overflow-x: auto;
+  }
+}
 .users-profile-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.users-profile-view .users-view-field { display: grid; align-content: start; gap: 7px; min-width: 0; padding: 4px 0 10px; }
+.users-profile-view .users-view-value { color: #111820; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }

@@ -31,8 +31,13 @@ CREATE TABLE dbo.Users (
     PasswordHash NVARCHAR(512) NOT NULL,
     Role NVARCHAR(50) NOT NULL,
     IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT (1),
+    IsBlocked BIT NOT NULL CONSTRAINT DF_Users_IsBlocked DEFAULT (0),
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT (GETUTCDATE())
 );
+GO
+
+IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Users', N'IsBlocked') IS NULL
+    ALTER TABLE dbo.Users ADD IsBlocked BIT NOT NULL CONSTRAINT DF_Users_IsBlocked DEFAULT (0);
 GO
 
 IF NOT EXISTS (
@@ -116,9 +121,20 @@ CREATE TABLE dbo.EmployeeAvailability (
     DayOfWeek INT NULL,
     StartTime TIME NULL,
     EndTime TIME NULL,
+    LunchStartTime TIME NULL,
+    LunchEndTime TIME NULL,
     IsAvailable BIT NOT NULL CONSTRAINT DF_EmployeeAvailability_IsAvailable DEFAULT (1),
     CONSTRAINT CK_EmployeeAvailability_DayOfWeek CHECK (DayOfWeek IS NULL OR DayOfWeek BETWEEN 0 AND 6)
 );
+GO
+
+IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.EmployeeAvailability', N'LunchStartTime') IS NULL
+        ALTER TABLE dbo.EmployeeAvailability ADD LunchStartTime TIME NULL;
+    IF COL_LENGTH(N'dbo.EmployeeAvailability', N'LunchEndTime') IS NULL
+        ALTER TABLE dbo.EmployeeAvailability ADD LunchEndTime TIME NULL;
+END;
 GO
 
 IF OBJECT_ID(N'dbo.EmployeeAvailabilityException', N'U') IS NULL

@@ -136,7 +136,7 @@ try {
     $orderForm.WorkOrderId=$order; $orderForm.ScheduledEnd='2035-01-02T12:00'
     $null = Post 'EditWorkOrder' $orderForm
     Check ((Sql "SELECT DATEPART(hour,ScheduledEnd) FROM WorkOrder WHERE WorkOrderId=$order") -eq 12) 'Work order schedule edit persists'
-    $null = Post 'SetEmployeeShift' @{EmployeeProfileId=$employee;DayOfWeek=2;StartTime='08:00';EndTime='09:00';IsAvailable='true'}
+    $null = Post 'SetEmployeeShift' @{EmployeeProfileId=$employee;'Shifts[0].DayOfWeek'=2;'Shifts[0].StartTime'='08:00';'Shifts[0].EndTime'='09:00';'Shifts[0].LunchStartTime'='08:15';'Shifts[0].LunchEndTime'='08:30'}
     Check ((Sql "SELECT DATEPART(hour,EndTime) FROM EmployeeAvailability WHERE EmployeeProfileId=$employee") -eq 18) 'Shift edits cannot invalidate a work-order booking'
     $null = Post 'CancelEstimate' @{Id=$estimate; Reason=$marker}
     Check ((Sql "SELECT EstimateStatus FROM EstimateRevision WHERE EstimateRevisionId=$revision") -eq 'Approved') 'Linked estimate cancellation blocked'

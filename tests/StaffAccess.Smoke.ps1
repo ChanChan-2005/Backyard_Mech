@@ -61,7 +61,7 @@ try {
         Check ($permissionPage.Contains(">$label<")) "Sub-tab permission appears in editor: $label"
     }
     Check ((Sql "SELECT COUNT(*) FROM Permission WHERE IsActive=1 AND PermissionCode IN ('partsmanagement.view','partspos.view','archive.view','recordsdisposition.view')") -eq 4) 'Shared legacy groups have separate sidebar access permissions'
-    $body=@{FirstName=$mark;LastName='Staff';StreetAddress='1 Test Street';City='St. John''s';Province='Newfoundland and Labrador';PostalCode='A1A 1A1';Phone='7095550100';Email="$mark@example.com";JobTitle='Mechanic';EmploymentType='Full-time';EmploymentStatus='Active';HourlyRate=100}
+    $body=@{FirstName=$mark;LastName='Staff';StreetAddress='1 Test Street';City='St. John''s';Province='Newfoundland and Labrador';PostalCode='A1A 1A1';Phone='7095550100';Email="$mark@example.com";JobTitle='Mechanic / Technician';EmploymentType='Full-time';EmploymentStatus='Active';HourlyRate=100}
     $null=Post 'AddEmployee' $body
     $profile=[int](Sql "SELECT EmployeeProfileId FROM EmployeeProfile WHERE FirstName=N'$mark'")
     Check ($profile -gt 0 -and [DBNull]::Value.Equals((Sql "SELECT UserId FROM EmployeeProfile WHERE EmployeeProfileId=$profile"))) 'Creating a profile does not create an account'

@@ -11,7 +11,6 @@ namespace Backyard_Mech.Data
             await dbContext.Database.EnsureCreatedAsync();
             await EnsureBusinessSchemaAsync(dbContext);
             await dbContext.Database.ExecuteSqlRawAsync("IF NOT EXISTS (SELECT 1 FROM dbo.TaxRate) INSERT INTO dbo.TaxRate (Description, Rate, EffectiveFrom, EffectiveTo) VALUES (N'Harmonized Sales Tax', 0.15, '2026-07-01T00:00:00', NULL);");
-            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakStart') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakStart time NULL; IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakEnd') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakEnd time NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.InvoiceNumberCounter', N'U') IS NOT NULL
                    AND NOT EXISTS (SELECT 1 FROM dbo.InvoiceNumberCounter WHERE InvoiceNumberCounterId = 1)
@@ -87,6 +86,7 @@ namespace Backyard_Mech.Data
 
         private static async Task EnsureBusinessSchemaAsync(ApplicationDbContext dbContext)
         {
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Users', N'IsBlocked') IS NULL ALTER TABLE dbo.Users ADD IsBlocked BIT NOT NULL CONSTRAINT DF_Users_IsBlocked DEFAULT (0);");
             await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.WorkOrder', N'U') IS NOT NULL
                    AND COL_LENGTH(N'dbo.WorkOrder', N'WorkOrderNumber') IS NULL
@@ -121,6 +121,13 @@ namespace Backyard_Mech.Data
                     CREATE INDEX IX_WorkOrderEvidence_WorkOrderId_UploadedUtc ON dbo.WorkOrderEvidence(WorkOrderId, UploadedUtc);
                 END;
                 """);
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'LunchStartTime') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD LunchStartTime TIME NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'LunchEndTime') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD LunchEndTime TIME NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakStart') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakStart TIME NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.EmployeeAvailability', N'BreakEnd') IS NULL ALTER TABLE dbo.EmployeeAvailability ADD BreakEnd TIME NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.EmployeeAvailability', N'U') IS NOT NULL UPDATE dbo.EmployeeAvailability SET BreakStart = COALESCE(BreakStart, LunchStartTime), BreakEnd = COALESCE(BreakEnd, LunchEndTime) WHERE LunchStartTime IS NOT NULL AND LunchEndTime IS NOT NULL;");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'IsDeleted') IS NULL ALTER TABLE dbo.Service ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0);");
+            await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Service', N'DeletedUtc') IS NULL ALTER TABLE dbo.Service ADD DeletedUtc DATETIME2 NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.PartTransaction', N'SupplierId') IS NULL ALTER TABLE dbo.PartTransaction ADD SupplierId INT NULL;");
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.PartTransaction', N'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_PartTransaction_Supplier') ALTER TABLE dbo.PartTransaction WITH CHECK ADD CONSTRAINT FK_PartTransaction_Supplier FOREIGN KEY (SupplierId) REFERENCES dbo.Supplier(SupplierId);");
             await dbContext.Database.ExecuteSqlRawAsync("""
