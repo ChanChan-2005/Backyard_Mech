@@ -15,7 +15,7 @@
                     <option value="">All work orders</option>
                     @foreach (var order in Model.Orders)
                     {
-                        <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option>
+                        <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">@order.WorkOrderNumber</option>
                     }
                 </select>
             </label>

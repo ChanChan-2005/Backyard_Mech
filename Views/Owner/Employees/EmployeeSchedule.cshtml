@@ -51,6 +51,15 @@
     </aside>
 
     <article class="users-reference-card users-schedule-board">
+        <label class="users-schedule-role-filter">Filter by job title
+            <select data-schedule-role-filter aria-label="Filter schedule by job title">
+                <option value="">All job titles</option>
+                @foreach (var role in Model.Employees.Select(employee => employee.Role).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(role => role))
+                {
+                    <option value="@role">@role</option>
+                }
+            </select>
+        </label>
         <table>
             <thead>
                 <tr>
@@ -64,7 +73,7 @@
             <tbody>
                 @foreach (var employee in Model.Employees)
                 {
-                    <tr>
+                    <tr data-schedule-employee data-job-title="@employee.Role">
                         <td><strong>@employee.Name</strong><small>@employee.Role</small></td>
                         @foreach (var day in employee.Days)
                         {

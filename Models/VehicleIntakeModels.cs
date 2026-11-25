@@ -64,7 +64,7 @@ public class IntakeAppointmentsPage
     public DateTime Today { get; set; }
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
-    public bool CanDelete { get; set; }
+    public bool CanCancel { get; set; }
     public bool CanInspect { get; set; }
     public string View { get; set; } = "list";
 }

@@ -1055,6 +1055,16 @@ body.app-shell-body .dashboard-content .users-filter-card .users-search-box inpu
   padding-left: 12px;
 }
 
+.users-shift-off-days {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #d9e3f0;
+  border-radius: 7px;
+  color: #526174;
+  background: #f8fafc;
+  font-size: 11px;
+}
+
 .users-shift-day-badge {
   display: inline-flex;
   align-items: center;
@@ -1579,6 +1589,9 @@ body.app-shell-body .app-modal[role="dialog"][aria-modal="true"] .users-shift-da
 .users-schedule-board {
   padding: 12px 14px;
 }
+
+.users-schedule-role-filter { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: #526174; font-size: 11px; font-weight: 700; }
+.users-schedule-role-filter select { min-height: 34px; padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
 
 .users-schedule-board table {
   width: 100%;

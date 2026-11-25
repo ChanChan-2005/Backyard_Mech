@@ -393,18 +393,25 @@ public partial class OwnerController
     [HttpPost,ValidateAntiForgeryToken]
     public Task<IActionResult> UpdateAvailabilityException(AvailabilityExceptionForm form) {if(form.Id<=0)ModelState.AddModelError("Id","Select an exception.");return SaveAvailabilityException(form);}
     private Task<IActionResult> SaveAvailabilityException(AvailabilityExceptionForm form) => SaveWorkflow(async () => {
-        Require(form.Start.HasValue && form.End.HasValue && form.End>form.Start,"Choose an end after the start.");
-        var zone=GarageZone();var start=DateTime.SpecifyKind(form.Start.Value,DateTimeKind.Unspecified);var end=DateTime.SpecifyKind(form.End.Value,DateTimeKind.Unspecified);
+        var zone=GarageZone();
+        var row=form.Id==0?new EmployeeAvailabilityException():await _dbContext.EmployeeAvailabilityExceptions.FindAsync(form.Id);
+        Require(row is not null,"Exception not found.");
+        if(form.Id!=0)
+        {
+            CheckMaster(row!,form.Expected);
+            WorkflowAudit("EmployeeAvailabilityException",row!.EmployeeAvailabilityExceptionId,"Before edit",row);
+            Require(row.StartUtc.HasValue,"This exception has no valid start time and cannot be edited.");
+            form.Start=TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.StartUtc.Value,DateTimeKind.Utc),zone);
+        }
+        Require(form.Start.HasValue && form.End.HasValue && form.End.Value>form.Start.Value,"Choose an end date and time after the start date and time.");
+        var start=DateTime.SpecifyKind(form.Start!.Value,DateTimeKind.Unspecified);var end=DateTime.SpecifyKind(form.End!.Value,DateTimeKind.Unspecified);
         Require(!zone.IsInvalidTime(start) && !zone.IsInvalidTime(end) && !zone.IsAmbiguousTime(start) && !zone.IsAmbiguousTime(end),"Choose unambiguous local times.");
         var utcStart=TimeZoneInfo.ConvertTimeToUtc(start,zone);var utcEnd=TimeZoneInfo.ConvertTimeToUtc(end,zone);
         var employee=await _dbContext.EmployeeProfiles.FindAsync(form.EmployeeProfileId);
         Require(employee is not null && employee.IsActive && !employee.IsArchived && !employee.IsDeleted,"Choose an active staff profile.");
-        var row=form.Id==0?new EmployeeAvailabilityException():await _dbContext.EmployeeAvailabilityExceptions.FindAsync(form.Id);
-        Require(row is not null,"Exception not found.");
-        var oldEmployee=row.EmployeeProfileId;
-        if(form.Id!=0){CheckMaster(row,form.Expected);WorkflowAudit("EmployeeAvailabilityException",row.EmployeeAvailabilityExceptionId,"Before edit",row);}
+        var oldEmployee=row!.EmployeeProfileId;
         Require(!await _dbContext.EmployeeAvailabilityExceptions.AnyAsync(x=>x.EmployeeProfileId==form.EmployeeProfileId && x.EmployeeAvailabilityExceptionId!=form.Id && x.StartUtc<utcEnd && x.EndUtc>utcStart),"This exception overlaps another exception for this staff member.");
-        row.EmployeeProfileId=form.EmployeeProfileId;row.StartUtc=utcStart;row.EndUtc=utcEnd;row.IsAvailable=form.IsAvailable;row.Reason=form.Reason.Trim();
+        row.EmployeeProfileId=form.EmployeeProfileId;if(form.Id==0)row.StartUtc=utcStart;row.EndUtc=utcEnd;row.IsAvailable=form.IsAvailable;row.Reason=form.Reason.Trim();
         if(form.Id==0)_dbContext.EmployeeAvailabilityExceptions.Add(row);
         await _dbContext.SaveChangesAsync();
         await RevalidateStaffBookings(employee);

@@ -416,3 +416,36 @@ body.app-shell-body .vehicle-records-page .vehicle-record-search > .vehicle-add-
 
 .intake-service-picker{position:relative;min-width:0}.intake-service-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:44px;padding:10px 12px;background:#fff;border:1px solid #c6d0dc;border-radius:6px;text-align:left;color:inherit}.intake-service-toggle span{color:#66758a;font-size:.9em}.intake-service-menu{position:absolute;z-index:20;top:calc(100% + 5px);left:0;right:0;padding:12px;background:#fff;border:1px solid #c6d0dc;border-radius:8px;box-shadow:0 12px 28px #1522382b}.intake-service-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.7fr);gap:8px;margin-bottom:8px}.intake-service-filters input,.intake-service-filters select{width:100%;min-width:0}.intake-service-options{max-height:220px;overflow:auto;display:grid;gap:2px}.master-dialog .intake-service-option{display:flex;flex-direction:row;align-items:center;gap:10px;padding:9px;border-radius:5px;cursor:pointer}.master-dialog .intake-service-option:hover{background:#f1f5f9}.master-dialog .intake-service-option input{width:18px;height:18px;min-height:18px;flex:0 0 18px;margin:0}.intake-service-option span{display:flex;flex-direction:column;gap:2px}.intake-service-option small{font-weight:400;color:#66758a}.intake-service-empty{margin:8px 0;color:#66758a}@media(max-width:600px){.intake-service-filters{grid-template-columns:minmax(0,1fr)}}
 .customer-module-tabs{display:flex;gap:8px;border-bottom:1px solid #dce3ec;margin:0 0 18px;padding:0 2px}.customer-module-tabs a{display:inline-flex;align-items:center;padding:12px 16px;color:#4b5c72;text-decoration:none;border-bottom:3px solid transparent;font-weight:600}.customer-module-tabs a.is-active{color:#2563eb;border-bottom-color:#2563eb}.vehicle-records-page>.master-toolbar{align-items:center;gap:16px}.vehicle-records-page>.master-toolbar p{margin:5px 0 0;color:#66758a}@media(max-width:600px){.vehicle-records-page>.master-toolbar{align-items:flex-start;flex-direction:column}}
+.intake-appointment-actions .intake-icon-button {
+    display: inline-grid;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 8px;
+    place-items: center;
+}
+
+.intake-appointment-actions .intake-icon-button svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.intake-appointment-actions .intake-icon-button--danger {
+    color: #b42318;
+}
+
+.intake-appointment-actions .intake-icon-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.intake-appointment-actions .intake-icon-button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+}

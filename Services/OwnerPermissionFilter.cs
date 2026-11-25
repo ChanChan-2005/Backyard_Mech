@@ -159,7 +159,7 @@ namespace Backyard_Mech.Services
                 "Appointments" => ("Appointments", "View"),
                 "CreateAppointment" => ("Appointments", "Create"),
                 "EditAppointment" or "CheckInAppointment" => ("Appointments", "Edit"),
-                "CancelAppointment" => ("Appointments", "Delete"),
+                "CancelAppointment" => ("Appointments", "Edit"),
 
                 "EstimateApprovals" or "EstimateDetails" => ("Estimates", "View"),
                 "EditEstimate" or "UpdateEstimate" or "CreateCustomerApprovalLink" => ("Estimates", "Edit"),

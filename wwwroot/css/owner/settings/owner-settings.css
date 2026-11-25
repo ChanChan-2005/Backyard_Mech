@@ -999,6 +999,8 @@
 .settings-role-subtabs a { padding: 10px 16px; color: #526174; text-decoration: none; border-bottom: 3px solid transparent; font-weight: 600; }
 .settings-role-subtabs a.active { color: #2563eb; border-bottom-color: #2563eb; }
 .settings-role-management [hidden] { display: none !important; }
+.settings-role-filter { display: grid; gap: 6px; max-width: 420px; margin: 0 0 16px; color: #526174; font-weight: 600; }
+.settings-role-filter input { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
 .settings-permission-page { min-width: 0; padding: 12px; }
 .settings-permission-role-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .settings-permission-role-picker select { min-width: 180px; max-width: 100%; }

@@ -4,7 +4,7 @@
 }
 <div class="repair-page"><a href="/Owner/InvoiceRegistry">Back to Invoices</a><section class="repair-section"><h2>Completed Repair</h2>
 <form method="post" asp-action="IssueInvoice"><div class="repair-fields">
-<label>Work order<select name="WorkOrderId" required><option value="">Select QC-passed work order</option>@foreach(var order in Model.Orders.Where(x => (x.WorkOrderStatus is "Completed" or "Ready for Pickup") && Model.Checks.FirstOrDefault(q => q.WorkOrderId == x.WorkOrderId)?.Passed == true)) { <option value="@order.WorkOrderId">WO-@order.WorkOrderId - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label>
+<label>Work order number<select name="WorkOrderId" required><option value="">Select QC-passed work order number</option>@foreach(var order in Model.Orders.Where(x => (x.WorkOrderStatus is "Completed" or "Ready for Pickup") && Model.Checks.FirstOrDefault(q => q.WorkOrderId == x.WorkOrderId)?.Passed == true)) { <option value="@order.WorkOrderId">@order.WorkOrderNumber</option> }</select></label>
 <label>Tax<select name="TaxRateId"><option value="">No tax</option>@foreach(var tax in Model.Taxes) { <option value="@tax.TaxRateId">@tax.Description (@((tax.Rate ?? 0).ToString("P2")))</option> }</select></label>
 </div><button type="submit" class="primary">Generate &amp; Issue Invoice</button></form>
 </section></div>

@@ -25,17 +25,22 @@
         <p data-appointment-count class="intake-count" aria-live="polite"></p>
     </div>
     <section id="appointment-list" data-appointment-list><div class="master-table-wrap"><table><thead><tr><th>Date / time</th><th>Customer / vehicle</th><th>Requested services</th><th>Assigned mechanic</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-    @foreach(var item in Model.Rows){var a = item.Row;
+    @foreach(var item in Model.Rows){var a = item.Row; var canCheckIn = item.CanChange && a.ScheduledStart?.Date == Model.Today;
         <tr class="@(upcomingFocus && a.AppointmentStatus == "Scheduled" && !a.CheckedInUtc.HasValue && a.ScheduledStart >= notificationNow && a.ScheduledStart < notificationUntil ? "notification-target" : "")" data-appointment-row data-date="@a.ScheduledStart?.ToString("yyyy-MM-dd")" data-time="@a.ScheduledStart?.ToString("HH:mm")" data-customer="@a.CustomerName" data-status="@a.AppointmentStatus" data-dialog="visit-@a.AppointmentId">
             <td>@a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")<br />@a.AppointmentType</td><td>@a.CustomerName<br />@item.Vehicle</td><td>@item.Services</td><td>@(a.AssignedMechanicName ?? "Not assigned")</td><td>@a.AppointmentStatus</td>
             <td class="intake-appointment-actions">
-                <button type="button" data-intake-open="visit-@a.AppointmentId" aria-label="View appointment">View</button>
+                <button type="button" class="intake-icon-button" data-intake-open="visit-@a.AppointmentId" aria-label="View appointment" title="View appointment">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                </button>
                 @if(Model.CanEdit){
-                    var canCheckIn = item.CanChange && a.ScheduledStart?.Date == Model.Today;
-                    <button type="button" data-intake-open="checkin-@a.AppointmentId" aria-label="Check In appointment" disabled="@(!canCheckIn)" title="@(canCheckIn ? "Check in this appointment" : item.CanChange ? "Check-in is available only on the scheduled date" : "Only scheduled appointments without repair records can be checked in")">Check In</button>
+                    <button type="button" class="intake-icon-button" data-intake-open="checkin-@a.AppointmentId" aria-label="Check in appointment" disabled="@(!canCheckIn)" title="@(canCheckIn ? "Check in appointment" : item.CanChange ? "Check-in is available only on the scheduled date" : "Check-in is unavailable because this appointment is closed or linked to a repair record")">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 3H5v18h8"/><path d="M10 12h11m-4-4 4 4-4 4"/><path d="M9 7v.01M9 17v.01"/></svg>
+                    </button>
                 }
-                @if(Model.CanDelete){
-                    <button type="button" data-intake-open="cancel-@a.AppointmentId" aria-label="Cancel appointment" disabled="@(!item.CanChange)" title="@(item.CanChange ? "Cancel this appointment" : "Only scheduled appointments without repair records can be cancelled")">Cancel</button>
+                @if(Model.CanCancel){
+                    <button type="button" class="intake-icon-button intake-icon-button--danger" data-intake-open="cancel-@a.AppointmentId" aria-label="Cancel appointment" disabled="@(!item.CanChange)" title="@(item.CanChange ? "Cancel appointment" : a.AppointmentStatus == "Scheduled" && !a.CheckedInUtc.HasValue ? "Cannot cancel here because a repair record is linked. Use the linked work order instead." : "Only scheduled appointments without repair records can be cancelled")">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                 }
             </td>
         </tr>
@@ -55,7 +60,7 @@
     @if(item.CanChange && Model.CanEdit){<button type="button" data-intake-open="appointment-edit-@a.AppointmentId">Edit Appointment</button>
         @if(a.ScheduledStart?.Date == Model.Today){<button type="button" class="master-primary" data-intake-open="checkin-@a.AppointmentId">Check In</button>}
     }
-    @if(item.CanChange && Model.CanDelete){<button type="button" data-intake-open="cancel-@a.AppointmentId">Cancel Appointment</button>}
+    @if(item.CanChange && Model.CanCancel){<button type="button" data-intake-open="cancel-@a.AppointmentId">Cancel Appointment</button>}
     @if(item.Row.CheckedInUtc.HasValue && Model.CanInspect && (a.AppointmentStatus is "Arrived" or "Inspection" or "Waiting Approval")) { <button type="button" data-intake-open="initial-inspection-@a.AppointmentId">Record Initial Inspection</button> }
     </div>
     @if(item.Inspections.Any()) { <h3>Initial inspection history</h3><ul>@foreach(var inspection in item.Inspections){
@@ -77,12 +82,12 @@
         <footer><button type="button" data-intake-close>Cancel</button><button class="master-primary">Confirm Check-in</button></footer>
     </form></dialog>
 }
-@if(item.CanChange && Model.CanDelete){
+@if(item.CanChange && Model.CanCancel){
     <dialog id="cancel-@a.AppointmentId" class="master-dialog master-confirm app-modal app-modal--compact" aria-labelledby="cancel-title-@a.AppointmentId" role="dialog" aria-modal="true"><form asp-action="CancelAppointment" method="post">
         <header class="master-toolbar"><h2 id="cancel-title-@a.AppointmentId">Cancel Appointment</h2><button type="button" data-intake-close aria-label="Close">&#215;</button></header>
         <p>@a.CustomerName - @a.ScheduledStart?.ToString("MMM dd, yyyy HH:mm")</p>
         <input type="hidden" name="AppointmentId" value="@a.AppointmentId" /><input type="hidden" name="Expected" value="@item.Form.Expected" /><input type="hidden" name="ViewMode" value="@Model.View" />
-        <label>Reason<textarea name="Reason" required maxlength="500"></textarea></label><footer><button type="button" data-intake-close>Keep Appointment</button><button class="master-primary">Cancel Appointment</button></footer>
+        <label>Cancellation reason (required)<textarea name="Reason" required maxlength="500" placeholder="For example: customer requested cancellation"></textarea></label><footer><button type="button" data-intake-close>Keep Appointment</button><button class="master-primary">Cancel Appointment</button></footer>
     </form></dialog>
 }
 @if(item.Row.CheckedInUtc.HasValue && Model.CanInspect && (item.Row.AppointmentStatus is "Arrived" or "Inspection" or "Waiting Approval")) {

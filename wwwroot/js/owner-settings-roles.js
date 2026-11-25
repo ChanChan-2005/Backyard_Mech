@@ -1,4 +1,11 @@
 (function () {
+  document.querySelector('[data-settings-role-filter]')?.addEventListener('input', event => {
+    const query = event.target.value.trim().toLocaleLowerCase();
+    document.querySelectorAll('[data-settings-role-item]').forEach(item => {
+      item.hidden = !(item.dataset.roleSearch || '').toLocaleLowerCase().includes(query);
+    });
+  });
+
   function openModal(name) {
     const modal = document.querySelector(`[data-settings-role-panel="${name}"]`);
     if (!modal) return;

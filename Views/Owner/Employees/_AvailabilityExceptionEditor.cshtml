@@ -6,8 +6,8 @@
     <div class="master-fields">
         <label>Staff Profile *<select name="EmployeeProfileId" required><option value="">Select staff</option>@foreach(var p in Model.Page.Profiles){<option value="@p.EmployeeProfileId" selected="@(f.EmployeeProfileId==p.EmployeeProfileId)">@p.FirstName @p.LastName</option>}</select></label>
         <label>Type *<select name="IsAvailable"><option value="false" selected="@(!f.IsAvailable)">Unavailable / Leave</option><option value="true" selected="@f.IsAvailable">Extra Availability</option></select></label>
-        <label>Start (@Model.Page.TimeZone) *<input type="datetime-local" name="Start" value="@f.Start?.ToString("yyyy-MM-ddTHH:mm")" required /></label>
-        <label>End *<input type="datetime-local" name="End" value="@f.End?.ToString("yyyy-MM-ddTHH:mm")" required /></label>
+        <label>Start (@Model.Page.TimeZone) *<input type="datetime-local" name="Start" value="@f.Start?.ToString("yyyy-MM-ddTHH:mm")" readonly="@(f.Id > 0)" data-exception-start required /></label>
+        <label>End *<input type="datetime-local" name="End" value="@f.End?.ToString("yyyy-MM-ddTHH:mm")" min="@(f.Start?.ToString("yyyy-MM-ddTHH:mm"))" data-exception-end required /></label>
         <label class="master-wide">Reason *<textarea name="Reason" maxlength="500" required>@f.Reason</textarea></label>
     </div>
     <footer><button type="button" data-staff-close>Cancel</button><button type="submit" class="master-primary">Save Exception</button></footer>

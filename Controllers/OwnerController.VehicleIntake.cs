@@ -157,7 +157,7 @@ public partial class OwnerController
 
     private async Task<bool> HasRepairScope(int id) => await _dbContext.Inspections.AnyAsync(x => x.AppointmentId == id)
         || await _dbContext.Estimates.AnyAsync(x => x.AppointmentId == id)
-        || await _dbContext.WorkOrders.AnyAsync(x => x.AppointmentId == id);
+        || await _dbContext.WorkOrders.AnyAsync(x => x.AppointmentId == id && x.WorkOrderStatus != "Cancelled");
     private void IntakeHistory(Appointment a, string note)
     {
         _dbContext.QueueStatusHistories.Add(new QueueStatusHistory { AppointmentId = a.AppointmentId, QueueStatus = a.AppointmentStatus,
@@ -167,7 +167,7 @@ public partial class OwnerController
     private async Task<IActionResult> IntakeAppointments(string view, string? notification = null)
     {
         var page = new IntakeAppointmentsPage { Today = GarageNow().Date, View = view == "calendar" ? "calendar" : "list",
-            CanCreate = await IntakePermission("Appointments", "Create"), CanEdit = await IntakePermission("Appointments", "Edit"), CanDelete = await IntakePermission("Appointments", "Delete"),
+            CanCreate = await IntakePermission("Appointments", "Create"), CanEdit = await IntakePermission("Appointments", "Edit"), CanCancel = await IntakePermission("Appointments", "Edit"),
             CanInspect = await IntakePermission("Inspections", "Create"),
             Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.FirstName).ToListAsync(),
             Bays = await _dbContext.Bays.AsNoTracking().Where(x => x.IsActive && !x.IsArchived && !x.IsDeleted).OrderBy(x => x.BayNumber).ToListAsync(),
@@ -200,7 +200,7 @@ public partial class OwnerController
         var serviceGroups = servicesByAppointment.GroupBy(x => x.AppointmentId ?? 0).ToDictionary(x => x.Key, x => x.ToList());
         var scopedIds = (await _dbContext.Inspections.AsNoTracking().Where(x => rowIds.Contains(x.AppointmentId ?? 0)).Select(x => x.AppointmentId!.Value).Distinct().ToListAsync())
             .Concat(await _dbContext.Estimates.AsNoTracking().Where(x => rowIds.Contains(x.AppointmentId ?? 0)).Select(x => x.AppointmentId!.Value).Distinct().ToListAsync())
-            .Concat(await _dbContext.WorkOrders.AsNoTracking().Where(x => rowIds.Contains(x.AppointmentId ?? 0)).Select(x => x.AppointmentId!.Value).Distinct().ToListAsync()).ToHashSet();
+            .Concat(await _dbContext.WorkOrders.AsNoTracking().Where(x => rowIds.Contains(x.AppointmentId ?? 0) && x.WorkOrderStatus != "Cancelled").Select(x => x.AppointmentId!.Value).Distinct().ToListAsync()).ToHashSet();
         foreach (var a in rows)
         {
             var services = serviceGroups.GetValueOrDefault(a.AppointmentId) ?? new();

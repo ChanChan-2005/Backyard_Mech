@@ -82,6 +82,7 @@
     const employee = shiftForm.querySelector('[data-shift-employee]');
     const picker = shiftForm.querySelector('[data-shift-day-picker]');
     const badges = shiftForm.querySelector('[data-shift-selected-days]');
+    const offDays = shiftForm.querySelector('[data-shift-off-days]');
     const details = shiftForm.querySelector('[data-shift-day-details]');
     const days = new Map();
     let activeDay = null;
@@ -95,8 +96,17 @@
     ];
     const renderDays = () => {
       badges.replaceChildren();
+      offDays.replaceChildren();
       details.replaceChildren();
       const selected = dayOrder.filter(day => days.has(day));
+      const off = dayOrder.filter(day => !days.has(day));
+      const offLabel = document.createElement('strong');
+      offLabel.textContent = 'Days off: ';
+      const offList = document.createElement('span');
+      offList.textContent = off.length
+        ? off.map(day => picker.querySelector(`option[value="${day}"]`)?.textContent || String(day)).join(', ')
+        : 'None';
+      offDays.append(offLabel, offList);
       if (!selected.length) {
         const note = document.createElement('span');
         note.className = 'users-shift-off-note';
@@ -205,6 +215,13 @@
     });
     renderDays();
   }
+
+  document.querySelector('[data-schedule-role-filter]')?.addEventListener('change', event => {
+    const selectedRole = event.target.value.toLocaleLowerCase();
+    document.querySelectorAll('[data-schedule-employee]').forEach(row => {
+      row.hidden = selectedRole !== '' && (row.dataset.jobTitle || '').toLocaleLowerCase() !== selectedRole;
+    });
+  });
 
   document.querySelectorAll("[data-users-modal]").forEach((trigger) => {
     trigger.addEventListener("click", (event) => {

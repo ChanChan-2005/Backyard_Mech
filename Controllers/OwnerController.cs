@@ -627,6 +627,28 @@ namespace Backyard_Mech.Controllers
             return 0;
         }
 
+        private async Task<int> ParseWorkOrderIdAsync(string? id)
+        {
+            var parsedId = ParseEntityId(id, "WO");
+            if (parsedId > 0) return parsedId;
+
+            var workOrderNumber = NormalizeText(id, "");
+            if (workOrderNumber.StartsWith("WO-", StringComparison.OrdinalIgnoreCase))
+                return await _dbContext.WorkOrders.AsNoTracking()
+                    .Where(order => order.WorkOrderNumber == workOrderNumber)
+                    .Select(order => order.WorkOrderId)
+                    .FirstOrDefaultAsync();
+
+            return 0;
+        }
+
+        private async Task<bool> IsCurrentUserAssignedToWorkOrderAsync(int workOrderId)
+        {
+            var userId = HttpContext.Session.GetString("UserId");
+            return !string.IsNullOrWhiteSpace(userId) && await _dbContext.WorkOrderAssignments
+                .AnyAsync(assignment => assignment.WorkOrderId == workOrderId && assignment.MechanicUserId == userId);
+        }
+
         private async Task<List<AppointmentListItem>> LoadAppointmentRowsAsync()
         {
             var appointments = await _dbContext.Appointments
@@ -2283,7 +2305,19 @@ namespace Backyard_Mech.Controllers
             }
 
             await SetOperationalOptionViewDataAsync();
-            return View(await LoadWorkOrderRowsAsync());
+            var rows = await LoadWorkOrderRowsAsync();
+            if (string.Equals(HttpContext.Session.GetString("UserRole"), "Mechanic", StringComparison.OrdinalIgnoreCase))
+            {
+                var userId = HttpContext.Session.GetString("UserId");
+                var assignedOrderIds = string.IsNullOrWhiteSpace(userId)
+                    ? Array.Empty<int>()
+                    : await _dbContext.WorkOrderAssignments.AsNoTracking()
+                        .Where(assignment => assignment.MechanicUserId == userId)
+                        .Select(assignment => assignment.WorkOrderId ?? 0)
+                        .ToArrayAsync();
+                rows = rows.Where(order => assignedOrderIds.Contains(order.WorkOrderId)).ToList();
+            }
+            return View(rows);
         }
 
         public IActionResult CreateWorkOrder()
@@ -2303,7 +2337,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var model = await LoadWorkOrderBayDispatchAsync(ParseEntityId(id, "WO"));
+            var model = await LoadWorkOrderBayDispatchAsync(await ParseWorkOrderIdAsync(id));
             if (model is null)
             {
                 TempData["OwnerMessage"] = "Work order was not found.";
@@ -2386,7 +2420,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var model = await LoadWorkOrderStaffDispatchAsync(ParseEntityId(id, "WO"));
+            var model = await LoadWorkOrderStaffDispatchAsync(await ParseWorkOrderIdAsync(id));
             if (model is null)
             {
                 TempData["OwnerMessage"] = "Work order was not found.";
@@ -2500,13 +2534,16 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var model = await LoadWorkOrderDetailsAsync(ParseEntityId(id, "WO"));
+            var model = await LoadWorkOrderDetailsAsync(await ParseWorkOrderIdAsync(id));
             if (model is null)
             {
                 TempData["OwnerMessage"] = "Work order was not found.";
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(WorkOrders));
             }
+
+            if (string.Equals(HttpContext.Session.GetString("UserRole"), "Mechanic", StringComparison.OrdinalIgnoreCase) &&
+                !await IsCurrentUserAssignedToWorkOrderAsync(model.WorkOrderId)) return NotFound();
 
             await SetOperationalOptionViewDataAsync();
             var workOrder = await _dbContext.WorkOrders.AsNoTracking().FirstAsync(x => x.WorkOrderId == model.WorkOrderId);
@@ -2555,7 +2592,7 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var model = await LoadWorkOrderLaborTrackingAsync(ParseEntityId(id, "WO"));
+            var model = await LoadWorkOrderLaborTrackingAsync(await ParseWorkOrderIdAsync(id));
             if (model is null)
             {
                 TempData["OwnerMessage"] = "Work order was not found.";
@@ -2597,13 +2634,16 @@ namespace Backyard_Mech.Controllers
                 return LoginRedirect();
             }
 
-            var model = await LoadWorkOrderDetailsAsync(ParseEntityId(id, "WO"));
+            var model = await LoadWorkOrderDetailsAsync(await ParseWorkOrderIdAsync(id));
             if (model is null)
             {
                 TempData["OwnerMessage"] = "Work order was not found.";
                 TempData["OwnerMessageTone"] = "error";
                 return RedirectToAction(nameof(WorkOrders));
             }
+
+            if (string.Equals(HttpContext.Session.GetString("UserRole"), "Mechanic", StringComparison.OrdinalIgnoreCase) &&
+                !await IsCurrentUserAssignedToWorkOrderAsync(model.WorkOrderId)) return NotFound();
 
             return View(model);
         }
@@ -5147,6 +5187,7 @@ namespace Backyard_Mech.Controllers
         {
             var monday = DateTime.Today.AddDays(-(((int)DateTime.Today.DayOfWeek + 6) % 7) + weekOffset * 7);
             var sunday = monday.AddDays(6);
+            var scheduleZone = GarageZone();
             var employees = await _dbContext.EmployeeProfiles.AsNoTracking()
                 .Where(employee => employee.IsActive && !employee.IsArchived && !employee.IsDeleted)
                 .OrderBy(employee => employee.FirstName)
@@ -5167,7 +5208,10 @@ namespace Backyard_Mech.Controllers
                     var date = monday.AddDays(index);
                     var dayOfWeek = (int)date.DayOfWeek;
                     var row = availability.FirstOrDefault(item => item.EmployeeProfileId == employee.EmployeeProfileId && item.DayOfWeek == dayOfWeek);
-                    var exception = exceptions.FirstOrDefault(item => item.EmployeeProfileId == employee.EmployeeProfileId && item.StartUtc?.Date <= date.Date && item.EndUtc?.Date >= date.Date);
+                    var exception = exceptions.FirstOrDefault(item => item.EmployeeProfileId == employee.EmployeeProfileId &&
+                        item.StartUtc.HasValue && item.EndUtc.HasValue &&
+                        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(item.StartUtc.Value, DateTimeKind.Utc), scheduleZone).Date <= date.Date &&
+                        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(item.EndUtc.Value, DateTimeKind.Utc), scheduleZone).Date >= date.Date);
                     var isOff = exception is not null ? !exception.IsAvailable : row is null || !row.IsAvailable;
 
                     return new EmployeeScheduleCell
@@ -5188,8 +5232,9 @@ namespace Backyard_Mech.Controllers
             }).ToList();
 
             var referenceDay = weekOffset == 0 ? ((int)DateTime.Today.DayOfWeek + 6) % 7 : 0;
-            var activeToday = rows.Count(row => row.Days.ElementAtOrDefault(referenceDay)?.IsOff == false);
-            var advisors = employees.Count(employee => NormalizeText(employee.JobTitle, "").Contains("Advisor", StringComparison.OrdinalIgnoreCase));
+            var mechanics = rows.Where(row => IsMechanicJobTitle(row.Role)).ToList();
+            var activeMechanics = mechanics.Count(row => row.Days.ElementAtOrDefault(referenceDay)?.IsOff == false);
+            var advisors = rows.Count(row => IsAdvisorJobTitle(row.Role) && row.Days.ElementAtOrDefault(referenceDay)?.IsOff == false);
             var timeOff = exceptions
                 .Where(item => !item.IsAvailable)
                 .Take(2)
@@ -5218,12 +5263,19 @@ namespace Backyard_Mech.Controllers
                 }).ToList(),
                 SavedShifts = availability,
                 Employees = rows,
-                MechanicsActive = activeToday,
+                MechanicsActive = activeMechanics,
                 AdvisorsActive = advisors,
-                CapacityLabel = employees.Count == 0 ? "No employees" : $"{activeToday} of {employees.Count} scheduled",
+                CapacityLabel = mechanics.Count == 0 ? "No mechanics scheduled" : $"{activeMechanics} of {mechanics.Count} mechanics scheduled",
                 UpcomingTimeOff = timeOff
             };
         }
+
+        private static bool IsMechanicJobTitle(string? role) =>
+            NormalizeText(role, "").Contains("mechanic", StringComparison.OrdinalIgnoreCase) ||
+            NormalizeText(role, "").Contains("technician", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsAdvisorJobTitle(string? role) =>
+            NormalizeText(role, "").Contains("advisor", StringComparison.OrdinalIgnoreCase);
 
         private async Task<List<EmployeeListItem>> LoadEmployeesAsync(bool includeArchived, bool includeDeleted)
         {

@@ -12,7 +12,7 @@
         </header>
         <form class="users-modal-form" asp-controller="Owner" asp-action="SetEmployeeShift" method="post" data-weekly-shift-form>
             @Html.AntiForgeryToken()
-            <p>Add working days one at a time, then select a day badge to set its hours. Unselected days are off.</p>
+            <p>Add working days and set their hours. Days not selected below remain listed as days off.</p>
             <label>
                 <span class="users-label">Employee *</span>
                 <select class="users-select" name="EmployeeProfileId" data-shift-employee required>
@@ -40,6 +40,7 @@
                 </select>
             </label>
             <div class="users-shift-selected-days" data-shift-selected-days aria-live="polite"></div>
+            <div class="users-shift-off-days" data-shift-off-days aria-live="polite"></div>
             <div class="users-shift-day-details" data-shift-day-details></div>
             <div class="users-modal-actions">
                 <button class="users-button" type="button" data-users-modal-close>Cancel</button>

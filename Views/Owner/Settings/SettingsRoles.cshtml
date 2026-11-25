@@ -33,10 +33,14 @@
             }
         </header>
 
+        <label class="settings-role-filter">Filter roles
+            <input type="search" maxlength="256" data-settings-role-filter placeholder="Search role name or description..." aria-label="Filter roles" />
+        </label>
+
         <div class="settings-role-list-grid">
             @foreach (var role in Model.Roles)
             {
-                <article class="settings-role-item @(role.IsSelected ? "active" : "")">
+                <article class="settings-role-item @(role.IsSelected ? "active" : "")" data-settings-role-item data-role-search="@($"{role.Label} {role.Description}")">
                     <a asp-controller="Owner" asp-action="SettingsRoles" asp-route-role="@role.RoleId">
                         <strong>@role.Label</strong>
                         <span>@role.Description</span>

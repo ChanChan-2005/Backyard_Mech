@@ -88,6 +88,15 @@ namespace Backyard_Mech.Data
         {
             await dbContext.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Users', N'IsBlocked') IS NULL ALTER TABLE dbo.Users ADD IsBlocked BIT NOT NULL CONSTRAINT DF_Users_IsBlocked DEFAULT (0);");
             await dbContext.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'dbo.Service', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH(N'dbo.Service', N'IsDeleted') IS NULL
+                        ALTER TABLE dbo.Service ADD IsDeleted BIT NOT NULL CONSTRAINT DF_Service_IsDeleted DEFAULT (0) WITH VALUES;
+                    IF COL_LENGTH(N'dbo.Service', N'DeletedUtc') IS NULL
+                        ALTER TABLE dbo.Service ADD DeletedUtc DATETIME2 NULL;
+                END;
+                """);
+            await dbContext.Database.ExecuteSqlRawAsync("""
                 IF OBJECT_ID(N'dbo.WorkOrder', N'U') IS NOT NULL
                    AND COL_LENGTH(N'dbo.WorkOrder', N'WorkOrderNumber') IS NULL
                     ALTER TABLE dbo.WorkOrder ADD WorkOrderNumber NVARCHAR(32) NULL;

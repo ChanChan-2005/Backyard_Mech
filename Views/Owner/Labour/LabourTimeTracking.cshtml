@@ -10,8 +10,8 @@
 }
 <div class="repair-page">
     <div class="repair-toolbar"><h2>Labour Entries</h2></div>
-    <section class="repair-section"><form method="get" class="repair-actions"><label>Work number<select name="workOrderId"><option value="">All work numbers</option>@foreach(var order in Model.Orders) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">@order.WorkOrderNumber - @Model.Customers.GetValueOrDefault(order.WorkOrderId)</option> }</select></label><button type="submit">Apply Filter</button></form></section>
-    <section class="repair-section"><h2>Tasks and Time Logs</h2><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Mechanic / task</th><th>Elapsed / minutes</th><th>Rate</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
+    <section class="repair-section"><form method="get" class="repair-actions"><label>Work order number<select name="workOrderId"><option value="">All work order numbers</option>@foreach(var order in Model.Orders) { <option value="@order.WorkOrderId" selected="@(order.WorkOrderId == Model.WorkOrderId)">@order.WorkOrderNumber</option> }</select></label><button type="submit">Apply Filter</button></form></section>
+    <section class="repair-section"><h2>Tasks and Time Logs</h2><p>All recorded work intervals, including time worked beyond the scheduled shift, are included in elapsed time and labour totals.</p><div class="repair-table-wrap"><table><thead><tr><th>Work order</th><th>Mechanic / task</th><th>Elapsed / minutes</th><th>Rate</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
     @foreach(var row in Model.Labour.OrderByDescending(x => x.ServiceEntryId)) {
         var segments = Model.Segments.Where(x => x.ServiceEntryId == row.ServiceEntryId).ToList();
         var active = segments.FirstOrDefault(x => x.SegmentEnd == null);

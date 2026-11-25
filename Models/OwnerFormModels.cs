@@ -721,7 +721,7 @@ namespace Backyard_Mech.Models
         [Range(1, int.MaxValue)]
         public int AppointmentId { get; set; }
 
-        [Required, StringLength(500)]
+        [Required(ErrorMessage = "Enter a reason to cancel this appointment."), StringLength(500)]
         public string? Reason { get; set; }
         [StringLength(20)] public string ViewMode { get; set; } = "list";
     }

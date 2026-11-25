@@ -162,6 +162,13 @@ try {
     $null=Sql "DELETE WorkOrderAssignment WHERE WorkOrderId=$workorder; DELETE WorkOrder WHERE WorkOrderId=$workorder;"
     $null=Post 'UpdateAvailabilityException' $exceptionForm
     Check (!(Sql "SELECT IsAvailable FROM EmployeeAvailabilityException WHERE EmployeeAvailabilityExceptionId=$exception")) 'Exception edit succeeds once bookings are clear'
+    $exceptionForm.Start='2035-01-03T09:00'
+    $null=Post 'UpdateAvailabilityException' $exceptionForm
+    Check ((Sql "SELECT DAY(StartUtc) FROM EmployeeAvailabilityException WHERE EmployeeAvailabilityExceptionId=$exception") -eq 2) 'Editing an exception preserves its original start'
+    $exceptionForm.End='2035-01-02T09:00'
+    $null=Post 'UpdateAvailabilityException' $exceptionForm
+    Check ((Sql "SELECT DATEPART(hour,EndUtc) FROM EmployeeAvailabilityException WHERE EmployeeAvailabilityExceptionId=$exception") -gt 1) 'Exception rejects an end time that is not after its start'
+    $exceptionForm.End='2035-01-02T12:00'
     $null=Post 'DeleteAvailabilityException' @{Id=$exception;Expected=(ExceptionStamp $exception);Reason=$mark}
     Check ((Sql "SELECT COUNT(*) FROM EmployeeAvailabilityException WHERE EmployeeAvailabilityExceptionId=$exception") -eq 0) 'Exception delete succeeds and preserves audit'
     Check ((Sql "SELECT COUNT(*) FROM AuditLogEntry WHERE UserName=N'$mark-owner' AND EntityName='EmployeeAvailabilityException'") -ge 3) 'Exception lifecycle audited'
